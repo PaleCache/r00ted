@@ -204,36 +204,6 @@ sudo systemctl reload nginx
 
 ---
 
-## Running the Server
-
-Start the server from the project directory.
-
-```bash
-node server.js
-```
-
-For production deployments, it's recommended to run R00TED using a process manager such as PM2 or a systemd service so it survives terminal sessions and reboots.
-
----
-
-## Building the Desktop App
-
-### Linux
-
-```bash
-npx electron-builder --linux --publish=never
-```
-
-### Windows
-
-```bash
-npx electron-builder --win --publish=never
-```
-
-Build on the target operating system. Use Linux to build Linux binaries and Windows to build Windows binaries. If needed, use a virtual machine.
-
----
-
 ## File Permissions
 
 After installing, or whenever file permissions become incorrect, run the following from the project root.
@@ -276,6 +246,38 @@ Contains sensitive configuration, including your chat password, bot password and
 #### `data/`
 
 Contains user accounts, messages, playlists, roles and channels. Restricted to the owner with `700/600` to protect user data.
+
+
+## Running the Server
+
+Start the server from the project directory.
+
+```bash
+node server.js
+```
+
+For production deployments, it's recommended to run R00TED using a process manager such as PM2 or a systemd service so it survives terminal sessions and reboots.
+
+---
+
+## Building the Desktop App
+
+### Linux
+
+```bash
+npx electron-builder --linux --publish=never
+```
+
+### Windows
+
+```bash
+npx electron-builder --win --publish=never
+```
+
+Build on the target operating system. Use Linux to build Linux binaries and Windows to build Windows binaries. If needed, use a virtual machine.
+
+---
+
 
 ### Notes
 
