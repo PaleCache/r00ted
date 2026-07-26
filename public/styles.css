@@ -1,0 +1,6199 @@
+ body {
+  margin: 0;
+  font-family: Arial;
+  background: #0849ec;
+    background-repeat: repeat;
+    background-image: none;
+    background-size: auto;
+  color: white;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #1e1f22; }
+  ::-webkit-scrollbar-thumb { background: #3a3c42; border-radius: 8px; }
+  * { scrollbar-width: none; scrollbar-color: #3a3c42 #1e1f22; }
+
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+
+
+    
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    height: 100vh;
+    background: #000000f2;
+    border-left: 7px solid #000000b0;
+}
+
+    .sidebar-pfp {
+      width: 50px;
+      height: 50px;
+      border-radius: 16px;
+      cursor: pointer;
+    }
+
+    .username {
+      font-size: 12px;
+      text-align: center;
+      cursor: pointer;
+      opacity: 0.8;
+    }
+
+    .channels {
+      width: 240px;
+      background: #2b2d31;
+      padding: 10px;
+    }
+
+    .chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .message {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  position: relative;
+  align-items: flex-start;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.message .content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1; 
+}
+
+.message strong {
+  font-weight: bold;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.message div {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.message img.pfp {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.message .actions {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  display: none;
+}
+
+.message:hover .actions {
+  display: flex;
+  gap: 5px;
+}
+
+.message .actions .btn {
+  background: #4f545c;
+  border: none;
+  color: white;
+  padding: 3px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.message .actions .btn:hover {
+  background: #ed4245;
+}
+
+.message img, .message iframe {
+  max-width: 500px;
+}
+
+    .message:hover {
+      background: rgba(255,255,255,0.03);
+       border-radius: 8px;
+    }
+
+    .pfp {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+
+    .actions {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      display: none;
+      gap: 5px;
+    }
+
+    .message:hover .actions {
+      display: flex;
+    }
+
+    .btn {
+      background: #4f545c;
+      border: none;
+      color: white;
+      padding: 3px 6px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .btn:hover {
+      background: #ed4245;
+    }
+
+.input {
+  padding: 1px;
+  background: #0000;
+}
+
+.input-wrapper {
+    display: flex;
+    align-items: center;
+    background: #000000ad;
+    padding: 8px 11px;
+    gap: 8px;
+    margin-left: -1px;
+    margin-right: -1px;
+}
+
+.input-wrapper input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: white;
+  padding: 10px 0;
+  font-size: 14px;
+}
+
+.input-wrapper input:focus {
+  outline: none;
+}
+
+.input-wrapper button {
+  background: transparent;
+  border: none;
+  color: #b9bbbe;
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.input-wrapper button:hover {
+  color: #f40000;
+}
+
+
+
+    input {
+      width: 100%;
+      background: #383a40;
+      border: none;
+      color: white;
+      border-radius: 5px;
+    }
+
+    #pfpUpload {
+      display: none;
+    }
+
+    iframe {
+  border-radius: 8px;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.message div {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 80vw;        
+}
+
+.users {
+  width: 159px;
+  background: #000000d1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+div#usersList {
+    width: 255px;
+    border-left: 2px solid #000000b0;
+    background-color: #000000f0;
+}
+.user {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  min-width: 0;
+  width: 100%;
+}
+.status-dot {
+  display: inline-block;
+  box-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+
+.status-online { background: #23a559 !important; }  
+.status-offline { background: #747f8d !important; } 
+
+.sidebar {
+  width: 80px;
+  min-width: 60px; 
+}
+
+.channels {
+  width: 220px;
+  min-width: 180px; 
+}
+
+.users {
+  width: 139px;
+  min-width: 177px;
+}
+
+.chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  background: #000000d1;
+}
+
+.username, .user span {
+  white-space: normal;
+  word-break: break-word;
+  margin-left: 4px;
+}
+
+
+.message .username-wrapper,
+.user .username-wrapper {
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.message img {
+  max-width: 100%;
+  height: auto;
+}
+
+.embed-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+}
+
+.embed-wrapper iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+
+.embed-wrapper {
+    max-width: 500px;
+    max-height: 300px;
+    aspect-ratio: 16 / 9;
+}
+
+.typing-indicator {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #b9bbbe;
+  min-height: 24px;
+  font-style: italic;
+}
+
+.logo {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b9bbbe;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.version {
+  margin-top: auto;
+  font-size: 11px;
+  color: #b9bbbe;
+  opacity: 0.7;
+}
+
+.messages::-webkit-scrollbar {
+  width: 8px;            
+}
+
+.messages::-webkit-scrollbar-track {
+  background: #2b2d31;   
+  border-radius: 4px;
+}
+
+
+.messages::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+
+.messages:hover::-webkit-scrollbar-thumb {
+  background: #4f545c;
+}
+
+.messages:hover::-webkit-scrollbar-thumb:hover {
+  background: #686d73;   
+}
+
+.messages {
+  scrollbar-width: none;            
+  scrollbar-color: transparent transparent;
+}
+
+.messages:hover {
+  scrollbar-color: #4f545c #2b2d31;
+}
+
+
+.seen-by-container {
+  position: absolute;
+  right: 12px;
+  bottom: -2px;
+  display: flex;
+  gap: 3px;
+  z-index: 5;
+  padding: 2px 0;
+}
+
+.seen-by-avatar {
+  width: 13px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #2b2d31;  
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+}
+
+.message {
+  position: relative;
+  padding-bottom: 20px;  
+}
+
+
+.message .seen-by-container {
+  opacity: 0.85;
+}
+
+.message:hover .seen-by-container {
+  opacity: 1;
+}
+
+
+
+
+
+.message .content img[src^="/avatars/"][src$=".png"] {
+  max-width: 66px !important;
+  max-height: 66px;
+  margin-top: 4px;
+}
+
+
+.message .content img[src^="/avatars/CxB_Banner_"][src$=".png"] {
+  max-width: 100% !important;
+  max-height: none !important;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+.message .content img[src^="/avatars/"][src$=".webp"] { 
+  max-width: 66px !important;
+  max-height: 66px;
+}
+
+
+#pepePicker::-webkit-scrollbar {
+  width: 8px;
+}
+
+#pepePicker::-webkit-scrollbar-track {
+  background: #2b2d31;      
+  border-radius: 4px;
+}
+
+#pepePicker::-webkit-scrollbar-thumb {
+  background: #4f545c;       
+  border-radius: 4px;
+}
+
+#pepePicker::-webkit-scrollbar-thumb:hover {
+  background: #686d73;        
+}
+
+
+#pepePicker {
+    scrollbar-width: thin;
+    scrollbar-color: #000000b3 #2b2d312b;
+}
+
+
+#mentionDropdown div {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #dcddde;
+}
+
+#mentionDropdown div:hover, #mentionDropdown .selected {
+    background: #FF0000;
+    color: white;
+}
+
+#mentionDropdown img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+#mentionDropdown .mention-room {
+    font-weight: bold;
+    color: #000000;
+}
+
+
+.message video {
+  max-width: 300px;
+  height: auto;
+  border-radius: 8px;
+  background: #000;
+  margin: 4px 0;
+  max-height: 422px;
+}
+
+
+
+
+#imageModal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+#imageModal.show {
+  display: flex;
+}
+
+#imageModal img {
+  max-width: 95vw;
+  max-height: 95vh;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  object-fit: contain;
+}
+
+#imageModal .modal-close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  color: white;
+  font-size: 40px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: 0.2s;
+}
+
+#imageModal .modal-close:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+#imageModal img {
+  cursor: zoom-in;
+  transition: transform 0.1s ease;
+  user-select: none;
+}
+
+
+#settingsModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+
+#settingsModal.show {
+  display: flex;
+}
+
+.settings-content {
+  position: relative;
+  width: 856px;
+  max-width: 90vw;
+  max-height: 85vh;
+  background: #020203;
+  border-radius: 10px;
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 0px 3px rgb(103 103 103);
+}
+
+.settings-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: #b9bbbe;
+  font-size: 28px;
+  cursor: pointer;
+  z-index: 10;
+  padding: 4px 10px;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.settings-close:hover {
+  color: white;
+  background: rgba(255,255,255,0.1);
+  transform: scale(1.1);
+}
+
+.settings-sidebar {
+  width: 180px;
+  background: #010101;
+  padding: 16px 12px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.settings-main {
+  flex: 1;
+  padding: 30px;
+  color: white;
+  overflow-y: auto;
+}
+
+
+.settings-main::-webkit-scrollbar,
+.settings-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-main::-webkit-scrollbar-track,
+.settings-sidebar::-webkit-scrollbar-track {
+  background: #2b2d31;
+}
+
+.settings-main::-webkit-scrollbar-thumb,
+.settings-sidebar::-webkit-scrollbar-thumb {
+  background: #4f545c;
+  border-radius: 3px;
+}
+
+.settings-main::-webkit-scrollbar-thumb:hover,
+.settings-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #686d73;
+}
+
+.settings-tab {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  white-space: nowrap;
+  margin-bottom: 4px;
+}
+
+.settings-tab:hover {
+  background: #36393f;
+}
+
+.settings-tab.active {
+  background: #FF0000;
+  color: white;
+}
+
+.setting-item {
+  margin-bottom: 24px;
+}
+
+.settings-content h2 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.setting-item {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-pfp {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+}
+
+
+
+.settings-main button {
+  background: #FF0000;
+  border: none;
+  padding: 8px 12px;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: 0.2s;
+  width: fit-content;
+}
+
+.settings-main button:hover {
+  background: #FF0000;
+}
+
+.settings-main input {
+  background: #1e1f22;
+  border: 1px solid #3a3c42;
+  color: white;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  height: 100vh;
+  background: #000000f2;
+}
+
+.sidebar-bottom {
+  margin-top: auto;        
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+#settingsBtn {
+     background: #5865f200;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 25px;
+    bottom: 23px;
+    display: flex;
+    position: relative;
+}
+
+.version {
+  font-size: 11px;
+  color: #b9bbbe;
+  opacity: 0.7;
+}
+
+
+
+#userProfilePopup {
+  position: fixed;
+  background: #36393f;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  width: 337px;
+  z-index: 10003;
+  visibility: hidden;
+  opacity: 0;
+  overflow: hidden;
+  border: 1px solid #202225;
+  max-height: 90vh;
+  overflow-y: auto;
+  transition: opacity 0.2s;
+}
+
+.popup-banner {
+    height: 142px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+    cursor: grab;
+    user-select: none;
+}
+
+.popup-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  cursor: grabbing;
+}
+
+.popup-avatar {
+  position: absolute;
+  bottom: -35px;
+  left: 20px;
+  width: 98px;
+  height: 98px;
+  border-radius: 50%;
+  border: 6px solid #36393f;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  z-index: 2;
+}
+
+.popup-content {
+width: 100%;
+    min-height: 200px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+    padding: 54px 11px 31px;
+    color: white;
+    z-index: 1;
+}
+
+
+.popup-content::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6); 
+  z-index: -1; 
+  pointer-events: none; 
+}
+
+.popup-username {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: white;
+}
+
+.popup-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #b9bbbe;
+  margin-bottom: 20px;
+}
+
+.popup-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.popup-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.popup-btn {
+  background: #1A1A1C;
+  color: white;
+  border: none;
+  padding: 11px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.popup-btn:hover { background: #ff0000; }
+
+.popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.5);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  z-index: 3;
+}
+
+
+.banner-preview {
+  width: 100%;
+  height: 140px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+  margin: 10px 0;
+  border: 2px solid #40444b;
+}
+
+
+
+
+
+.app-info {
+  max-width: 100%;
+}
+
+.app-info h2 {
+  margin: 0 0 20px 0;
+  font-size: 22px;
+  color: white;
+}
+
+.app-info p {
+  margin: 12px 0;
+  color: #b9bbbe;
+  line-height: 1.5;
+}
+
+.version {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.browser-info {
+  background: #1e1f22;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 30px;
+  font-family: monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  border: 1px solid #40444b;
+  line-height: 1.5;
+}
+
+
+.settings-main {
+  flex: 1;
+  padding: 30px;
+  color: white;
+  overflow-y: auto;
+  min-height: 0;          
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block !important;  
+}
+
+
+
+.app-info h2 {
+  margin: 0 0 25px 0;
+  font-size: 22px;
+  color: white;
+}
+
+.app-info p {
+  margin: 14px 0;
+  color: #b9bbbe;
+  line-height: 1.6;
+}
+
+.version {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.browser-info {
+  background: #1e1f22;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 30px;
+  font-family: monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  border: 1px solid #40444b;
+  color: #b9bbbe;
+}
+
+.message .username-wrapper,
+.user .username-wrapper {
+  font-weight: 700;
+  font-size: 15px;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+
+.username-gold       { background: linear-gradient(90deg, #ffd700, #ff8800); }
+.username-pink       { background: linear-gradient(90deg, #ff2d95, #c800ff); }
+.username-purple     { background: linear-gradient(90deg, #9d4eff, #4b00ff); }
+.username-cyan       { background: linear-gradient(90deg, #00f2ff, #0066ff); }
+.username-green      { background: linear-gradient(90deg, #39ff6e, #008f2e); }
+.username-red        { background: linear-gradient(90deg, #ff3333, #aa0000); }
+.username-blue-silver{ background: linear-gradient(90deg, #3399ff, #c0d4ff); }
+
+#popupUsername .username-wrapper {
+  font-size: 22px;
+  font-weight: 700;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+
+.user-badge {
+  width: 18px;
+  height: 18px;
+  object-fit: cover;
+  margin-left: 4px;
+  vertical-align: middle;
+  box-shadow: 0 0 4px rgba(0,0,0,0.6);
+}
+
+
+.message .username-wrapper .user-badge {
+    width: 24px;
+    height: 26px;
+    vertical-align: middle;
+    margin-left: 4px;
+    margin-bottom: 2px;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+}
+
+
+#popupUsername .user-badge {
+  width: 23px !important;
+  height: 23px !important;
+  margin-left: 8px;
+  vertical-align: middle;
+  box-shadow: 0 0 6px rgba(0,0,0,0.6);
+}
+
+
+.username-neon,
+.username-glow,
+.username-shimmer,
+.username-glitch,
+.username-electric,
+.username-matrix,
+.username-ghost,
+.username-hellfire,
+.username-fire,
+.username-rainbow {
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+
+.username-neon       { background: linear-gradient(90deg, #00ffea, #ff00c8); }
+.username-glow       { background: linear-gradient(90deg, #00ffff, #00ffff); }
+.username-shimmer    { background: linear-gradient(90deg, #ffffff, #aaffff, #ffffff, #aaffff); background-size: 300% 300%; }
+.username-glitch     { background: linear-gradient(90deg, #00ffcc, #ff00ff, #00ffcc); }
+.username-electric   { background: linear-gradient(90deg, #00ddff, #ffffff, #00ddff); }
+.username-matrix     { background: linear-gradient(180deg, #00ff41, #008f1e); }
+.username-ghost      { background: linear-gradient(90deg, #ffffff, #bbbbff, #ffffff); }
+.username-hellfire   { background: linear-gradient(90deg, #ff2200, #ffaa00, #ffff00, #ff2200); background-size: 400% 400%; }
+.username-fire       { background: linear-gradient(90deg, #ff4400, #ffaa00, #ffff00, #ff4400); background-size: 200% 100%; }
+.username-rainbow    { background: linear-gradient(90deg, red, orange, yellow, lime, cyan, blue, violet); background-size: 300% 100%; }
+
+
+
+.user:hover .username-neon         { animation: neonPulse 1.4s ease-in-out infinite alternate; }
+.user:hover .username-glow         { animation: glowPulse 2s ease-in-out infinite; }
+
+.user:hover .username-sparkle      { animation: sparkleAnim 2.8s linear infinite; }
+.user:hover .username-rainbow {
+  background: linear-gradient(90deg, red, orange, yellow, lime, cyan, blue, violet);
+  background-size: 300% 100%;
+  animation: rainbowAnim 2s linear infinite;
+}
+
+.user:hover .username-fire {
+  background: linear-gradient(90deg, #ff4400, #ffaa00, #ffff00, #ff4400);
+  background-size: 200% 100%;
+  animation: fireAnim 1s linear infinite;
+}
+
+
+.user:hover .username-shimmer {
+  background: linear-gradient(90deg, #ffffff, #aaffff, #ffffff, #aaffff);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmerAnim 2.5s linear infinite;
+  text-shadow: 0 0 15px rgba(170, 255, 255, 0.8);
+}
+
+.user:hover .username-glitch {
+  background: linear-gradient(90deg, #00ffcc, #ff00ff, #00ffcc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: glitchAnim 0.8s linear infinite;
+  position: relative;
+}
+
+.user:hover .username-glitch::before,
+.user:hover .username-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+}
+
+.user:hover .username-glitch::before {
+    animation: glitch2 0.4s infinite;
+    color: #ff00ff;
+    left: -2px;
+    text-shadow: 2px 0 #00ffff;
+    clip: rect(0, 900px, 0, 0);
+}
+
+.user:hover .username-glitch::after {
+  animation: glitch2 0.4s infinite;
+  color: #ff00ff;
+  left: -2px;
+  text-shadow: 2px 0 #00ffff;
+  clip: rect(0, 900px, 0, 0);
+}
+
+.user:hover .username-electric {
+  background: linear-gradient(90deg, #00ddff, #ffffff, #00ddff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 10px #00ddff, 0 0 30px #00ddff;
+  animation: electricAnim 0.15s linear infinite alternate;
+}
+
+.user:hover .username-matrix {
+  background: linear-gradient(180deg, #00ff41, #008f1e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: matrixAnim 4s linear infinite;
+  text-shadow: 0 0 10px #00ff41;
+}
+
+.user:hover .username-ghost {
+  background: linear-gradient(90deg, #ffffff, #bbbbff, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: ghostAnim 3s ease-in-out infinite;
+  opacity: 0.95;
+}
+
+.user:hover .username-hellfire {
+  background: linear-gradient(90deg, #ff2200, #ffaa00, #ffff00, #ff2200);
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: hellfireAnim 1.2s linear infinite;
+  text-shadow: 0 0 20px #ff4400;
+}
+
+
+
+
+
+
+
+.message:hover .username-neon         { animation: neonPulse 1.4s ease-in-out infinite alternate; }
+.message:hover .username-glow         { animation: glowPulse 2s ease-in-out infinite; }
+
+.message:hover .username-sparkle      { animation: sparkleAnim 2.8s linear infinite; }
+.message:hover .username-rainbow {
+  background: linear-gradient(90deg, red, orange, yellow, lime, cyan, blue, violet);
+  background-size: 300% 100%;
+  animation: rainbowAnim 2s linear infinite;
+}
+
+.message:hover .username-fire {
+  background: linear-gradient(90deg, #ff4400, #ffaa00, #ffff00, #ff4400);
+  background-size: 200% 100%;
+  animation: fireAnim 1s linear infinite;
+}
+
+
+.message:hover .username-shimmer {
+  background: linear-gradient(90deg, #ffffff, #aaffff, #ffffff, #aaffff);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmerAnim 2.5s linear infinite;
+  text-shadow: 0 0 15px rgba(170, 255, 255, 0.8);
+}
+
+.message:hover .username-glitch {
+  background: linear-gradient(90deg, #00ffcc, #ff00ff, #00ffcc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: glitchAnim 0.8s linear infinite;
+  position: relative;
+}
+
+.message:hover .username-glitch::before,
+.message:hover .username-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+}
+
+.message:hover .username-glitch::before {
+  animation: glitch1 0.6s infinite;
+  color: #00ffff;
+  left: 2px;
+  text-shadow: -2px 0 #ff00ff;
+  clip: rect(0, 900px, 0, 0);
+}
+
+.message:hover .username-glitch::after {
+    animation: glitch2 0.4s infinite;
+    color: #ff00ff;
+    left: -2px;
+    text-shadow: 2px 0 #00ffff;
+    clip: rect(0, 900px, 0, 0);
+}
+
+
+.user:hover .username-glitch::before {
+    animation: glitch2 0.4s infinite;
+    color: #ff00ff;
+    left: -2px;
+    text-shadow: 2px 0 #00ffff;
+    clip: rect(0, 900px, 0, 0);
+}
+
+.user:hover .username-glitch::after {
+  animation: glitch2 0.4s infinite;
+  color: #ff00ff;
+  left: -2px;
+  text-shadow: 2px 0 #00ffff;
+  clip: rect(0, 900px, 0, 0);
+}
+
+.message:hover .username-electric {
+  background: linear-gradient(90deg, #00ddff, #ffffff, #00ddff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 10px #00ddff, 0 0 30px #00ddff;
+  animation: electricAnim 0.15s linear infinite alternate;
+}
+
+.message:hover .username-matrix {
+  background: linear-gradient(180deg, #00ff41, #008f1e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: matrixAnim 4s linear infinite;
+  text-shadow: 0 0 10px #00ff41;
+}
+
+.message:hover .username-ghost {
+  background: linear-gradient(90deg, #ffffff, #bbbbff, #ffffff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: ghostAnim 3s ease-in-out infinite;
+  opacity: 0.95;
+}
+
+.message:hover .username-hellfire {
+  background: linear-gradient(90deg, #ff2200, #ffaa00, #ffff00, #ff2200);
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: hellfireAnim 1.2s linear infinite;
+  text-shadow: 0 0 20px #ff4400;
+}
+
+
+
+@keyframes rainbowAnim {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes neonPulse {
+  from { text-shadow: 0 0 8px #00ffea, 0 0 20px #00ffea, 0 0 40px #ff00c8; }
+  to   { text-shadow: 0 0 15px #00ffea, 0 0 35px #ff00c8, 0 0 70px #ff00c8; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 15px #00ffff, 0 0 35px #00ffff; }
+  50%      { text-shadow: 0 0 30px #00ffff, 0 0 60px #00ffff, 0 0 80px #00ffff; }
+}
+
+@keyframes shimmerAnim {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+@keyframes glitchAnim {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+@keyframes glitch1 {
+  0% { clip: rect(25px, 9999px, 50px, 0); }
+  5% { clip: rect(10px, 9999px, 80px, 0); }
+  10% { clip: rect(60px, 9999px, 90px, 0); }
+}
+
+@keyframes glitch2 {
+  0% { clip: rect(80px, 9999px, 120px, 0); }
+  5% { clip: rect(30px, 9999px, 70px, 0); }
+  10% { clip: rect(50px, 9999px, 100px, 0); }
+}
+
+@keyframes electricAnim {
+  0%   { text-shadow: 0 0 8px #00ddff, 0 0 25px #00ddff; }
+  100% { text-shadow: 0 0 20px #00ddff, 0 0 50px #00ddff, 0 0 70px #ffffff; }
+}
+
+@keyframes matrixAnim {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 0% 200%; }
+}
+
+@keyframes ghostAnim {
+  0%, 100% { opacity: 0.7; text-shadow: 0 0 15px #aaaaff; }
+  50%      { opacity: 1;   text-shadow: 0 0 30px #ddddff; }
+}
+
+@keyframes fireAnim {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes hellfireAnim {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 400% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes sparkleAnim {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.4); }
+}
+
+
+.effect-btn {
+  position: relative;
+}
+
+.effect-btn::after {
+  content: attr(data-name);
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111;
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.15s;
+  z-index: 1000;
+}
+
+.effect-btn:hover::after {
+  opacity: 1;
+}
+
+.effect-btn:hover {
+  transform: scale(1.1);
+}
+
+
+#myName {
+  position: static !important;
+}
+
+#myName .username-wrapper {
+  position: static !important;
+}
+
+#myName::before,
+#myName::after,
+#myName .username-wrapper::before,
+#myName .username-wrapper::after {
+  display: none !important;
+  content: none !important;
+}
+
+.circular-level {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    font-size: 6px;
+    right: -4px;
+}
+
+.circular-level .level-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  width: 100%;
+}
+
+.level-number {
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+}
+
+#xpText {
+  font-size: 11px;
+  color: #b9bbbe;
+  margin-top: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+
+.level-up #xpCircle {
+  stroke: #ffd700;
+  filter: drop-shadow(0 0 8px #ffd700);
+}
+
+
+div#popupLevel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: #b9bbbe;
+    bottom: 15px;
+    left: 2px;
+    position: relative;
+}
+
+
+.voice-participant:hover {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background-color: #181818;
+      width: 271px;
+    margin-left: -6px;
+}
+
+
+#voicePanel {
+  position: relative;
+  width: 100%;
+  background: #2b2d3100;
+  border-radius: 0;
+  display: none;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: auto;
+}
+ #voicePanel.show {
+  display: flex;
+}
+  .voice-header {
+    background: #2b2d3100;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 5px;
+}
+.voice-participants {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px;
+  width: auto;
+  max-height: none;
+  background: #2b2d3100;
+  scrollbar-width: thin;
+  scrollbar-color: #FF0000 transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.voice-participants::-webkit-scrollbar { width: 4px; display: block; }
+.voice-participants::-webkit-scrollbar-thumb { background: #FF0000; border-radius: 4px; }
+
+
+.voice-participant {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  width: auto;
+  max-width: 100%;
+  margin-left: 0;
+  box-sizing: border-box;
+}
+
+.voice-participant:hover {
+  background-color: #181818;
+  margin-left: 0;
+  width: auto;
+}
+
+    .voice-participant img {
+      width: 23px;
+      height: 23px;
+    }
+.voice-controls {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  width: auto;
+   order: 3;
+  margin-top: auto;
+}
+.sidebar2-bottom {
+  flex-shrink: 0;
+}
+
+#pingDisplay {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  cursor: help;
+  height: 24px;
+  border-radius: 7px;
+  width: fit-content;
+  background-color: #45454452;
+  margin-top: -30px;
+}
+
+span#voiceStatusLabel {
+    margin-left: 37px;
+}
+
+
+#pingText {
+  white-space: nowrap;
+  font-weight: 500;
+  color: #b9bbbe;
+  transition: color 0.3s ease;
+}
+
+.voice-controls.ping-good {
+  color: #23a559;
+}
+
+.voice-controls.ping-good #pingText {
+  color: #23a559 !important;
+}
+
+.voice-controls.ping-warning {
+  color: #f59e0b;
+}
+
+.voice-controls.ping-warning #pingText {
+  color: #f59e0b !important;
+}
+
+.voice-controls.ping-bad {
+  color: #ef4444;
+}
+
+.voice-controls.ping-bad #pingText {
+  color: #ef4444 !important;
+}
+
+.ping-bar {
+  transition: background-color 0.3s ease;
+  background: #b9bbbe;
+}
+
+.ping-bar.active {
+  animation: none;
+}
+
+.voice-controls.ping-good .ping-bar.active { 
+  background: #23a559 !important; 
+}
+
+.voice-controls.ping-warning .ping-bar.active { 
+  background: #f59e0b !important; 
+}
+
+.voice-controls.ping-bad .ping-bar.active { 
+  background: #ef4444 !important; 
+}
+
+.voice-controls.ping-good .ping-bar:not(.active),
+.voice-controls.ping-warning .ping-bar:not(.active),
+.voice-controls.ping-bad .ping-bar:not(.active) {
+  background: #4f545c !important;
+}
+
+.voice-controls.ping-good #pingText {
+  color: #23a559 !important;
+}
+
+.voice-controls.ping-warning #pingText {
+  color: #f59e0b !important;
+}
+
+.voice-controls.ping-bad #pingText {
+  color: #ef4444 !important;
+}
+
+.ping-bar {
+  transition: background-color 0.3s ease;
+  background: #b9bbbe;
+}
+
+.ping-bar.active {
+  animation: none;
+}
+
+.voice-controls.ping-good .ping-bar.active { 
+  background: #23a559 !important; 
+}
+
+.voice-controls.ping-warning .ping-bar.active { 
+  background: #f59e0b !important; 
+}
+
+.voice-controls.ping-bad .ping-bar.active { 
+  background: #ef4444 !important; 
+}
+
+.voice-controls.ping-good .ping-bar:not(.active),
+.voice-controls.ping-warning .ping-bar:not(.active),
+.voice-controls.ping-bad .ping-bar:not(.active) {
+  background: #4f545c !important;
+}
+.voice-btn {
+    background: #4f545c3d;
+    border: none;
+    color: white;
+    width: 63px;
+    height: 30px;
+    border-radius: 15%;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+    .voice-btn:hover {
+      background: #FF0000;
+    }
+    .voice-btn.muted {
+      background: #ed4245;
+    }
+    #jitsiContainer {
+      width: 100%;
+      height: 0; 
+      overflow: hidden;
+    }
+
+.voice-participant.speaking img:not(.user-badge):not(.voice-icon):not(.role-badge){
+  outline: 3px solid #FF0000;
+}
+
+.voice-participant.speaking img.voice-icon {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.voice-channel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #00000000;
+    height: 22px;
+    border-radius: 9px !important;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: all 0.2s ease;
+    font-weight: 900;
+    font-size: 16px;
+}
+
+.voice-channel:hover {
+    background-color: #1f2020d1;
+}
+
+.voice-channel.active {
+    background-color: #181818 !important;
+    border-left: 4px solid #FF0000;
+    color: white;
+    font-weight: 500;
+}
+
+.voice-channel.active:hover {
+    background-color: #FF0000 !important;   
+}
+
+.vc-count {
+  background: #2f3136;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #b9bbbe;
+}
+
+.sidebar2 {
+  width: 328px;
+  background-color: #000000f0;
+  border-left: 2px solid #000000b0;
+  border-right: 2px solid #000000b0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar2-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #ff000000 transparent;
+}
+
+.sidebar2-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar2-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar2-scroll::-webkit-scrollbar-thumb { background: #ff000000; border-radius: 4px; }
+
+
+#channelsList, #voiceChannelsList {
+  overflow-x: hidden;
+}
+
+.sidebar2::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar2::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar2::-webkit-scrollbar-thumb {
+  background: #FF0000;
+  border-radius: 4px;
+}
+
+.sidebar2::-webkit-scrollbar-thumb:hover {
+  background: #cc0000;
+}
+
+.username-wrapper {
+  display: inline-block;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+
+
+
+.voice-participant .username-wrapper {
+  display: inline-block !important;
+  position: relative !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  line-height: 1.3 !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  max-width: 160px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.voice-participant.speaking .username-rainbow {
+  background-size: 300% 100% !important;
+  animation: rainbowAnim 2s linear infinite !important;
+}
+.voice-participant.speaking .username-neon { animation: neonPulse 1.4s ease-in-out infinite alternate !important; }
+.voice-participant.speaking .username-shimmer {
+  animation: shimmerAnim 2.5s linear infinite !important;
+}
+.voice-participant.speaking .username-glitch {
+  animation: glitchAnim 0.8s linear infinite !important;
+  position: relative !important;
+}
+.voice-participant.speaking .username-electric {
+  background-size: 400% 400% !important;
+  animation: electricAnim 0.15s linear infinite alternate !important;
+}
+.voice-participant.speaking .username-matrix {
+  background-size: 400% 400% !important;
+  animation: matrixAnim 4s linear infinite !important;
+}
+.voice-participant.speaking .username-ghost { animation: ghostAnim 3s ease-in-out infinite !important; }
+.voice-participant.speaking .username-hellfire,
+.voice-participant.speaking .username-fire {
+  background-size: 400% 400% !important;
+  animation: hellfireAnim 1.2s linear infinite !important;
+}
+
+
+.voice-participant.speaking .username-glitch::before,
+.voice-participant.speaking .username-glitch::after {
+  content: attr(data-text) !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.8 !important;
+  pointer-events: none !important;
+}
+
+.voice-participant.speaking .username-glitch::before {
+  animation: glitch1 0.6s infinite !important;
+  color: #00ffff !important;
+  left: 2px !important;
+  text-shadow: -2px 0 #ff00ff !important;
+  clip: rect(0, 900px, 0, 0);
+}
+
+.voice-participant.speaking .username-glitch::after {
+  animation: glitch2 0.4s infinite !important;
+  color: #ff00ff !important;
+  left: -2px !important;
+  text-shadow: 2px 0 #00ffff !important;
+  clip: rect(0, 900px, 0, 0);
+}
+
+.voice-participant.speaking img:not(.user-badge) {
+  outline: 3px solid;
+}
+
+
+.voice-participant.speaking[data-username-color="username-gold"] img:not(.user-badge) { outline-color: #ffd700; box-shadow: 0 0 14px #ffd700; }
+.voice-participant.speaking[data-username-color="username-pink"] img:not(.user-badge) { outline-color: #ff2d95; box-shadow: 0 0 14px #ff2d95; }
+.voice-participant.speaking[data-username-color="username-purple"] img:not(.user-badge) { outline-color: #9d4eff; box-shadow: 0 0 14px #9d4eff; }
+.voice-participant.speaking[data-username-color="username-cyan"] img:not(.user-badge) { outline-color: #00f2ff; box-shadow: 0 0 14px #00f2ff; }
+.voice-participant.speaking[data-username-color="username-green"] img:not(.user-badge) { outline-color: #39ff6e; box-shadow: 0 0 14px #39ff6e; }
+.voice-participant.speaking[data-username-color="username-red"] img:not(.user-badge) { outline-color: #ff3333; box-shadow: 0 0 14px #ff3333; }
+.voice-participant.speaking[data-username-color="username-blue-silver"] img:not(.user-badge) { outline-color: #3399ff; box-shadow: 0 0 14px #3399ff; }
+.voice-participant.speaking[data-username-color="username-rainbow"] img:not(.user-badge),
+.voice-participant.speaking[data-username-color="username-fire"] img:not(.user-badge) {
+  animation: voiceRainbowGlow 2s linear infinite;
+}
+.voice-participant.speaking[data-username-color="username-neon"] img:not(.user-badge) {
+  animation: voiceNeonGlow 1.4s ease-in-out infinite alternate;
+}
+.voice-participant.speaking[data-username-color="username-glitch"] img:not(.user-badge) {
+  animation: voiceGlitchGlow 0.8s linear infinite;
+}
+.voice-participant.speaking[data-username-color="username-electric"] img:not(.user-badge) {
+  animation: voiceElectricGlow 0.15s linear infinite alternate;
+}
+.voice-participant.speaking[data-username-color="username-matrix"] img:not(.user-badge) {
+  animation: voiceMatrixGlow 4s linear infinite;
+}
+.voice-participant.speaking[data-username-color="username-ghost"] img:not(.user-badge) {
+  animation: voiceGhostGlow 3s ease-in-out infinite;
+}
+.voice-participant.speaking[data-username-color="username-hellfire"] img:not(.user-badge) {
+  animation: voiceHellfireGlow 1.2s linear infinite;
+}
+.voice-participant.speaking[data-username-color="username-shimmer"] img:not(.user-badge) {
+  animation: voiceShimmerGlow 2.5s linear infinite;
+}
+
+
+
+
+
+
+
+@keyframes voiceRainbowGlow {
+  0%    { outline-color: #ff0000;}
+  14%   { outline-color: #ff8800;}
+  28%   { outline-color: #ffff00;}
+  42%   { outline-color: #00ff00;}
+  57%   { outline-color: #00ffff;}
+  71%   { outline-color: #0066ff;}
+  85%   { outline-color: #cc00ff;}
+  100%  { outline-color: #ff0000;}
+}
+
+@keyframes voiceNeonGlow {
+  from { outline-color: #00ffea;}
+  to   { outline-color: #ff00c8;}
+}
+
+@keyframes voiceGlitchGlow {
+  0%, 100% { outline-color: #00ffcc;}
+  20%      { outline-color: #ff00ff;}
+  40%      { outline-color: #00ffcc;}
+}
+
+@keyframes voiceElectricGlow {
+  0%   { outline-color: #00ddff;}
+  100% { outline-color: #ffffff;}
+}
+
+@keyframes voiceMatrixGlow {
+  0%   { outline-color: #00ff41;}
+  50%  { outline-color: #008f1e;}
+  100% { outline-color: #00ff41;}
+}
+
+@keyframes voiceGhostGlow {
+  0%, 100% { outline-color: #bbbbff;}
+  50%      { outline-color: #ffffff; box-shadow: 0 0 24px #ddddff; }
+}
+
+@keyframes voiceHellfireGlow {
+  0%   { outline-color: #ff2200;}
+  50%  { outline-color: #ffff00;}
+  100% { outline-color: #ff2200;}
+}
+
+@keyframes voiceShimmerGlow {
+  0%, 100% { outline-color: #aaffff;}
+  50%      { outline-color: #ffffff;}
+}
+
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 3px rgba(0,0,0,0.8);
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+}
+
+.status-online { background: #23a559; }
+.status-offline { background: #747f8d; }
+.status-idle {
+  background: #000000;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  box-shadow: inset -4px -1px 1px 0px #f0b232;
+  position: relative;
+}
+.speaker-icon {
+    display: inline-block;
+    transform: scaleX(-1);
+    margin-right: -147px;
+    margin-top: 3px;
+}
+
+
+#liveStreamsModal::-webkit-scrollbar {
+  width: 8px;
+}
+
+#liveStreamsModal::-webkit-scrollbar-track {
+  background: #1e1f22;
+  border-radius: 4px;
+}
+
+#liveStreamsModal::-webkit-scrollbar-thumb {
+  background: #4f545c;
+  border-radius: 4px;
+}
+
+#liveStreamsModal::-webkit-scrollbar-thumb:hover {
+  background: #686d73;
+}
+
+#liveStreamsModal {
+  scrollbar-width: thin;
+  scrollbar-color: #4f545c #1e1f22;
+}
+
+#uploadBtn:hover{
+  color: #FF0000;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #40444b;
+  transition: .3s;
+  border-radius: 26px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #FF0000;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+.users::-webkit-scrollbar {
+  width: 8px;
+}
+
+.users::-webkit-scrollbar-track {
+  background: #2b2d31;
+  border-radius: 4px;
+}
+
+.users::-webkit-scrollbar-thumb {
+  background: #4f545c;
+  border-radius: 4px;
+}
+
+.users::-webkit-scrollbar-thumb:hover {
+  background: #686d73;
+}
+
+
+.users {
+  scrollbar-width: thin;
+  scrollbar-color: #4f545c #2b2d31;
+}
+
+
+.users::-webkit-scrollbar {
+  width: 8px;
+}
+
+.users::-webkit-scrollbar-track {
+  background: #2b2d31;
+  border-radius: 4px;
+}
+
+
+.users::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+
+.users:hover::-webkit-scrollbar-thumb {
+  background: #4f545c;
+}
+
+.users:hover::-webkit-scrollbar-thumb:hover {
+  background: #686d73;
+}
+
+
+.users {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.users:hover {
+  scrollbar-color: #4f545c #2b2d31;
+ 
+}
+
+.user:hover {
+    background: #181818;
+    border-radius: 14px;
+}
+
+
+
+#gifResults::-webkit-scrollbar {
+  width: 8px;
+}
+
+#gifResults::-webkit-scrollbar-track {
+  background: #1e1f22;
+  border-radius: 4px;
+}
+
+#gifResults::-webkit-scrollbar-thumb {
+  background: #4f545c;
+  border-radius: 4px;
+}
+
+#gifResults::-webkit-scrollbar-thumb:hover {
+  background: #686d73;
+}
+
+.voice-participants {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.voice-participants::-webkit-scrollbar {
+  display: none;
+}
+
+
+#embeddedJitsiModal {
+  display: none !important;
+  position: fixed;
+  inset: 0;
+  background: transparent; 
+  z-index: 99999;
+  pointer-events: none; 
+}
+
+#embeddedJitsiModal.show {
+  display: flex !important;
+}
+
+.jitsi-embed-window {
+  width: 95%;
+  max-width: 1200px;
+  height: 90vh;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+  touch-action: none;
+  pointer-events: auto; 
+}
+
+.jitsi-embed-header {
+  background: #202225;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.jitsi-embed-header:active {
+  cursor: grabbing;
+}
+
+.jitsi-resize-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, #FF0000 50%);
+  border-radius: 0 0 12px 0;
+}
+
+#jitsiEmbedContainer {
+  flex: 1;
+  background: #000;
+  position: relative;
+  overflow: hidden;
+}
+
+
+#dropZone {
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+
+.voice-channel {
+  position: relative;
+}
+
+.voice-participants-dropdown {
+  scrollbar-width: thin;
+  scrollbar-color: #4f545c #2b2d31;
+}
+
+.voice-participants-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.voice-participants-dropdown::-webkit-scrollbar-track {
+  background: #2b2d31;
+}
+
+.voice-participants-dropdown::-webkit-scrollbar-thumb {
+  background: #4f545c;
+  border-radius: 3px;
+}
+
+.voice-participant-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.voice-participant-item:hover {
+  background: #36393f;
+}
+
+.voice-participant-item img {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.voice-participant-item .username-wrapper {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-participant img {
+  -webkit-user-drag: none;
+}
+.message img {
+  -webkit-user-drag: none;
+}
+
+#imageModal img{
+   -webkit-user-drag: none;
+ }
+.popup-avatar{
+  -webkit-user-drag: none;
+}
+div#usersList img {
+  -webkit-user-drag: none;
+}
+.user-badge img {
+  -webkit-user-drag: none;
+}
+.userProfilePopup img {
+  -webkit-user-drag: none;
+}
+.user-badge {
+  -webkit-user-drag: none;
+}
+
+#emoteGrid {
+  -webkit-user-drag: none;
+}
+
+.sidebar-pfp {
+  -webkit-user-drag: none;
+}
+.channel-item:hover {
+  background: rgba(24, 24, 24, 0.692) !important;
+}
+
+.channel-item {
+  padding: 8px 12px;
+  border-radius: 9px !important;
+  cursor: pointer;
+  color: #b9bbbe;
+  font-size: 14px;
+  width: 284px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  border-left: 4px solid transparent;
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.channel-item.active {
+  background: rgb(24, 24, 24) !important;
+  border-left: 4px solid #FF0000 !important;
+  color: white;
+}
+
+.channel-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: #FF0000;
+  color: white;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(171, 142, 217, 0.6);
+}
+
+
+.ping-bar {
+  transition: background-color 0.3s ease;
+  background: #b9bbbe;
+}
+
+.ping-bar.active {
+  animation: none;
+}
+
+
+.ping-good .ping-bar.active { 
+  background: #23a559 !important; 
+}
+
+.ping-warning .ping-bar.active { 
+  background: #f59e0b !important; 
+}
+
+.ping-bad .ping-bar.active { 
+  background: #ef4444 !important; 
+}
+
+
+.ping-good .ping-bar:not(.active),
+.ping-warning .ping-bar:not(.active),
+.ping-bad .ping-bar:not(.active) {
+  background: #4f545c !important;
+}
+
+
+#pingDisplay {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: 11px;
+  cursor: help;
+  height: 24px;
+}
+
+#pingText {
+  white-space: nowrap;
+  font-weight: 500;
+  color: #b9bbbe;
+  transition: color 0.3s ease;
+}
+
+.ping-good #pingText {
+  color: #23a559 !important;
+}
+
+.ping-warning #pingText {
+  color: #f59e0b !important;
+}
+
+.ping-bad #pingText {
+  color: #ef4444 !important;
+}
+
+
+
+#pingDisplay::after {
+  display: none;
+}
+
+#pingDisplay:hover::before,
+#pingDisplay:hover::after {
+  opacity: 1;
+}
+
+#voiceStatusBar.ping-good {
+  color: #23a559;
+}
+
+#voiceStatusBar.ping-good #pingDisplay {
+  color: #23a559;
+}
+
+#voiceStatusBar.ping-warning {
+  color: #f59e0b;
+}
+
+#voiceStatusBar.ping-warning #pingDisplay {
+  color: #f59e0b;
+}
+
+#voiceStatusBar.ping-bad {
+  color: #ef4444;
+}
+
+#voiceStatusBar.ping-bad #pingDisplay {
+  color: #ef4444;
+}
+
+#pingDisplay:hover::before,
+#pingDisplay:hover::after {
+  opacity: 1;
+}
+
+#voiceStatusBar.ping-good {
+  color: #23a559;
+}
+
+#voiceStatusBar.ping-warning {
+  color: #f59e0b;
+}
+
+#voiceStatusBar.ping-bad {
+  color: #ef4444;
+}
+
+#voiceStatusLabel {
+  color: #b9bbbe;
+  transition: color 0.3s ease;
+}
+
+.voice-controls.ping-good #voiceStatusLabel {
+  color: #23a559 !important;
+}
+
+.voice-controls.ping-warning #voiceStatusLabel {
+  color: #f59e0b !important;
+}
+
+.voice-controls.ping-bad #voiceStatusLabel {
+  color: #ef4444 !important;
+}
+
+#scrollToBottomBtn:hover{
+  color: #FF0000 !important;
+}
+
+.username-cyberpunk {
+  background: linear-gradient(90deg, #ff006e, #00f5ff, #ff006e);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-cyberpunk {
+  animation: cyberpunkAnim 1.5s linear infinite;
+}
+
+.message:hover .username-cyberpunk {
+  animation: cyberpunkAnim 1.5s linear infinite;
+}
+
+
+.username-cosmic {
+  background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399, #a78bfa);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-cosmic {
+  animation: cosmicAnim 2.5s ease-in-out infinite;
+}
+
+.message:hover .username-cosmic {
+  animation: cosmicAnim 2.5s ease-in-out infinite;
+}
+
+
+.username-plasma {
+  background: linear-gradient(90deg, #ff1493, #ff69b4, #ffb6c1, #ff1493);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-plasma {
+  animation: plasmaAnim 1.2s linear infinite;
+  text-shadow: 0 0 20px #ff1493;
+}
+
+.message:hover .username-plasma {
+  animation: plasmaAnim 1.2s linear infinite;
+  text-shadow: 0 0 20px #ff1493;
+}
+
+
+.username-aurora {
+  background: linear-gradient(90deg, #00ff88, #00ffff, #ff00ff, #00ff88);
+  background-size: 400% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-aurora {
+  animation: auroraAnim 3s ease-in-out infinite;
+  text-shadow: 0 0 15px #00ff88;
+}
+
+.message:hover .username-aurora {
+  animation: auroraAnim 3s ease-in-out infinite;
+  text-shadow: 0 0 15px #00ff88;
+}
+
+
+.username-inferno {
+  background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #ff0000);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-inferno {
+  animation: infernoAnim 0.8s linear infinite;
+  text-shadow: 0 0 25px #ff4500;
+}
+
+.message:hover .username-inferno {
+  animation: infernoAnim 0.8s linear infinite;
+  text-shadow: 0 0 25px #ff4500;
+}
+
+
+.username-void {
+  background: linear-gradient(90deg, #0a0e27, #16213e, #0f3460, #0a0e27);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-void {
+  animation: voidAnim 2s ease-in-out infinite;
+  text-shadow: 0 0 20px #00ffff;
+}
+
+.message:hover .username-void {
+  animation: voidAnim 2s ease-in-out infinite;
+  text-shadow: 0 0 20px #00ffff;
+}
+
+
+.username-candy {
+  background: linear-gradient(90deg, #ff69b4, #ffb6d9, #ffc0cb, #ff69b4);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-candy {
+  animation: candyAnim 1.5s ease-in-out infinite;
+}
+
+.message:hover .username-candy {
+  animation: candyAnim 1.5s ease-in-out infinite;
+}
+
+
+.username-quantum {
+  background: linear-gradient(90deg, #00d9ff, #0099ff, #6600ff, #00d9ff);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-quantum {
+  animation: quantumAnim 1.3s linear infinite;
+  text-shadow: 0 0 15px #00d9ff;
+}
+
+.message:hover .username-quantum {
+  animation: quantumAnim 1.3s linear infinite;
+  text-shadow: 0 0 15px #00d9ff;
+}
+
+.username-twilight {
+  background: linear-gradient(90deg, #7c3aed, #ec4899, #f59e0b, #7c3aed);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-twilight {
+  animation: twilightAnim 2s ease-in-out infinite;
+}
+
+.message:hover .username-twilight {
+  animation: twilightAnim 2s ease-in-out infinite;
+}
+
+
+
+@keyframes cyberpunkAnim {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes cosmicAnim {
+  0% { background-position: 0% 50%; filter: brightness(1); }
+  50% { background-position: 100% 50%; filter: brightness(1.2); }
+  100% { background-position: 0% 50%; filter: brightness(1); }
+}
+
+@keyframes plasmaAnim {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes auroraAnim {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes infernoAnim {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes voidAnim {
+  0%, 100% { background-position: 0% 50%; text-shadow: 0 0 10px #00ffff; }
+  50% { background-position: 100% 50%; text-shadow: 0 0 30px #00ffff; }
+}
+
+@keyframes candyAnim {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes quantumAnim {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes twilightAnim {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+
+.voice-participant.speaking .username-cyberpunk {
+  animation: cyberpunkAnim 1.5s linear infinite !important;
+}
+
+.voice-participant.speaking .username-cosmic {
+  animation: cosmicAnim 2.5s ease-in-out infinite !important;
+}
+
+.voice-participant.speaking .username-plasma {
+  animation: plasmaAnim 1.2s linear infinite !important;
+  text-shadow: 0 0 20px #ff1493 !important;
+}
+
+.voice-participant.speaking .username-aurora {
+  animation: auroraAnim 3s ease-in-out infinite !important;
+  text-shadow: 0 0 15px #00ff88 !important;
+}
+
+.voice-participant.speaking .username-inferno {
+  animation: infernoAnim 0.8s linear infinite !important;
+  text-shadow: 0 0 25px #ff4500 !important;
+}
+
+.voice-participant.speaking .username-void {
+  animation: voidAnim 2s ease-in-out infinite !important;
+  text-shadow: 0 0 20px #00ffff !important;
+}
+
+.voice-participant.speaking .username-candy {
+  animation: candyAnim 1.5s ease-in-out infinite !important;
+}
+
+.voice-participant.speaking .username-quantum {
+  animation: quantumAnim 1.3s linear infinite !important;
+  text-shadow: 0 0 15px #00d9ff !important;
+}
+
+.voice-participant.speaking .username-twilight {
+  animation: twilightAnim 2s ease-in-out infinite !important;
+}
+
+.username-corrupted {
+  background: linear-gradient(90deg, #ff0080, #7928ca, #ff0080);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+}
+
+.user:hover .username-corrupted,
+.message:hover .username-corrupted {
+  animation: corruptedGlitch 0.4s linear infinite;
+  text-shadow: 
+    2px 2px 0px #ff0080,
+    -2px -2px 0px #7928ca,
+    0px 0px 20px #ff0080;
+}
+
+.user:hover .username-corrupted::before,
+.message:hover .username-corrupted::before {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+  animation: corruptedGlitch1 0.3s infinite;
+  color: #ff0080;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%);
+}
+
+.user:hover .username-corrupted::after,
+.message:hover .username-corrupted::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+  animation: corruptedGlitch2 0.25s infinite;
+  color: #7928ca;
+  clip-path: polygon(0 35%, 100% 35%, 100% 65%, 0 65%);
+}
+
+
+.username-void-pulse {
+  background: radial-gradient(circle, #00ffff, #0066ff, #000000);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-void-pulse,
+.message:hover .username-void-pulse {
+  animation: voidPulseAnim 1.5s ease-in-out infinite;
+  text-shadow: 
+    0 0 10px #00ffff,
+    0 0 20px #0066ff,
+    0 0 40px #00ffff,
+    inset 0 0 20px rgba(0, 255, 255, 0.5);
+  filter: blur(0.5px);
+}
+
+
+.username-acid {
+  background: linear-gradient(45deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-acid,
+.message:hover .username-acid {
+  animation: acidAnim 0.6s linear infinite;
+  text-shadow: 
+    0 0 5px #ff0000,
+    0 0 10px #ffff00,
+    0 0 15px #00ff00,
+    0 0 20px #00ffff;
+  filter: saturate(2) hue-rotate(360deg);
+}
+
+
+.username-fractal {
+  background: linear-gradient(90deg, #ff006e, #8338ec, #3a86ff, #ff006e);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-fractal,
+.message:hover .username-fractal {
+  animation: fractalAnim 2s ease-in-out infinite;
+  text-shadow: 
+    0 0 10px #ff006e,
+    0 0 20px #8338ec,
+    0 0 30px #3a86ff;
+  filter: brightness(1.3);
+}
+
+
+.username-hyperdrive {
+  background: linear-gradient(90deg, #00ffff, #ffffff, #00ffff);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-hyperdrive,
+.message:hover .username-hyperdrive {
+  animation: hyperdriveAnim 0.5s linear infinite;
+  text-shadow: 
+    0 0 5px #00ffff,
+    0 0 10px #ffffff,
+    0 0 20px #00ffff,
+    0 0 40px #00ffff;
+  letter-spacing: 2px;
+}
+
+
+.username-supernova {
+  background: linear-gradient(90deg, #ffff00, #ff8800, #ff0000, #ffff00);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-supernova,
+.message:hover .username-supernova {
+  animation: supernovaAnim 0.8s ease-out infinite;
+  text-shadow: 
+    0 0 10px #ffff00,
+    0 0 20px #ff8800,
+    0 0 40px #ff0000,
+    0 0 60px #ffff00;
+  filter: brightness(1.5);
+}
+
+
+.username-quantum-entangle {
+  background: linear-gradient(90deg, #00d9ff, #6600ff, #00d9ff);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-quantum-entangle,
+.message:hover .username-quantum-entangle {
+  animation: quantumEntangleAnim 1.2s ease-in-out infinite;
+  text-shadow: 
+    0 0 10px #00d9ff,
+    0 0 20px #6600ff;
+}
+
+.user:hover .username-quantum-entangle::before,
+.message:hover .username-quantum-entangle::before {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  animation: quantumEntangleAnim 1.2s ease-in-out infinite reverse;
+  color: #6600ff;
+  text-shadow: 0 0 10px #6600ff;
+}
+
+
+.username-dimensional {
+  background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-dimensional,
+.message:hover .username-dimensional {
+  animation: dimensionalAnim 1.5s ease-in-out infinite;
+  text-shadow: 
+    3px 3px 0px #ff00ff,
+    6px 6px 0px #00ffff,
+    9px 9px 20px rgba(255, 0, 255, 0.5);
+  transform: perspective(1000px) rotateX(0deg);
+}
+
+
+.username-toxic {
+  background: linear-gradient(90deg, #39ff14, #00ff00, #ffff00, #39ff14);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-toxic,
+.message:hover .username-toxic {
+  animation: toxicAnim 1s linear infinite;
+  text-shadow: 
+    0 0 10px #39ff14,
+    0 0 20px #00ff00,
+    0 0 30px #39ff14,
+    inset 0 0 20px rgba(57, 255, 20, 0.3);
+  filter: drop-shadow(0 0 10px #39ff14);
+}
+
+
+.username-chaos {
+  background: linear-gradient(90deg, #ff0080, #ff8c00, #40e0d0, #ff0080);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-chaos,
+.message:hover .username-chaos {
+  animation: chaosAnim 0.3s ease-in-out infinite;
+  text-shadow: 
+    0 0 10px #ff0080,
+    0 0 20px #ff8c00;
+}
+
+
+.username-singularity {
+  background: radial-gradient(circle at center, #ffffff, #ff00ff, #000000);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.user:hover .username-singularity,
+.message:hover .username-singularity {
+  animation: singularityAnim 2s ease-in-out infinite;
+  text-shadow: 
+    0 0 5px #ffffff,
+    0 0 15px #ff00ff,
+    0 0 30px #ff00ff;
+  filter: brightness(1.4);
+}
+
+
+
+@keyframes corruptedGlitch {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes corruptedGlitch1 {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(2px, -2px); }
+  60% { transform: translate(-1px, 1px); }
+  80% { transform: translate(1px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes corruptedGlitch2 {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(2px, -2px); }
+  40% { transform: translate(-2px, 2px); }
+  60% { transform: translate(1px, -1px); }
+  80% { transform: translate(-1px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes voidPulseAnim {
+  0%, 100% { 
+    background-position: 0% 50%;
+    text-shadow: 0 0 10px #00ffff, 0 0 20px #0066ff;
+  }
+  50% { 
+    background-position: 100% 50%;
+    text-shadow: 0 0 30px #00ffff, 0 0 50px #0066ff;
+  }
+}
+
+@keyframes acidAnim {
+  0% { background-position: 0% 50%; }
+  25% { background-position: 33% 50%; }
+  50% { background-position: 66% 50%; }
+  75% { background-position: 99% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes fractalAnim {
+  0%, 100% { 
+    background-position: 0% 50%;
+    filter: brightness(1.3) rotate(0deg);
+  }
+  50% { 
+    background-position: 100% 50%;
+    filter: brightness(1.6) rotate(180deg);
+  }
+}
+
+@keyframes hyperdriveAnim {
+  0% { 
+    background-position: 0% 50%;
+    letter-spacing: 1px;
+  }
+  50% { 
+    background-position: 100% 50%;
+    letter-spacing: 3px;
+  }
+  100% { 
+    background-position: 0% 50%;
+    letter-spacing: 1px;
+  }
+}
+
+@keyframes supernovaAnim {
+  0% { 
+    background-position: 0% 50%;
+    transform: scale(1);
+  }
+  50% { 
+    background-position: 100% 50%;
+    transform: scale(1.1);
+  }
+  100% { 
+    background-position: 0% 50%;
+    transform: scale(1);
+  }
+}
+
+@keyframes quantumEntangleAnim {
+  0%, 100% { 
+    background-position: 0% 50%;
+    transform: skewX(0deg);
+  }
+  25% { 
+    background-position: 33% 50%;
+    transform: skewX(-2deg);
+  }
+  50% { 
+    background-position: 66% 50%;
+    transform: skewX(0deg);
+  }
+  75% { 
+    background-position: 99% 50%;
+    transform: skewX(2deg);
+  }
+}
+
+@keyframes dimensionalAnim {
+  0%, 100% { 
+    background-position: 0% 50%;
+    text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff;
+  }
+  50% { 
+    background-position: 100% 50%;
+    text-shadow: 6px 6px 0px #ff00ff, 12px 12px 0px #00ffff;
+  }
+}
+
+@keyframes toxicAnim {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes chaosAnim {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(1px, -1px) rotate(-1deg); }
+  50% { transform: translate(-1px, 1px) rotate(1deg); }
+  75% { transform: translate(1px, 1px) rotate(-1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes singularityAnim {
+  0%, 100% { 
+    background-position: 0% 50%;
+    transform: scale(1);
+  }
+  50% { 
+    background-position: 100% 50%;
+    transform: scale(1.05);
+  }
+}
+
+
+.voice-participant.speaking .username-corrupted {
+  animation: corruptedGlitch 0.4s linear infinite !important;
+  text-shadow: 2px 2px 0px #ff0080, -2px -2px 0px #7928ca, 0px 0px 20px #ff0080;
+}
+
+.voice-participant.speaking .username-void-pulse {
+  animation: voidPulseAnim 1.5s ease-in-out infinite !important;
+}
+
+.voice-participant.speaking .username-acid {
+  animation: acidAnim 0.6s linear infinite !important;
+  text-shadow: 0 0 5px #ff0000, 0 0 10px #ffff00, 0 0 15px #00ff00, 0 0 20px #00ffff;
+}
+
+.voice-participant.speaking .username-fractal {
+  animation: fractalAnim 2s ease-in-out infinite !important;
+  text-shadow: 0 0 10px #ff006e, 0 0 20px #8338ec, 0 0 30px #3a86ff;
+}
+
+.voice-participant.speaking .username-hyperdrive {
+  animation: hyperdriveAnim 0.5s linear infinite !important;
+}
+
+.voice-participant.speaking .username-supernova {
+  animation: supernovaAnim 0.8s ease-out infinite !important;
+  text-shadow: 0 0 10px #ffff00, 0 0 20px #ff8800, 0 0 40px #ff0000, 0 0 60px #ffff00;
+}
+
+.voice-participant.speaking .username-quantum-entangle {
+  animation: quantumEntangleAnim 1.2s ease-in-out infinite !important;
+  text-shadow: 0 0 10px #00d9ff, 0 0 20px #6600ff;
+}
+
+.voice-participant.speaking .username-dimensional {
+  animation: dimensionalAnim 1.5s ease-in-out infinite !important;
+}
+
+.voice-participant.speaking .username-toxic {
+  animation: toxicAnim 1s linear infinite !important;
+  text-shadow: 0 0 10px #39ff14, 0 0 20px #00ff00, 0 0 30px #39ff14, inset 0 0 20px rgba(57, 255, 20, 0.3);
+}
+
+.voice-participant.speaking .username-chaos {
+  animation: chaosAnim 0.3s ease-in-out infinite !important;
+  text-shadow: 0 0 10px #ff0080, 0 0 20px #ff8c00;
+}
+
+.voice-participant.speaking .username-singularity {
+  text-shadow: 0 0 5px #ffffff, 0 0 15px #ff00ff, 0 0 15px #ff00ff;
+  animation: singularityAnim 2s ease-in-out infinite !important;
+}
+
+
+.voice-participant.speaking[data-username-color="username-corrupted"] img:not(.user-badge) { 
+  outline: 3px solid #ff0080;
+}
+
+.voice-participant.speaking[data-username-color="username-void-pulse"] img:not(.user-badge) { 
+  outline: 3px solid #00ffff;
+
+}
+
+.voice-participant.speaking[data-username-color="username-acid"] img:not(.user-badge) { 
+  animation: acidGlow 0.6s linear infinite;
+}
+
+@keyframes acidGlow {
+  0% { outline-color: #ff0000; box-shadow: 0 0 15px #ff0000; }
+  25% { outline-color: #ffff00; box-shadow: 0 0 15px #ffff00; }
+  50% { outline-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
+  75% { outline-color: #00ffff; box-shadow: 0 0 15px #00ffff; }
+  100% { outline-color: #ff0000; box-shadow: 0 0 15px #ff0000; }
+}
+
+.voice-participant.speaking[data-username-color="username-hyperdrive"] img:not(.user-badge) { 
+  outline: 3px solid #00ffff;
+ 
+}
+
+.voice-participant.speaking[data-username-color="username-supernova"] img:not(.user-badge) { 
+  outline: 3px solid #ffff00;
+
+}
+
+.voice-participant.speaking[data-username-color="username-toxic"] img:not(.user-badge) { 
+  outline: 3px solid #39ff14;
+
+}
+
+
+
+
+.voice-participant.speaking img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-gold"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ffd700; 
+  box-shadow: 0 0 14px #ffd700, inset 0 0 14px rgba(255, 215, 0, 0.3);
+}
+
+.voice-participant.speaking[data-username-color="username-pink"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff2d95; 
+  box-shadow: 0 0 14px #ff2d95, inset 0 0 14px rgba(255, 45, 149, 0.3);
+}
+
+.voice-participant.speaking[data-username-color="username-purple"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #9d4eff; 
+  box-shadow: 0 0 14px #9d4eff, inset 0 0 14px rgba(157, 78, 255, 0.3);
+}
+
+.voice-participant.speaking[data-username-color="username-cyan"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #00f2ff; 
+  box-shadow: 0 0 14px #00f2ff, inset 0 0 14px rgba(0, 242, 255, 0.3);
+}
+
+.voice-participant.speaking[data-username-color="username-green"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #39ff6e; 
+  box-shadow: 0 0 14px #39ff6e, inset 0 0 14px rgba(57, 255, 110, 0.3);
+}
+
+.voice-participant.speaking[data-username-color="username-red"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff3333; 
+  box-shadow: 0 0 14px #ff3333, inset 0 0 14px rgba(255, 51, 51, 0.3);
+}
+
+.voice-participant.speaking[data-username-color="username-blue-silver"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #3399ff; 
+  box-shadow: 0 0 14px #3399ff, inset 0 0 14px rgba(51, 153, 255, 0.3);
+}
+
+.voice-participant.speaking[data-username-color="username-rainbow"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceRainbowGlow 2s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-neon"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceNeonGlow 1.4s ease-in-out infinite alternate;
+}
+
+.voice-participant.speaking[data-username-color="username-shimmer"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceShimmerGlow 2.5s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-glitch"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceGlitchGlow 0.8s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-electric"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceElectricGlow 0.15s linear infinite alternate;
+}
+
+.voice-participant.speaking[data-username-color="username-matrix"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceMatrixGlow 4s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-ghost"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceGhostGlow 3s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-hellfire"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceHellfireGlow 1.2s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-fire"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceRainbowGlow 2s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-cyberpunk"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff006e; 
+ 
+}
+
+.voice-participant.speaking[data-username-color="username-cosmic"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #a78bfa; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-plasma"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff1493; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-aurora"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #00ff88; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-inferno"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff0000; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-void"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #00ffff; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-candy"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff69b4; 
+ 
+}
+
+.voice-participant.speaking[data-username-color="username-quantum"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #00d9ff; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-twilight"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #7c3aed; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-corrupted"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff0080; 
+
+  animation: voiceGlitchGlow 0.8s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-void-pulse"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #00ffff; 
+
+  animation: voiceGhostGlow 3s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-acid"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: acidGlow 0.6s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-fractal"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff006e; 
+
+  animation: voiceRainbowGlow 2s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-hyperdrive"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #00ffff; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-supernova"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ffff00; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-quantum-entangle"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #00d9ff; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-dimensional"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff00ff; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-toxic"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #39ff14; 
+
+}
+
+.voice-participant.speaking[data-username-color="username-chaos"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff0080; 
+
+  animation: chaosAnim 0.3s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-singularity"] img:not(.user-badge):not(.voice-icon):not(.role-badge) { 
+  outline-color: #ff00ff; 
+
+}
+
+
+
+
+
+.voice-participant.speaking[data-username-color="username-cyberpunk"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceCyberpunkGlow 1.5s linear infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-cosmic"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceCosmicGlow 2.5s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-plasma"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voicePlasmaGlow 1.2s linear infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-aurora"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceAuroraGlow 3s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-inferno"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceInfernoGlow 0.8s linear infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-void"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceVoidGlow 2s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-candy"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceCandyGlow 1.5s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-quantum"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceQuantumGlow 1.3s linear infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-twilight"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceTwilightGlow 2s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-corrupted"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceCorruptedGlow 0.4s linear infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-void-pulse"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceVoidPulseGlow 1.5s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-acid"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: acidGlow 0.6s linear infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-fractal"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceFractalGlow 2s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-hyperdrive"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceHyperdriveGlow 0.5s linear infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-supernova"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceSupernovaGlow 0.8s ease-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-quantum-entangle"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceQuantumEntangleGlow 1.2s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-dimensional"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceDimensionalGlow 1.5s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-toxic"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceToxicGlow 1s linear infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-chaos"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceChaosGlow 0.3s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+.voice-participant.speaking[data-username-color="username-singularity"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  animation: voiceSingularityGlow 2s ease-in-out infinite;
+  outline: 3px solid;
+  outline-offset: 2px;
+}
+
+
+
+@keyframes voiceCyberpunkGlow {
+  0%, 100% { outline-color: #ff006e;}
+  50% { outline-color: #00f5ff; }
+}
+
+@keyframes voiceCosmicGlow {
+  0%, 100% { outline-color: #a78bfa; }
+  50% { outline-color: #60a5fa;}
+}
+
+@keyframes voicePlasmaGlow {
+  0%, 100% { outline-color: #ff1493; }
+  50% { outline-color: #ffb6c1; }
+}
+
+@keyframes voiceAuroraGlow {
+  0%, 100% { outline-color: #00ff88; }
+  33% { outline-color: #00ffff; }
+  66% { outline-color: #ff00ff;  }
+}
+
+@keyframes voiceInfernoGlow {
+  0%, 100% { outline-color: #ff0000;}
+  50% { outline-color: #ffff00;}
+}
+
+@keyframes voiceVoidGlow {
+  0%, 100% { outline-color: #0a0e27; }
+  50% { outline-color: #00ffff;}
+}
+
+@keyframes voiceCandyGlow {
+  0%, 100% { outline-color: #ff69b4; }
+  50% { outline-color: #ffc0cb; }
+}
+
+@keyframes voiceQuantumGlow {
+  0%, 100% { outline-color: #00d9ff; }
+  50% { outline-color: #6600ff; }
+}
+
+@keyframes voiceTwilightGlow {
+  0%, 100% { outline-color: #7c3aed; }
+  50% { outline-color: #ec4899; }
+}
+
+@keyframes voiceCorruptedGlow {
+  0%, 100% { outline-color: #ff0080; }
+  50% { outline-color: #7928ca; }
+}
+
+@keyframes voiceVoidPulseGlow {
+  0%, 100% { outline-color: #00ffff; }
+  50% { outline-color: #0066ff; }
+}
+
+@keyframes voiceFractalGlow {
+  0%, 100% { outline-color: #ff006e; }
+  50% { outline-color: #3a86ff; }
+}
+
+@keyframes voiceHyperdriveGlow {
+  0%, 100% { outline-color: #00ffff; }
+  50% { outline-color: #ffffff; }
+}
+
+@keyframes voiceSupernovaGlow {
+  0%, 100% { outline-color: #ffff00; }
+  50% { outline-color: #ff0000;; }
+}
+
+@keyframes voiceQuantumEntangleGlow {
+  0%, 100% { outline-color: #00d9ff; }
+  50% { outline-color: #6600ff; }
+}
+
+@keyframes voiceDimensionalGlow {
+  0%, 100% { outline-color: #ff00ff; }
+  50% { outline-color: #00ffff; }
+}
+
+@keyframes voiceToxicGlow {
+  0%, 100% { outline-color: #39ff14; }
+  50% { outline-color: #00ff00; }
+}
+
+@keyframes voiceChaosGlow {
+  0%, 100% { outline-color: #ff0080;}
+  50% { outline-color: #40e0d0; }
+}
+
+@keyframes voiceSingularityGlow {
+  0%, 100% { outline-color: #ffffff; }
+  50% { outline-color: #ff00ff;}
+}
+
+
+.voice-participant.speaking[data-username-color="username-rainbow"] .user-badge,
+.voice-participant.speaking[data-username-color="username-fire"] .user-badge {
+  animation: badgeSlide 2s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-neon"] .user-badge {
+  animation: badgePulse 1.4s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-shimmer"] .user-badge {
+  animation: badgeSlide 2.5s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-glitch"] .user-badge {
+  animation: badgeGlitchMove 0.8s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-electric"] .user-badge {
+  animation: badgeZap 0.15s linear infinite alternate;
+}
+
+
+.voice-participant.speaking[data-username-color="username-matrix"] .user-badge {
+  animation: badgeSlide 4s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-ghost"] .user-badge {
+  animation: badgeFadePulse 3s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-hellfire"] .user-badge,
+.voice-participant.speaking[data-username-color="username-inferno"] .user-badge {
+  animation: badgeSlide 1.2s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-cyberpunk"] .user-badge {
+  animation: badgeGlitchMove 1.5s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-cosmic"] .user-badge {
+  animation: badgePulse 2.5s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-plasma"] .user-badge {
+  animation: badgeSlide 1.2s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-aurora"] .user-badge {
+  animation: badgeSlide 3s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-void"] .user-badge {
+  animation: badgeFadePulse 2s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-candy"] .user-badge {
+  animation: badgePulse 1.5s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-quantum"] .user-badge {
+  animation: badgeSlide 1.3s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-twilight"] .user-badge {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-corrupted"] .user-badge {
+  animation: badgeGlitchMove 0.4s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-void-pulse"] .user-badge {
+  animation: badgeFadePulse 1.5s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-acid"] .user-badge {
+  animation: badgeSlide 0.6s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-fractal"] .user-badge {
+  animation: badgeSlide 2s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-hyperdrive"] .user-badge {
+  animation: badgeSlide 0.5s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-supernova"] .user-badge {
+  animation: badgePulse 0.8s ease-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-quantum-entangle"] .user-badge {
+  animation: badgeGlitchMove 1.2s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-dimensional"] .user-badge {
+  animation: badgeGlitchMove 1.5s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-toxic"] .user-badge {
+  animation: badgeSlide 1s linear infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-chaos"] .user-badge {
+  animation: badgeGlitchMove 0.3s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-singularity"] .user-badge {
+  animation: badgeFadePulse 2s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-gold"] .user-badge,
+.voice-participant.speaking[data-username-color="username-pink"] .user-badge,
+.voice-participant.speaking[data-username-color="username-purple"] .user-badge,
+.voice-participant.speaking[data-username-color="username-cyan"] .user-badge,
+.voice-participant.speaking[data-username-color="username-green"] .user-badge,
+.voice-participant.speaking[data-username-color="username-red"] .user-badge,
+.voice-participant.speaking[data-username-color="username-blue-silver"] .user-badge {
+  animation: badgeBounce 1.5s ease-in-out infinite;
+}
+
+
+@keyframes badgeSlide {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@keyframes badgePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+@keyframes badgeGlitchMove {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, -2px); }
+  50% { transform: translate(2px, 2px); }
+  75% { transform: translate(-2px, 2px); }
+}
+
+@keyframes badgeZap {
+  0% { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1.15) rotate(5deg); }
+}
+
+@keyframes badgeFadePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+@keyframes badgeBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+
+
+.voice-participant.speaking[data-username-color="username-rainbow"] span[style*="Lvl"],
+.voice-participant.speaking[data-username-color="username-fire"] span[style*="Lvl"] {
+  animation: levelSlide 2s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-neon"] span[style*="Lvl"] {
+  animation: levelPulse 1.4s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-shimmer"] span[style*="Lvl"] {
+  animation: levelSlide 2.5s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-glitch"] span[style*="Lvl"] {
+  animation: levelGlitchMove 0.8s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-electric"] span[style*="Lvl"] {
+  animation: levelZap 0.15s linear infinite alternate;
+}
+
+.voice-participant.speaking[data-username-color="username-matrix"] span[style*="Lvl"] {
+  animation: levelSlide 4s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-ghost"] span[style*="Lvl"] {
+  animation: levelFadePulse 3s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-hellfire"] span[style*="Lvl"],
+.voice-participant.speaking[data-username-color="username-inferno"] span[style*="Lvl"] {
+  animation: levelSlide 1.2s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-cyberpunk"] span[style*="Lvl"] {
+  animation: levelGlitchMove 1.5s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-cosmic"] span[style*="Lvl"] {
+  animation: levelPulse 2.5s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-plasma"] span[style*="Lvl"] {
+  animation: levelSlide 1.2s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-aurora"] span[style*="Lvl"] {
+  animation: levelSlide 3s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-void"] span[style*="Lvl"] {
+  animation: levelFadePulse 2s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-candy"] span[style*="Lvl"] {
+  animation: levelPulse 1.5s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-quantum"] span[style*="Lvl"] {
+  animation: levelSlide 1.3s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-twilight"] span[style*="Lvl"] {
+  animation: levelPulse 2s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-corrupted"] span[style*="Lvl"] {
+  animation: levelGlitchMove 0.4s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-void-pulse"] span[style*="Lvl"] {
+  animation: levelFadePulse 1.5s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-acid"] span[style*="Lvl"] {
+  animation: levelSlide 0.6s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-fractal"] span[style*="Lvl"] {
+  animation: levelSlide 2s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-hyperdrive"] span[style*="Lvl"] {
+  animation: levelSlide 0.5s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-supernova"] span[style*="Lvl"] {
+  animation: levelPulse 0.8s ease-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-quantum-entangle"] span[style*="Lvl"] {
+  animation: levelGlitchMove 1.2s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-dimensional"] span[style*="Lvl"] {
+  animation: levelGlitchMove 1.5s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-toxic"] span[style*="Lvl"] {
+  animation: levelSlide 1s linear infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-chaos"] span[style*="Lvl"] {
+  animation: levelGlitchMove 0.3s ease-in-out infinite;
+}
+
+.voice-participant.speaking[data-username-color="username-singularity"] span[style*="Lvl"] {
+  animation: levelFadePulse 2s ease-in-out infinite;
+}
+
+
+.voice-participant.speaking[data-username-color="username-gold"] span[style*="Lvl"],
+.voice-participant.speaking[data-username-color="username-pink"] span[style*="Lvl"],
+.voice-participant.speaking[data-username-color="username-purple"] span[style*="Lvl"],
+.voice-participant.speaking[data-username-color="username-cyan"] span[style*="Lvl"],
+.voice-participant.speaking[data-username-color="username-green"] span[style*="Lvl"],
+.voice-participant.speaking[data-username-color="username-red"] span[style*="Lvl"],
+.voice-participant.speaking[data-username-color="username-blue-silver"] span[style*="Lvl"] {
+  animation: levelBounce 1.5s ease-in-out infinite;
+}
+
+
+@keyframes levelSlide {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(2px); }
+}
+
+@keyframes levelPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes levelGlitchMove {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-1px, -1px); }
+  50% { transform: translate(1px, 1px); }
+  75% { transform: translate(-1px, 1px); }
+}
+
+@keyframes levelZap {
+  0% { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1.1) rotate(3deg); }
+}
+
+@keyframes levelFadePulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.9); }
+}
+
+@keyframes levelBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+
+.username-matrix-code {
+  background: linear-gradient(180deg, #00ff41, #008f1e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  position: relative;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  letter-spacing: 0px;
+  display: inline-block;
+  width: fit-content;
+  max-width: 200px;
+}
+
+.user:hover .username-matrix-code,
+.message:hover .username-matrix-code,
+.voice-participant.speaking .username-matrix-code {
+  animation: matrixCodeRain 2s linear infinite;
+  text-shadow: 
+    0 0 10px #00ff41,
+    0 0 20px #00ff41,
+    0 0 30px #008f1e;
+}
+
+@keyframes matrixCodeRain {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+    text-shadow: 0 0 5px #00ff41;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+    text-shadow: 0 0 20px #00ff41;
+  }
+}
+
+
+.user:hover .username-matrix-code::before,
+.message:hover .username-matrix-code::before,
+.voice-participant.speaking .username-matrix-code::before {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.7;
+  animation: matrixCodeGlitch 2s linear infinite;
+  color: #00ff41;
+  text-shadow: 0 0 10px #00ff41;
+  -webkit-clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%);
+}
+
+@keyframes matrixCodeGlitch {
+  0% {
+    transform: translateY(-100%) translateX(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(0) translateX(2px);
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(100%) translateX(-2px);
+    opacity: 0;
+  }
+}
+
+
+.user:hover .username-matrix-code::after,
+.message:hover .username-matrix-code::after,
+.voice-participant.speaking .username-matrix-code::after {
+  content: '0 1 0 1 1 0 1 0';
+  position: absolute;
+  left: -20px;
+  top: 0;
+  width: 200%;
+  height: 100%;
+  opacity: 0.4;
+  animation: matrixCodeChars 2s linear infinite;
+  color: #008f1e;
+  font-size: 0.8em;
+  text-shadow: 0 0 5px #00ff41;
+  letter-spacing: 0px;
+  white-space: nowrap;
+  -webkit-clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+}
+
+@keyframes matrixCodeChars {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.voice-participant.speaking[data-username-color="username-matrix-code"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  outline: 3px solid #00ff41;
+  outline-offset: 2px;
+  width: auto;
+  height: auto;
+}
+
+@keyframes matrixCodeAvatarFall {
+  0% {
+    box-shadow: 0 0 8px #00ff41, inset 0 0 5px rgba(0, 255, 65, 0.2);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 25px #00ff41, 0 0 40px #00ff41, inset 0 0 15px rgba(0, 255, 65, 0.5);
+    filter: brightness(1.3);
+  }
+  100% {
+    box-shadow: 0 0 8px #00ff41, inset 0 0 5px rgba(0, 255, 65, 0.2);
+    filter: brightness(1);
+  }
+}
+
+.live-streams-header-info {
+    position: absolute;
+    top: 5px;
+    left: 36px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: #b9bbbe;
+    font-weight: 600;
+    z-index: 10;
+}
+
+.avatar-editor-content {
+  background: #1e1f22;
+  width: 600px;
+  max-width: 90%;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #3a3c42;
+  color: #fff;
+  font-family: sans-serif;
+}
+
+.modal-header {
+  padding: 16px;
+  border-bottom: 1px solid #3a3c42;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #FF0000;
+}
+
+.editor-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editor-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #111;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.control-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.control-group button {
+  background: #2f3136;
+  border: none;
+  color: #b9bbbe;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: 0.2s;
+}
+
+.control-group button:hover {
+  background: #40444b;
+  color: #fff;
+}
+
+.control-group input[type="range"] {
+  width: 120px;
+  accent-color: #FF0000;
+}
+
+.modal-footer {
+  padding: 16px;
+  border-top: 1px solid #3a3c42;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-secondary { background: #4f545c; color: #fff; }
+.btn-primary { background: #FF0000; color: #fff; }
+.btn:hover { opacity: 0.9; }
+
+
+#popupUsername .username-rainbow,
+#popupUsername .username-neon,
+#popupUsername .username-shimmer,
+#popupUsername .username-glitch,
+#popupUsername .username-electric,
+#popupUsername .username-matrix,
+#popupUsername .username-ghost,
+#popupUsername .username-hellfire,
+#popupUsername .username-fire,
+#popupUsername .username-matrix-code,
+#popupUsername .username-cyberpunk,
+#popupUsername .username-cosmic,
+#popupUsername .username-plasma,
+#popupUsername .username-aurora,
+#popupUsername .username-inferno,
+#popupUsername .username-void,
+#popupUsername .username-candy,
+#popupUsername .username-quantum,
+#popupUsername .username-twilight,
+#popupUsername .username-corrupted,
+#popupUsername .username-void-pulse,
+#popupUsername .username-acid,
+#popupUsername .username-fractal,
+#popupUsername .username-hyperdrive,
+#popupUsername .username-supernova,
+#popupUsername .username-quantum-entangle,
+#popupUsername .username-dimensional,
+#popupUsername .username-toxic,
+#popupUsername .username-chaos,
+#popupUsername .username-singularity {
+  animation-play-state: running !important;
+}
+
+#popupUsername .username-rainbow { animation: rainbowAnim 2s linear infinite !important; }
+#popupUsername .username-neon { animation: neonPulse 1.4s ease-in-out infinite alternate !important; }
+#popupUsername .username-shimmer { animation: shimmerAnim 2.5s linear infinite !important; }
+#popupUsername .username-glitch { animation: glitchAnim 0.8s linear infinite !important; position: relative !important; }
+#popupUsername .username-electric { animation: electricAnim 0.15s linear infinite alternate !important; }
+#popupUsername .username-matrix { animation: matrixAnim 4s linear infinite !important; }
+#popupUsername .username-ghost { animation: ghostAnim 3s ease-in-out infinite !important; }
+#popupUsername .username-hellfire { animation: hellfireAnim 1.2s linear infinite !important; }
+#popupUsername .username-fire { animation: fireAnim 1s linear infinite !important; }
+#popupUsername .username-matrix-code { animation: matrixCodeRain 2s linear infinite !important; }
+#popupUsername .username-cyberpunk { animation: cyberpunkAnim 1.5s linear infinite !important; }
+#popupUsername .username-cosmic { animation: cosmicAnim 2.5s ease-in-out infinite !important; }
+#popupUsername .username-plasma { animation: plasmaAnim 1.2s linear infinite !important; }
+#popupUsername .username-aurora { animation: auroraAnim 3s ease-in-out infinite !important; }
+#popupUsername .username-inferno { animation: infernoAnim 0.8s linear infinite !important; }
+#popupUsername .username-void { animation: voidAnim 2s ease-in-out infinite !important; }
+#popupUsername .username-candy { animation: candyAnim 1.5s ease-in-out infinite !important; }
+#popupUsername .username-quantum { animation: quantumAnim 1.3s linear infinite !important; }
+#popupUsername .username-twilight { animation: twilightAnim 2s ease-in-out infinite !important; }
+#popupUsername .username-corrupted { animation: corruptedGlitch 0.4s linear infinite !important; position: relative !important; }
+#popupUsername .username-void-pulse { animation: voidPulseAnim 1.5s ease-in-out infinite !important; }
+#popupUsername .username-acid { animation: acidAnim 0.6s linear infinite !important; }
+#popupUsername .username-fractal { animation: fractalAnim 2s ease-in-out infinite !important; }
+#popupUsername .username-hyperdrive { animation: hyperdriveAnim 0.5s linear infinite !important; }
+#popupUsername .username-supernova { animation: supernovaAnim 0.8s ease-out infinite !important; }
+#popupUsername .username-quantum-entangle { animation: quantumEntangleAnim 1.2s ease-in-out infinite !important; }
+#popupUsername .username-dimensional { animation: dimensionalAnim 1.5s ease-in-out infinite !important; }
+#popupUsername .username-toxic { animation: toxicAnim 1s linear infinite !important; }
+#popupUsername .username-chaos { animation: chaosAnim 0.3s ease-in-out infinite !important; }
+#popupUsername .username-singularity { animation: singularityAnim 2s ease-in-out infinite !important; }
+
+
+#popupUsername .username-rainbow { 
+  animation: rainbowAnim 2s linear infinite !important;
+  background-size: 300% 100% !important;
+}
+
+#popupUsername .username-neon { 
+  animation: neonPulse 1.4s ease-in-out infinite alternate !important;
+  text-shadow: 0 0 8px #00ffea, 0 0 20px #00ffea, 0 0 40px #ff00c8 !important;
+}
+
+#popupUsername .username-shimmer { 
+  animation: shimmerAnim 2.5s linear infinite !important;
+  background-size: 300% 300% !important;
+  text-shadow: 0 0 15px rgba(170, 255, 255, 0.8) !important;
+}
+
+#popupUsername .username-glitch { 
+  animation: glitchAnim 0.8s linear infinite !important;
+  position: relative !important;
+  text-shadow: 0 0 10px #ff00ff !important;
+}
+
+#popupUsername .username-glitch::before,
+#popupUsername .username-glitch::after {
+  content: attr(data-text) !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.8 !important;
+  pointer-events: none !important;
+}
+
+#popupUsername .username-glitch::before {
+  animation: glitch1 0.6s infinite !important;
+  color: #00ffff !important;
+  left: 2px !important;
+  text-shadow: -2px 0 #ff00ff !important;
+  clip: rect(0, 900px, 0, 0);
+}
+
+#popupUsername .username-glitch::after {
+  animation: glitch2 0.4s infinite !important;
+  color: #ff00ff !important;
+  left: -2px !important;
+  text-shadow: 2px 0 #00ffff !important;
+  clip: rect(0, 900px, 0, 0);
+}
+
+#popupUsername .username-electric { 
+  animation: electricAnim 0.15s linear infinite alternate !important;
+  text-shadow: 0 0 10px #00ddff, 0 0 30px #00ddff !important;
+}
+
+#popupUsername .username-matrix { 
+  animation: matrixAnim 4s linear infinite !important;
+  text-shadow: 0 0 10px #00ff41 !important;
+}
+
+#popupUsername .username-ghost { 
+  animation: ghostAnim 3s ease-in-out infinite !important;
+  opacity: 0.95 !important;
+}
+
+#popupUsername .username-hellfire { 
+  animation: hellfireAnim 1.2s linear infinite !important;
+  background-size: 400% 400% !important;
+  text-shadow: 0 0 20px #ff4400 !important;
+}
+
+#popupUsername .username-fire { 
+  animation: fireAnim 1s linear infinite !important;
+  background-size: 200% 100% !important;
+}
+
+#popupUsername .username-matrix-code { 
+  animation: matrixCodeRain 2s linear infinite !important;
+  text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 30px #008f1e !important;
+  font-family: 'Courier New', monospace !important;
+  font-weight: 700 !important;
+}
+
+#popupUsername .username-matrix-code::before {
+  content: attr(data-text) !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.7 !important;
+  animation: matrixCodeGlitch 2s linear infinite !important;
+  color: #00ff41 !important;
+  text-shadow: 0 0 10px #00ff41 !important;
+  -webkit-clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%) !important;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%) !important;
+}
+
+#popupUsername .username-cyberpunk { 
+  animation: cyberpunkAnim 1.5s linear infinite !important;
+  background-size: 300% 100% !important;
+}
+
+#popupUsername .username-cosmic { 
+  animation: cosmicAnim 2.5s ease-in-out infinite !important;
+  background-size: 300% 100% !important;
+  filter: brightness(1.2) !important;
+}
+
+#popupUsername .username-plasma { 
+  animation: plasmaAnim 1.2s linear infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 20px #ff1493 !important;
+}
+
+#popupUsername .username-aurora { 
+  animation: auroraAnim 3s ease-in-out infinite !important;
+  background-size: 400% 100% !important;
+  text-shadow: 0 0 15px #00ff88 !important;
+}
+
+#popupUsername .username-inferno { 
+  animation: infernoAnim 0.8s linear infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 25px #ff4500 !important;
+}
+
+#popupUsername .username-void { 
+  animation: voidAnim 2s ease-in-out infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 20px #00ffff !important;
+}
+
+#popupUsername .username-candy { 
+  animation: candyAnim 1.5s ease-in-out infinite !important;
+  background-size: 300% 100% !important;
+}
+
+#popupUsername .username-quantum { 
+  animation: quantumAnim 1.3s linear infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 15px #00d9ff !important;
+}
+
+#popupUsername .username-twilight { 
+  animation: twilightAnim 2s ease-in-out infinite !important;
+  background-size: 300% 100% !important;
+}
+
+#popupUsername .username-corrupted { 
+  animation: corruptedGlitch 0.4s linear infinite !important;
+  position: relative !important;
+  background-size: 200% 100% !important;
+  text-shadow: 2px 2px 0px #ff0080, -2px -2px 0px #7928ca, 0px 0px 20px #ff0080 !important;
+}
+
+#popupUsername .username-corrupted::before {
+  content: attr(data-text) !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.8 !important;
+  animation: corruptedGlitch1 0.3s infinite !important;
+  color: #ff0080 !important;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%) !important;
+}
+
+#popupUsername .username-corrupted::after {
+  content: attr(data-text) !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.8 !important;
+  animation: corruptedGlitch2 0.25s infinite !important;
+  color: #7928ca !important;
+  clip-path: polygon(0 35%, 100% 35%, 100% 65%, 0 65%) !important;
+}
+
+#popupUsername .username-void-pulse { 
+  animation: voidPulseAnim 1.5s ease-in-out infinite !important;
+  background-size: 200% 200% !important;
+  text-shadow: 0 0 10px #00ffff, 0 0 20px #0066ff, 0 0 40px #00ffff, inset 0 0 20px rgba(0, 255, 255, 0.5) !important;
+  filter: blur(0.5px) !important;
+}
+
+#popupUsername .username-acid { 
+  animation: acidAnim 0.6s linear infinite !important;
+  background-size: 400% 400% !important;
+  text-shadow: 0 0 5px #ff0000, 0 0 10px #ffff00, 0 0 15px #00ff00, 0 0 20px #00ffff !important;
+  filter: saturate(2) hue-rotate(360deg) !important;
+}
+
+#popupUsername .username-fractal { 
+  animation: fractalAnim 2s ease-in-out infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 10px #ff006e, 0 0 20px #8338ec, 0 0 30px #3a86ff !important;
+  filter: brightness(1.3) !important;
+}
+
+#popupUsername .username-hyperdrive { 
+  animation: hyperdriveAnim 0.5s linear infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #ffffff, 0 0 20px #00ffff, 0 0 40px #00ffff !important;
+  letter-spacing: 2px !important;
+}
+
+#popupUsername .username-supernova { 
+  animation: supernovaAnim 0.8s ease-out infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 10px #ffff00, 0 0 20px #ff8800, 0 0 40px #ff0000, 0 0 60px #ffff00 !important;
+  filter: brightness(1.5) !important;
+}
+
+#popupUsername .username-quantum-entangle { 
+  animation: quantumEntangleAnim 1.2s ease-in-out infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 10px #00d9ff, 0 0 20px #6600ff !important;
+  position: relative !important;
+}
+
+#popupUsername .username-quantum-entangle::before {
+  content: attr(data-text) !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.5 !important;
+  animation: quantumEntangleAnim 1.2s ease-in-out infinite reverse !important;
+  color: #6600ff !important;
+  text-shadow: 0 0 10px #6600ff !important;
+}
+
+#popupUsername .username-dimensional { 
+  animation: dimensionalAnim 1.5s ease-in-out infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff, 9px 9px 20px rgba(255, 0, 255, 0.5) !important;
+  transform: perspective(1000px) rotateX(0deg) !important;
+}
+
+#popupUsername .username-toxic { 
+  animation: toxicAnim 1s linear infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 10px #39ff14, 0 0 20px #00ff00, 0 0 30px #39ff14, inset 0 0 20px rgba(57, 255, 20, 0.3) !important;
+  filter: drop-shadow(0 0 10px #39ff14) !important;
+}
+
+#popupUsername .username-chaos { 
+  animation: chaosAnim 0.3s ease-in-out infinite !important;
+  background-size: 300% 100% !important;
+  text-shadow: 0 0 10px #ff0080, 0 0 20px #ff8c00 !important;
+}
+
+#popupUsername .username-singularity { 
+  animation: singularityAnim 2s ease-in-out infinite !important;
+  background-size: 200% 200% !important;
+  text-shadow: 0 0 5px #ffffff, 0 0 15px #ff00ff, 0 0 30px #ff00ff !important;
+  filter: brightness(1.4) !important;
+}
+
+#bannerPreview {
+  width: 100%;
+  height: 180px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+  margin: 10px 0;
+  border: 2px solid #40444b;
+}
+
+
+
+.message .pfp {
+  border: 3px solid transparent;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+}
+
+
+.user img[src*="avatar"]{
+  border: 3px solid transparent;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  box-shadow: none !important;
+}
+
+
+.message .pfp[data-color="username-gold"],
+.user img[data-color="username-gold"] {
+  border-color: #ffd700;
+}
+
+.message .pfp[data-color="username-pink"],
+.user img[data-color="username-pink"] {
+  border-color: #ff2d95;
+}
+
+.message .pfp[data-color="username-purple"],
+.user img[data-color="username-purple"] {
+  border-color: #9d4eff;
+}
+
+.message .pfp[data-color="username-cyan"],
+.user img[data-color="username-cyan"] {
+  border-color: #00f2ff;
+}
+
+.message .pfp[data-color="username-green"],
+.user img[data-color="username-green"] {
+  border-color: #39ff6e;
+}
+
+.message .pfp[data-color="username-red"],
+.user img[data-color="username-red"] {
+  border-color: #ff3333;
+}
+
+.message .pfp[data-color="username-blue-silver"],
+.user img[data-color="username-blue-silver"] {
+  border-color: #3399ff;
+}
+
+.message .pfp[data-color="username-neon"],
+.user img[data-color="username-neon"] {
+  border-color: #00ffea;
+}
+
+.message .pfp[data-color="username-shimmer"],
+.user img[data-color="username-shimmer"] {
+  border-color: #aaffff;
+}
+
+.message .pfp[data-color="username-glitch"],
+.user img[data-color="username-glitch"] {
+  border-color: #00ffcc;
+}
+
+.message .pfp[data-color="username-electric"],
+.user img[data-color="username-electric"] {
+  border-color: #00ddff;
+}
+
+.message .pfp[data-color="username-matrix"],
+.user img[data-color="username-matrix"] {
+  border-color: #00ff41;
+}
+
+.message .pfp[data-color="username-ghost"],
+.user img[data-color="username-ghost"] {
+  border-color: #ffffff;
+}
+
+.message .pfp[data-color="username-hellfire"],
+.user img[data-color="username-hellfire"] {
+  border-color: #ff2200;
+}
+
+.message .pfp[data-color="username-fire"],
+.user img[data-color="username-fire"] {
+  border-color: #ff4400;
+}
+
+.message .pfp[data-color="username-rainbow"],
+.user img[data-color="username-rainbow"] {
+  border-color: #ff0000;
+}
+
+.message .pfp[data-color="username-cyberpunk"],
+.user img[data-color="username-cyberpunk"] {
+  border-color: #ff006e;
+}
+
+.message .pfp[data-color="username-cosmic"],
+.user img[data-color="username-cosmic"] {
+  border-color: #a78bfa;
+}
+
+.message .pfp[data-color="username-plasma"],
+.user img[data-color="username-plasma"] {
+  border-color: #ff1493;
+}
+
+.message .pfp[data-color="username-aurora"],
+.user img[data-color="username-aurora"] {
+  border-color: #00ff88;
+}
+
+.message .pfp[data-color="username-inferno"],
+.user img[data-color="username-inferno"] {
+  border-color: #ff0000;
+}
+
+.message .pfp[data-color="username-void"],
+.user img[data-color="username-void"] {
+  border-color: #00ffff;
+}
+
+.message .pfp[data-color="username-candy"],
+.user img[data-color="username-candy"] {
+  border-color: #ff69b4;
+}
+
+.message .pfp[data-color="username-quantum"],
+.user img[data-color="username-quantum"] {
+  border-color: #00d9ff;
+}
+
+.message .pfp[data-color="username-twilight"],
+.user img[data-color="username-twilight"] {
+  border-color: #7c3aed;
+}
+
+.message .pfp[data-color="username-corrupted"],
+.user img[data-color="username-corrupted"] {
+  border-color: #ff0080;
+}
+
+.message .pfp[data-color="username-void-pulse"],
+.user img[data-color="username-void-pulse"] {
+  border-color: #00ffff;
+}
+
+.message .pfp[data-color="username-acid"],
+.user img[data-color="username-acid"] {
+  border-color: #ff0000;
+}
+
+.message .pfp[data-color="username-fractal"],
+.user img[data-color="username-fractal"] {
+  border-color: #ff006e;
+}
+
+.message .pfp[data-color="username-hyperdrive"],
+.user img[data-color="username-hyperdrive"] {
+  border-color: #00ffff;
+}
+
+.message .pfp[data-color="username-supernova"],
+.user img[data-color="username-supernova"] {
+  border-color: #ffff00;
+}
+
+.message .pfp[data-color="username-quantum-entangle"],
+.user img[data-color="username-quantum-entangle"] {
+  border-color: #00d9ff;
+}
+
+.message .pfp[data-color="username-dimensional"],
+.user img[data-color="username-dimensional"] {
+  border-color: #ff00ff;
+}
+
+.message .pfp[data-color="username-toxic"],
+.user img[data-color="username-toxic"] {
+  border-color: #39ff14;
+}
+
+.message .pfp[data-color="username-chaos"],
+.user img[data-color="username-chaos"] {
+  border-color: #ff0080;
+}
+
+.message .pfp[data-color="username-singularity"],
+.user img[data-color="username-singularity"] {
+  border-color: #ffffff;
+}
+
+.message .pfp[data-color="username-matrix-code"],
+.user img[data-color="username-matrix-code"] {
+  border-color: #00ff41;
+}
+
+
+.message:hover .pfp[data-color="username-gold"],
+.user:hover img[data-color="username-gold"] {
+  box-shadow: 0 0 14px #ffd700;
+}
+
+.message:hover .pfp[data-color="username-pink"],
+.user:hover img[data-color="username-pink"] {
+  box-shadow: 0 0 14px #ff2d95;
+}
+
+.message:hover .pfp[data-color="username-purple"],
+.user:hover img[data-color="username-purple"] {
+  box-shadow: 0 0 14px #9d4eff;
+}
+
+.message:hover .pfp[data-color="username-cyan"],
+.user:hover img[data-color="username-cyan"] {
+  box-shadow: 0 0 14px #00f2ff;
+}
+
+.message:hover .pfp[data-color="username-green"],
+.user:hover img[data-color="username-green"] {
+  box-shadow: 0 0 14px #39ff6e;
+}
+
+.message:hover .pfp[data-color="username-red"],
+.user:hover img[data-color="username-red"] {
+  box-shadow: 0 0 14px #ff3333;
+}
+
+.message:hover .pfp[data-color="username-blue-silver"],
+.user:hover img[data-color="username-blue-silver"] {
+  box-shadow: 0 0 14px #3399ff;
+}
+
+.message:hover .pfp[data-color="username-neon"],
+.user:hover img[data-color="username-neon"] {
+  box-shadow: 0 0 14px #00ffea;
+}
+
+.message:hover .pfp[data-color="username-shimmer"],
+.user:hover img[data-color="username-shimmer"] {
+  box-shadow: 0 0 20px #aaffff;
+}
+
+.message:hover .pfp[data-color="username-glitch"],
+.user:hover img[data-color="username-glitch"] {
+  box-shadow: 0 0 14px #00ffcc;
+}
+
+.message:hover .pfp[data-color="username-electric"],
+.user:hover img[data-color="username-electric"] {
+  box-shadow: 0 0 20px #00ddff;
+}
+
+.message:hover .pfp[data-color="username-matrix"],
+.user:hover img[data-color="username-matrix"] {
+  box-shadow: 0 0 14px #00ff41;
+}
+
+.message:hover .pfp[data-color="username-ghost"],
+.user:hover img[data-color="username-ghost"] {
+  box-shadow: 0 0 20px #ffffff;
+}
+
+.message:hover .pfp[data-color="username-hellfire"],
+.user:hover img[data-color="username-hellfire"] {
+  box-shadow: 0 0 14px #ff2200;
+}
+
+.message:hover .pfp[data-color="username-fire"],
+.user:hover img[data-color="username-fire"] {
+  box-shadow: 0 0 14px #ff4400;
+}
+
+.message:hover .pfp[data-color="username-cyberpunk"],
+.user:hover img[data-color="username-cyberpunk"] {
+  box-shadow: 0 0 14px #ff006e;
+}
+
+.message:hover .pfp[data-color="username-cosmic"],
+.user:hover img[data-color="username-cosmic"] {
+  box-shadow: 0 0 14px #a78bfa;
+}
+
+.message:hover .pfp[data-color="username-plasma"],
+.user:hover img[data-color="username-plasma"] {
+  box-shadow: 0 0 14px #ff1493;
+}
+
+.message:hover .pfp[data-color="username-aurora"],
+.user:hover img[data-color="username-aurora"] {
+  box-shadow: 0 0 14px #00ff88;
+}
+
+.message:hover .pfp[data-color="username-inferno"],
+.user:hover img[data-color="username-inferno"] {
+  box-shadow: 0 0 14px #ff0000;
+}
+
+.message:hover .pfp[data-color="username-void"],
+.user:hover img[data-color="username-void"] {
+  box-shadow: 0 0 14px #00ffff;
+}
+
+.message:hover .pfp[data-color="username-candy"],
+.user:hover img[data-color="username-candy"] {
+  box-shadow: 0 0 14px #ff69b4;
+}
+
+.message:hover .pfp[data-color="username-quantum"],
+.user:hover img[data-color="username-quantum"] {
+  box-shadow: 0 0 14px #00d9ff;
+}
+
+.message:hover .pfp[data-color="username-twilight"],
+.user:hover img[data-color="username-twilight"] {
+  box-shadow: 0 0 14px #7c3aed;
+}
+
+.message:hover .pfp[data-color="username-corrupted"],
+.user:hover img[data-color="username-corrupted"] {
+  box-shadow: 0 0 14px #ff0080;
+}
+
+.message:hover .pfp[data-color="username-void-pulse"],
+.user:hover img[data-color="username-void-pulse"] {
+  box-shadow: 0 0 20px #00ffff;
+}
+
+.message:hover .pfp[data-color="username-acid"],
+.user:hover img[data-color="username-acid"] {
+  box-shadow: 0 0 14px #ff0000;
+}
+
+.message:hover .pfp[data-color="username-fractal"],
+.user:hover img[data-color="username-fractal"] {
+  box-shadow: 0 0 14px #ff006e;
+}
+
+.message:hover .pfp[data-color="username-hyperdrive"],
+.user:hover img[data-color="username-hyperdrive"] {
+  box-shadow: 0 0 20px #00ffff;
+}
+
+.message:hover .pfp[data-color="username-supernova"],
+.user:hover img[data-color="username-supernova"] {
+  box-shadow: 0 0 14px #ffff00;
+}
+
+.message:hover .pfp[data-color="username-quantum-entangle"],
+.user:hover img[data-color="username-quantum-entangle"] {
+  box-shadow: 0 0 14px #00d9ff;
+}
+
+.message:hover .pfp[data-color="username-dimensional"],
+.user:hover img[data-color="username-dimensional"] {
+  box-shadow: 0 0 14px #ff00ff;
+}
+
+.message:hover .pfp[data-color="username-toxic"],
+.user:hover img[data-color="username-toxic"] {
+  box-shadow: 0 0 14px #39ff14;
+}
+
+.message:hover .pfp[data-color="username-chaos"],
+.user:hover img[data-color="username-chaos"] {
+  box-shadow: 0 0 14px #ff0080;
+}
+
+.message:hover .pfp[data-color="username-singularity"],
+.user:hover img[data-color="username-singularity"] {
+  box-shadow: 0 0 20px #ffffff;
+}
+
+.message:hover .pfp[data-color="username-matrix-code"],
+.user:hover img[data-color="username-matrix-code"] {
+  box-shadow: 0 0 14px #00ff41;
+}
+
+
+.message:hover .pfp[data-color="username-rainbow"],
+.user:hover img[data-color="username-rainbow"] {
+  animation: avatarRainbowGlow 2s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-neon"],
+.user:hover img[data-color="username-neon"] {
+  animation: avatarNeonGlow 1.4s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-shimmer"],
+.user:hover img[data-color="username-shimmer"] {
+  animation: avatarShimmerGlow 2.5s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-glitch"],
+.user:hover img[data-color="username-glitch"] {
+  animation: avatarGlitchGlow 0.8s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-electric"],
+.user:hover img[data-color="username-electric"] {
+  animation: avatarElectricGlow 0.15s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-matrix"],
+.user:hover img[data-color="username-matrix"] {
+  animation: avatarMatrixGlow 4s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-ghost"],
+.user:hover img[data-color="username-ghost"] {
+  animation: avatarGhostGlow 3s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-hellfire"],
+.user:hover img[data-color="username-hellfire"] {
+  animation: avatarHellfireGlow 1.2s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-fire"],
+.user:hover img[data-color="username-fire"] {
+  animation: avatarFireGlow 1s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-cyberpunk"],
+.user:hover img[data-color="username-cyberpunk"] {
+  animation: avatarCyberpunkGlow 1.5s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-cosmic"],
+.user:hover img[data-color="username-cosmic"] {
+  animation: avatarCosmicGlow 2.5s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-plasma"],
+.user:hover img[data-color="username-plasma"] {
+  animation: avatarPlasmaGlow 1.2s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-aurora"],
+.user:hover img[data-color="username-aurora"] {
+  animation: avatarAuroraGlow 3s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-inferno"],
+.user:hover img[data-color="username-inferno"] {
+  animation: avatarInfernoGlow 0.8s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-void"],
+.user:hover img[data-color="username-void"] {
+  animation: avatarVoidGlow 2s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-candy"],
+.user:hover img[data-color="username-candy"] {
+  animation: avatarCandyGlow 1.5s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-quantum"],
+.user:hover img[data-color="username-quantum"] {
+  animation: avatarQuantumGlow 1.3s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-twilight"],
+.user:hover img[data-color="username-twilight"] {
+  animation: avatarTwilightGlow 2s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-corrupted"],
+.user:hover img[data-color="username-corrupted"] {
+  animation: avatarCorruptedGlow 0.4s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-void-pulse"],
+.user:hover img[data-color="username-void-pulse"] {
+  animation: avatarVoidPulseGlow 1.5s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-acid"],
+.user:hover img[data-color="username-acid"] {
+  animation: avatarAcidGlow 0.6s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-fractal"],
+.user:hover img[data-color="username-fractal"] {
+  animation: avatarFractalGlow 2s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-hyperdrive"],
+.user:hover img[data-color="username-hyperdrive"] {
+  animation: avatarHyperdriveGlow 0.5s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-supernova"],
+.user:hover img[data-color="username-supernova"] {
+  animation: avatarSupernovaGlow 0.8s ease-out infinite;
+}
+
+.message:hover .pfp[data-color="username-quantum-entangle"],
+.user:hover img[data-color="username-quantum-entangle"] {
+  animation: avatarQuantumEntangleGlow 1.2s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-dimensional"],
+.user:hover img[data-color="username-dimensional"] {
+  animation: avatarDimensionalGlow 1.5s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-toxic"],
+.user:hover img[data-color="username-toxic"] {
+  animation: avatarToxicGlow 1s linear infinite;
+}
+
+.message:hover .pfp[data-color="username-chaos"],
+.user:hover img[data-color="username-chaos"] {
+  animation: avatarChaosGlow 0.3s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-singularity"],
+.user:hover img[data-color="username-singularity"] {
+  animation: avatarSingularityGlow 2s ease-in-out infinite;
+}
+
+.message:hover .pfp[data-color="username-matrix-code"],
+.user:hover img[data-color="username-matrix-code"] {
+  animation: avatarMatrixCodeGlow 2s linear infinite;
+}
+
+
+
+@keyframes avatarRainbowGlow {
+  0% { border-color: #ff0000;}
+  14% { border-color: #ff8800;}
+  28% { border-color: #ffff00;}
+  42% { border-color: #00ff00;}
+  57% { border-color: #00ffff;}
+  71% { border-color: #0066ff;}
+  85% { border-color: #cc00ff;}
+  100% { border-color: #ff0000;}
+}
+
+@keyframes avatarNeonGlow {
+  from { border-color: #00ffea;}
+  to { border-color: #ff00c8;}
+}
+
+@keyframes avatarShimmerGlow {
+  0%, 100% { border-color: #aaffff;}
+  50% { border-color: #ffffff;}
+}
+
+@keyframes avatarGlitchGlow {
+  0%, 100% { border-color: #00ffcc;}
+  33% { border-color: #ff00ff;}
+  66% { border-color: #00ffff;}
+}
+
+@keyframes avatarElectricGlow {
+  0% { border-color: #00ddff;}
+  100% { border-color: #ffffff;}
+}
+
+@keyframes avatarMatrixGlow {
+  0%, 100% { border-color: #00ff41;}
+  50% { border-color: #008f1e;}
+}
+
+@keyframes avatarGhostGlow {
+  0%, 100% { border-color: #bbbbff;}
+  50% { border-color: #ffffff;}
+}
+
+@keyframes avatarHellfireGlow {
+  0% { border-color: #ff2200;}
+  50% { border-color: #ffff00;}
+  100% { border-color: #ff2200;}
+}
+
+@keyframes avatarFireGlow {
+  0%, 100% { border-color: #ff4400;}
+  50% { border-color: #ffaa00;}
+}
+
+@keyframes avatarCyberpunkGlow {
+  0%, 100% { border-color: #ff006e;}
+  50% { border-color: #00f5ff;}
+}
+
+@keyframes avatarCosmicGlow {
+  0%, 100% { border-color: #a78bfa;}
+  50% { border-color: #60a5fa;}
+}
+
+@keyframes avatarPlasmaGlow {
+  0%, 100% { border-color: #ff1493;}
+  50% { border-color: #ffb6c1;}
+}
+
+@keyframes avatarAuroraGlow {
+  0%, 100% { border-color: #00ff88;}
+  50% { border-color: #00ffff;}
+}
+
+@keyframes avatarInfernoGlow {
+  0%, 100% { border-color: #ff0000;}
+  50% { border-color: #ffff00;}
+}
+
+@keyframes avatarVoidGlow {
+  0%, 100% { border-color: #00ffff;}
+  50% { border-color: #0066ff;}
+}
+
+@keyframes avatarCandyGlow {
+  0%, 100% { border-color: #ff69b4;}
+  50% { border-color: #ffc0cb;}
+}
+
+@keyframes avatarQuantumGlow {
+  0%, 100% { border-color: #00d9ff;}
+  50% { border-color: #6600ff;}
+}
+
+@keyframes avatarTwilightGlow {
+  0%, 100% { border-color: #7c3aed;}
+  50% { border-color: #ec4899;}
+}
+
+@keyframes avatarCorruptedGlow {
+  0%, 100% { border-color: #ff0080; }
+  50% { border-color: #7928ca;}
+}
+
+@keyframes avatarVoidPulseGlow {
+  0%, 100% { border-color: #00ffff;}
+  50% { border-color: #0066ff;}
+}
+
+@keyframes avatarAcidGlow {
+  0% { border-color: #ff0000;}
+  25% { border-color: #ffff00;}
+  50% { border-color: #00ff00;}
+  75% { border-color: #00ffff;}
+  100% { border-color: #ff0000;}
+}
+
+@keyframes avatarFractalGlow {
+  0%, 100% { border-color: #ff006e;}
+  50% { border-color: #3a86ff;}
+}
+
+@keyframes avatarHyperdriveGlow {
+  0%, 100% { border-color: #00ffff;}
+  50% { border-color: #ffffff;}
+}
+
+@keyframes avatarSupernovaGlow {
+  0%, 100% { border-color: #ffff00;}
+  50% { border-color: #ff0000;}
+}
+
+@keyframes avatarQuantumEntangleGlow {
+  0%, 100% { border-color: #00d9ff;}
+  50% { border-color: #6600ff;}
+}
+
+@keyframes avatarDimensionalGlow {
+  0%, 100% { border-color: #ff00ff;}
+  50% { border-color: #00ffff;}
+}
+
+@keyframes avatarToxicGlow {
+  0%, 100% { border-color: #39ff14;}
+  50% { border-color: #00ff00;}
+}
+
+@keyframes avatarChaosGlow {
+  0%, 100% { border-color: #ff0080;}
+  50% { border-color: #40e0d0;}
+}
+
+@keyframes avatarSingularityGlow {
+  0%, 100% { border-color: #ffffff;}
+  50% { border-color: #ff00ff;}
+}
+
+@keyframes avatarMatrixCodeGlow {
+  0%, 100% { border-color: #00ff41;}
+  50% { border-color: #008f1e;}
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.user:hover {
+  background-color: rgba(79, 84, 92, 0.4);
+}
+
+
+.popup-avatar {
+  border: 3px solid transparent !important;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+
+
+.popup-avatar[data-color="username-neon"] { animation: avatarNeonGlow 1.4s ease-in-out infinite alternate; }
+.popup-avatar[data-color="username-shimmer"] { animation: avatarShimmerGlow 2.5s linear infinite; }
+.popup-avatar[data-color="username-glitch"] { animation: avatarGlitchGlow 0.8s linear infinite; }
+.popup-avatar[data-color="username-electric"] { animation: avatarElectricGlow 0.15s linear infinite; }
+.popup-avatar[data-color="username-matrix"] { animation: avatarMatrixGlow 4s linear infinite; }
+.popup-avatar[data-color="username-ghost"] { animation: avatarGhostGlow 3s ease-in-out infinite; }
+.popup-avatar[data-color="username-hellfire"] { animation: avatarHellfireGlow 1.2s linear infinite; }
+.popup-avatar[data-color="username-fire"] { animation: avatarFireGlow 1s linear infinite; }
+.popup-avatar[data-color="username-rainbow"] { animation: avatarRainbowGlow 2s linear infinite; }
+.popup-avatar[data-color="username-cyberpunk"] { animation: avatarCyberpunkGlow 1.5s linear infinite; }
+.popup-avatar[data-color="username-cosmic"] { animation: avatarCosmicGlow 2.5s ease-in-out infinite; }
+.popup-avatar[data-color="username-plasma"] { animation: avatarPlasmaGlow 1.2s linear infinite; }
+.popup-avatar[data-color="username-aurora"] { animation: avatarAuroraGlow 3s ease-in-out infinite; }
+.popup-avatar[data-color="username-inferno"] { animation: avatarInfernoGlow 0.8s linear infinite; }
+.popup-avatar[data-color="username-void"] { animation: avatarVoidGlow 2s ease-in-out infinite; }
+.popup-avatar[data-color="username-candy"] { animation: avatarCandyGlow 1.5s ease-in-out infinite; }
+.popup-avatar[data-color="username-quantum"] { animation: avatarQuantumGlow 1.3s linear infinite; }
+.popup-avatar[data-color="username-twilight"] { animation: avatarTwilightGlow 2s ease-in-out infinite; }
+.popup-avatar[data-color="username-corrupted"] { animation: avatarCorruptedGlow 0.4s linear infinite; }
+.popup-avatar[data-color="username-void-pulse"] { animation: avatarVoidPulseGlow 1.5s ease-in-out infinite; }
+.popup-avatar[data-color="username-acid"] { animation: avatarAcidGlow 0.6s linear infinite; }
+.popup-avatar[data-color="username-fractal"] { animation: avatarFractalGlow 2s ease-in-out infinite; }
+.popup-avatar[data-color="username-hyperdrive"] { animation: avatarHyperdriveGlow 0.5s linear infinite; }
+.popup-avatar[data-color="username-supernova"] { animation: avatarSupernovaGlow 0.8s ease-out infinite; }
+.popup-avatar[data-color="username-quantum-entangle"] { animation: avatarQuantumEntangleGlow 1.2s ease-in-out infinite; }
+.popup-avatar[data-color="username-dimensional"] { animation: avatarDimensionalGlow 1.5s ease-in-out infinite; }
+.popup-avatar[data-color="username-toxic"] { animation: avatarToxicGlow 1s linear infinite; }
+.popup-avatar[data-color="username-chaos"] { animation: avatarChaosGlow 0.3s ease-in-out infinite; }
+.popup-avatar[data-color="username-singularity"] { animation: avatarSingularityGlow 2s ease-in-out infinite; }
+.popup-avatar[data-color="username-matrix-code"] { animation: avatarMatrixCodeGlow 2s linear infinite; }
+
+.popup-avatar[data-color="username-gold"] {
+  border-color: #ffd700 !important;
+
+}
+
+.popup-avatar[data-color="username-pink"] {
+  border-color: #ff2d95 !important;
+ 
+}
+
+.popup-avatar[data-color="username-purple"] {
+  border-color: #9d4eff !important;
+ 
+}
+
+.popup-avatar[data-color="username-cyan"] {
+  border-color: #00f2ff !important;
+
+}
+
+.popup-avatar[data-color="username-green"] {
+  border-color: #39ff6e !important;
+
+}
+
+.popup-avatar[data-color="username-red"] {
+  border-color: #ff3333 !important;
+
+}
+
+.popup-avatar[data-color="username-blue-silver"] {
+  border-color: #3399ff !important;
+
+}
+
+
+
+
+
+.message-avatar[data-color="username-gold"] {
+  background: linear-gradient(90deg, #ffd700, #ff8800) !important;
+}
+
+.message-avatar[data-color="username-pink"] {
+  background: linear-gradient(90deg, #ff2d95, #c800ff) !important;
+}
+
+.message-avatar[data-color="username-purple"] {
+  background: linear-gradient(90deg, #9d4eff, #4b00ff) !important;
+}
+
+.message-avatar[data-color="username-cyan"] {
+  background: linear-gradient(90deg, #00f2ff, #0066ff) !important;
+}
+
+.message-avatar[data-color="username-green"] {
+  background: linear-gradient(90deg, #39ff6e, #008f2e) !important;
+}
+
+.message-avatar[data-color="username-red"] {
+  background: linear-gradient(90deg, #ff3333, #aa0000) !important;
+}
+
+.message-avatar[data-color="username-blue-silver"] {
+  background: linear-gradient(90deg, #3399ff, #c0d4ff) !important;
+}
+
+
+.user-list-avatar[data-color="username-gold"] {
+  background: linear-gradient(90deg, #ffd700, #ff8800) !important;
+}
+
+.user-list-avatar[data-color="username-pink"] {
+  background: linear-gradient(90deg, #ff2d95, #c800ff) !important;
+}
+
+.user-list-avatar[data-color="username-purple"] {
+  background: linear-gradient(90deg, #9d4eff, #4b00ff) !important;
+}
+
+.user-list-avatar[data-color="username-cyan"] {
+  background: linear-gradient(90deg, #00f2ff, #0066ff) !important;
+}
+
+.user-list-avatar[data-color="username-green"] {
+  background: linear-gradient(90deg, #39ff6e, #008f2e) !important;
+}
+
+.user-list-avatar[data-color="username-red"] {
+  background: linear-gradient(90deg, #ff3333, #aa0000) !important;
+}
+
+.user-list-avatar[data-color="username-blue-silver"] {
+  background: linear-gradient(90deg, #3399ff, #c0d4ff) !important;
+}
+
+
+.popup-avatar[data-color="username-gold"] {
+  background: linear-gradient(90deg, #ffd700, #ff8800) !important;
+}
+
+.popup-avatar[data-color="username-pink"] {
+  background: linear-gradient(90deg, #ff2d95, #c800ff) !important;
+}
+
+.popup-avatar[data-color="username-purple"] {
+  background: linear-gradient(90deg, #9d4eff, #4b00ff) !important;
+}
+
+.popup-avatar[data-color="username-cyan"] {
+  background: linear-gradient(90deg, #00f2ff, #0066ff) !important;
+}
+
+.popup-avatar[data-color="username-green"] {
+  background: linear-gradient(90deg, #39ff6e, #008f2e) !important;
+}
+
+.popup-avatar[data-color="username-red"] {
+  background: linear-gradient(90deg, #ff3333, #aa0000) !important;
+}
+
+.popup-avatar[data-color="username-blue-silver"] {
+  background: linear-gradient(90deg, #3399ff, #c0d4ff) !important;
+}
+
+
+
+.message-avatar[data-color="username-gold"] {
+  background: linear-gradient(135deg, #ffd700 0%, #ff8800 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.message-avatar[data-color="username-pink"] {
+  background: linear-gradient(135deg, #ff2d95 0%, #c800ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.message-avatar[data-color="username-purple"] {
+  background: linear-gradient(135deg, #9d4eff 0%, #4b00ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.message-avatar[data-color="username-cyan"] {
+  background: linear-gradient(135deg, #00f2ff 0%, #0066ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.message-avatar[data-color="username-green"] {
+  background: linear-gradient(135deg, #39ff6e 0%, #008f2e 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.message-avatar[data-color="username-red"] {
+  background: linear-gradient(135deg, #ff3333 0%, #aa0000 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.message-avatar[data-color="username-blue-silver"] {
+  background: linear-gradient(135deg, #3399ff 0%, #c0d4ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+
+.user-list-avatar[data-color="username-gold"] {
+  background: linear-gradient(135deg, #ffd700 0%, #ff8800 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.user-list-avatar[data-color="username-pink"] {
+  background: linear-gradient(135deg, #ff2d95 0%, #c800ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.user-list-avatar[data-color="username-purple"] {
+  background: linear-gradient(135deg, #9d4eff 0%, #4b00ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.user-list-avatar[data-color="username-cyan"] {
+  background: linear-gradient(135deg, #00f2ff 0%, #0066ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.user-list-avatar[data-color="username-green"] {
+  background: linear-gradient(135deg, #39ff6e 0%, #008f2e 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.user-list-avatar[data-color="username-red"] {
+  background: linear-gradient(135deg, #ff3333 0%, #aa0000 100%) !important;
+  background-clip: padding-box !important;
+}
+
+.user-list-avatar[data-color="username-blue-silver"] {
+  background: linear-gradient(135deg, #3399ff 0%, #c0d4ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+
+.popup-avatar[data-color="username-gold"] {
+  background: linear-gradient(135deg, #ffd700 0%, #ff8800 100%) !important;
+  background-clip: padding-box !important;
+
+}
+
+.popup-avatar[data-color="username-pink"] {
+  background: linear-gradient(135deg, #ff2d95 0%, #c800ff 100%) !important;
+  background-clip: padding-box !important;
+
+}
+
+.popup-avatar[data-color="username-purple"] {
+  background: linear-gradient(135deg, #9d4eff 0%, #4b00ff 100%) !important;
+  background-clip: padding-box !important;
+
+}
+
+.popup-avatar[data-color="username-cyan"] {
+  background: linear-gradient(135deg, #00f2ff 0%, #0066ff 100%) !important;
+  background-clip: padding-box !important;
+
+}
+
+.popup-avatar[data-color="username-green"] {
+  background: linear-gradient(135deg, #39ff6e 0%, #008f2e 100%) !important;
+  background-clip: padding-box !important;
+
+}
+
+.popup-avatar[data-color="username-red"] {
+  background: linear-gradient(135deg, #ff3333 0%, #aa0000 100%) !important;
+  background-clip: padding-box !important;
+
+}
+
+.popup-avatar[data-color="username-blue-silver"] {
+  background: linear-gradient(135deg, #3399ff 0%, #c0d4ff 100%) !important;
+  background-clip: padding-box !important;
+}
+
+
+.user[data-status="offline"] img:not(.user-badge),
+.user.offline img:not(.user-badge) {
+  border-color: #747f8d !important;
+  box-shadow: none !important;
+}
+
+
+
+.user.status-offline img:not(.user-badge) {
+  border-color: #747f8d !important;
+  box-shadow: none !important;
+}
+
+
+.user[data-status="offline"] img[data-color] img:not(.user-badge),
+.user.offline img[data-color] img:not(.user-badge) {
+  border-color: #747f8d !important;
+}
+
+
+#popupAvatar[data-status="offline"] {
+  border-color: #747f8d !important;
+  box-shadow: none !important;
+}
+
+
+#popupAvatar.offline {
+  border-color: #747f8d !important;
+}
+
+#channelsList {
+  scrollbar-gutter: stable;
+}
+
+#channelsList::-webkit-scrollbar {
+  width: 4px;
+}
+
+#channelsList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#channelsList::-webkit-scrollbar-thumb {
+  background: #40444b;
+  border-radius: 4px;
+}
+
+#channelsList::-webkit-scrollbar-thumb:hover {
+  background: #72767d;
+}
+
+
+@keyframes bannerSlideIn {
+  from { transform: translateX(400px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+
+.banner-notification .username-wrapper {
+  animation-play-state: running !important;
+}
+
+.banner-notification .username-rainbow { animation: rainbowAnim 2s linear infinite !important; background: linear-gradient(90deg, red, orange, yellow, lime, cyan, blue, violet) !important; background-size: 300% 100% !important; -webkit-background-clip: text !important; background-clip: text !important; -webkit-text-fill-color: transparent !important; }
+.banner-notification .username-neon { animation: neonPulse 1.4s ease-in-out infinite alternate !important; }
+.banner-notification .username-shimmer { animation: shimmerAnim 2.5s linear infinite !important; background-size: 300% 300% !important; }
+.banner-notification .username-glitch { animation: glitchAnim 0.8s linear infinite !important; position: relative !important; }
+.banner-notification .username-electric { animation: electricAnim 0.15s linear infinite alternate !important; }
+.banner-notification .username-matrix { animation: matrixAnim 4s linear infinite !important; }
+.banner-notification .username-ghost { animation: ghostAnim 3s ease-in-out infinite !important; }
+.banner-notification .username-hellfire { animation: hellfireAnim 1.2s linear infinite !important; background-size: 400% 400% !important; }
+.banner-notification .username-fire { animation: fireAnim 1s linear infinite !important; background-size: 200% 100% !important; }
+.banner-notification .username-matrix-code { animation: matrixCodeRain 2s linear infinite !important; }
+.banner-notification .username-cyberpunk { animation: cyberpunkAnim 1.5s linear infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-cosmic { animation: cosmicAnim 2.5s ease-in-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-plasma { animation: plasmaAnim 1.2s linear infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-aurora { animation: auroraAnim 3s ease-in-out infinite !important; background-size: 400% 100% !important; }
+.banner-notification .username-inferno { animation: infernoAnim 0.8s linear infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-void { animation: voidAnim 2s ease-in-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-candy { animation: candyAnim 1.5s ease-in-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-quantum { animation: quantumAnim 1.3s linear infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-twilight { animation: twilightAnim 2s ease-in-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-corrupted { animation: corruptedGlitch 0.4s linear infinite !important; position: relative !important; background-size: 200% 100% !important; }
+.banner-notification .username-void-pulse { animation: voidPulseAnim 1.5s ease-in-out infinite !important; background-size: 200% 200% !important; }
+.banner-notification .username-acid { animation: acidAnim 0.6s linear infinite !important; background-size: 400% 400% !important; }
+.banner-notification .username-fractal { animation: fractalAnim 2s ease-in-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-hyperdrive { animation: hyperdriveAnim 0.5s linear infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-supernova { animation: supernovaAnim 0.8s ease-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-quantum-entangle { animation: quantumEntangleAnim 1.2s ease-in-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-dimensional { animation: dimensionalAnim 1.5s ease-in-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-toxic { animation: toxicAnim 1s linear infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-chaos { animation: chaosAnim 0.3s ease-in-out infinite !important; background-size: 300% 100% !important; }
+.banner-notification .username-singularity { animation: singularityAnim 2s ease-in-out infinite !important; background-size: 200% 200% !important; }
+
+@keyframes timerShrink {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+.banner-notification::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 0 0 10px 10px;
+  background: #FF0000;
+  animation: timerShrink linear forwards;
+}
+
+.banner-notification.timer-8s::after { animation-duration: 8s; }
+.banner-notification.timer-5s::after { animation-duration: 5s; }
+
+
+#typingIndicator {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  min-height: 24px;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.voice-participant.speaking span[title="Admin"],
+.voice-participant.speaking span[title="Developer"],
+.voice-participant.speaking span[title="Prompt Engineer"],
+.voice-participant.speaking span[title="Admin"] *,
+.voice-participant.speaking span[title="Developer"] *,
+.voice-participant.speaking span[title="Prompt Engineer"] * {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  animation: none !important;
+}
+
+
+#emoteGrid::-webkit-scrollbar {
+  width: 4px;
+}
+
+#emoteGrid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#emoteGrid::-webkit-scrollbar-thumb {
+  background: #40444b;
+  border-radius: 4px;
+}
+
+#emoteGrid::-webkit-scrollbar-thumb:hover {
+  background: #72767d;
+}
+
+.message .content .username-wrapper .user-badge {
+    width: 23px;
+    height: 23px;
+    vertical-align: middle;
+    margin-left: 4px;
+    margin-bottom: 2px;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+}
+
+div#usersList .username-wrapper .user-badge  {
+  width: 23px !important;
+  height: 23px !important;
+  flex-shrink: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.users .user img:not(.user-badge) {
+  flex-shrink: 0;
+}
+
+
+#previewUsername.username-rainbow { 
+  animation: rainbowAnim 2s linear infinite; background: linear-gradient(90deg, red, orange, yellow, lime, cyan, blue, violet); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+#previewUsername.username-neon { 
+  animation: neonPulse 1.4s ease-in-out infinite alternate; 
+  text-shadow: 0 0 8px #00ffea, 0 0 20px #00ffea, 0 0 40px #ff00c8;
+}
+#previewUsername.username-shimmer { 
+  animation: shimmerAnim 2.5s linear infinite; background-size: 300% 300%; 
+  text-shadow: 0 0 15px rgba(170, 255, 255, 0.8);
+}
+#previewUsername.username-glitch { 
+  animation: glitchAnim 0.8s linear infinite; position: relative;
+}
+#previewUsername.username-electric { 
+  animation: electricAnim 0.15s linear infinite alternate; 
+  text-shadow: 0 0 10px #00ddff, 0 0 30px #00ddff;
+}
+#previewUsername.username-matrix { 
+  animation: matrixAnim 4s linear infinite; 
+  text-shadow: 0 0 10px #00ff41;
+}
+#previewUsername.username-ghost { 
+  animation: ghostAnim 3s ease-in-out infinite; 
+  text-shadow: 0 0 15px #aaaaff;
+}
+#previewUsername.username-hellfire { 
+  animation: hellfireAnim 1.2s linear infinite; background-size: 400% 400%; 
+  text-shadow: 0 0 20px #ff4400;
+}
+#previewUsername.username-fire { 
+  animation: fireAnim 1s linear infinite; background-size: 200% 100%; 
+}
+#previewUsername.username-matrix-code { 
+  animation: matrixCodeRain 2s linear infinite; 
+  text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41, 0 0 30px #008f1e;
+}
+#previewUsername.username-cyberpunk { 
+  animation: cyberpunkAnim 1.5s linear infinite; 
+}
+#previewUsername.username-cosmic { 
+  animation: cosmicAnim 2.5s ease-in-out infinite; 
+}
+#previewUsername.username-plasma { 
+  animation: plasmaAnim 1.2s linear infinite; 
+  text-shadow: 0 0 20px #ff1493;
+}
+#previewUsername.username-aurora { 
+  animation: auroraAnim 3s ease-in-out infinite; 
+  text-shadow: 0 0 15px #00ff88;
+}
+#previewUsername.username-inferno { 
+  animation: infernoAnim 0.8s linear infinite; 
+  text-shadow: 0 0 25px #ff4500;
+}
+#previewUsername.username-void { 
+  animation: voidAnim 2s ease-in-out infinite; 
+  text-shadow: 0 0 20px #00ffff;
+}
+#previewUsername.username-candy { 
+  animation: candyAnim 1.5s ease-in-out infinite; 
+}
+#previewUsername.username-quantum { 
+  animation: quantumAnim 1.3s linear infinite; 
+  text-shadow: 0 0 15px #00d9ff;
+}
+#previewUsername.username-twilight { 
+  animation: twilightAnim 2s ease-in-out infinite; 
+}
+#previewUsername.username-corrupted { 
+  animation: corruptedGlitch 0.4s linear infinite; position: relative; 
+  text-shadow: 2px 2px 0px #ff0080, -2px -2px 0px #7928ca, 0px 0px 20px #ff0080;
+}
+#previewUsername.username-void-pulse { 
+  animation: voidPulseAnim 1.5s ease-in-out infinite; 
+  text-shadow: 0 0 10px #00ffff, 0 0 20px #0066ff, 0 0 40px #00ffff, inset 0 0 20px rgba(0, 255, 255, 0.5);
+}
+#previewUsername.username-acid { 
+  animation: acidAnim 0.6s linear infinite; 
+  text-shadow: 0 0 5px #ff0000, 0 0 10px #ffff00, 0 0 15px #00ff00, 0 0 20px #00ffff;
+}
+#previewUsername.username-fractal { 
+  animation: fractalAnim 2s ease-in-out infinite; 
+  text-shadow: 0 0 10px #ff006e, 0 0 20px #8338ec, 0 0 30px #3a86ff;
+}
+#previewUsername.username-hyperdrive { 
+  animation: hyperdriveAnim 0.5s linear infinite; 
+ 
+}
+#previewUsername.username-supernova { 
+  animation: supernovaAnim 0.8s ease-out infinite; 
+  text-shadow: 0 0 10px #ffff00, 0 0 20px #ff8800, 0 0 40px #ff0000, 0 0 60px #ffff00;
+}
+#previewUsername.username-quantum-entangle { 
+  animation: quantumEntangleAnim 1.2s ease-in-out infinite; 
+  text-shadow: 0 0 10px #00d9ff, 0 0 20px #6600ff;
+}
+#previewUsername.username-dimensional { 
+  animation: dimensionalAnim 1.5s ease-in-out infinite; 
+  text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff, 9px 9px 20px rgba(255, 0, 255, 0.5);
+}
+#previewUsername.username-toxic { 
+  background: linear-gradient(90deg, #39ff14, #00ff00, #ffff00, #39ff14) !important;
+  background-size: 300% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: toxicAnim 1s linear infinite !important;
+  display: inline-block !important;
+  position: relative !important;
+}
+
+
+#previewUsername.username-chaos { 
+  animation: chaosAnim 0.3s ease-in-out infinite; 
+  text-shadow: 0 0 10px #ff0080, 0 0 20px #ff8c00;
+}
+#previewUsername.username-singularity { 
+  animation: singularityAnim 2s ease-in-out infinite; 
+  text-shadow: 0 0 5px #ffffff, 0 0 15px #ff00ff, 0 0 30px #ff00ff;
+}
+#previewUsername.username-glitch::before,
+#previewUsername.username-glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+}
+
+#previewUsername.username-glitch::before {
+    animation: glitch2 0.4s infinite;
+    color: #ff00ff;
+    left: -2px;
+    text-shadow: 2px 0 #00ffff;
+    clip: rect(0, 900px, 0, 0);
+}
+
+#previewUsername.username-glitch::after {
+    animation: glitch2 0.4s infinite;
+    color: #ff00ff;
+    left: -2px;
+    text-shadow: 2px 0 #00ffff;
+    clip: rect(0, 900px, 0, 0);
+}
+
+
+#previewAvatar {
+  border: 3px solid transparent;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+#previewAvatar[data-color="username-gold"] {
+  border-color: #ffd700;
+}
+#previewAvatar[data-color="username-pink"] {
+  border-color: #ff2d95;
+}
+#previewAvatar[data-color="username-purple"] {
+  border-color: #9d4eff;
+}
+#previewAvatar[data-color="username-cyan"] {
+  border-color: #00f2ff;
+}
+#previewAvatar[data-color="username-green"] {
+  border-color: #39ff6e;
+}
+#previewAvatar[data-color="username-red"] {
+  border-color: #ff3333;
+}
+#previewAvatar[data-color="username-blue-silver"] {
+  border-color: #3399ff;
+}
+
+#previewAvatar[data-color="username-neon"]      { border-color: #00ffea; animation: avatarNeonGlow 1.4s ease-in-out infinite alternate; }
+#previewAvatar[data-color="username-shimmer"]   { border-color: #aaffff; animation: avatarShimmerGlow 2.5s linear infinite; }
+#previewAvatar[data-color="username-glitch"]    { border-color: #00ffcc; animation: avatarGlitchGlow 0.8s linear infinite; }
+#previewAvatar[data-color="username-electric"]  { border-color: #00ddff; animation: avatarElectricGlow 0.15s linear infinite; }
+#previewAvatar[data-color="username-matrix"]    { border-color: #00ff41; animation: avatarMatrixGlow 4s linear infinite; }
+#previewAvatar[data-color="username-ghost"]     { border-color: #ffffff; animation: avatarGhostGlow 3s ease-in-out infinite; }
+#previewAvatar[data-color="username-hellfire"]  { border-color: #ff2200; animation: avatarHellfireGlow 1.2s linear infinite; }
+#previewAvatar[data-color="username-fire"]      { border-color: #ff4400; animation: avatarFireGlow 1s linear infinite; }
+#previewAvatar[data-color="username-rainbow"]   { border-color: #ff0000; animation: avatarRainbowGlow 2s linear infinite; }
+#previewAvatar[data-color="username-cyberpunk"] { border-color: #ff006e; animation: avatarCyberpunkGlow 1.5s linear infinite; }
+#previewAvatar[data-color="username-cosmic"]    { border-color: #a78bfa; animation: avatarCosmicGlow 2.5s ease-in-out infinite; }
+#previewAvatar[data-color="username-plasma"]    { border-color: #ff1493; animation: avatarPlasmaGlow 1.2s linear infinite; }
+#previewAvatar[data-color="username-aurora"]    { border-color: #00ff88; animation: avatarAuroraGlow 3s ease-in-out infinite; }
+#previewAvatar[data-color="username-inferno"]   { border-color: #ff0000; animation: avatarInfernoGlow 0.8s linear infinite; }
+#previewAvatar[data-color="username-void"]      { border-color: #00ffff; animation: avatarVoidGlow 2s ease-in-out infinite; }
+#previewAvatar[data-color="username-candy"]     { border-color: #ff69b4; animation: avatarCandyGlow 1.5s ease-in-out infinite; }
+#previewAvatar[data-color="username-quantum"]   { border-color: #00d9ff; animation: avatarQuantumGlow 1.3s linear infinite; }
+#previewAvatar[data-color="username-twilight"]  { border-color: #7c3aed; animation: avatarTwilightGlow 2s ease-in-out infinite; }
+#previewAvatar[data-color="username-corrupted"] { border-color: #ff0080; animation: avatarCorruptedGlow 0.4s linear infinite; }
+#previewAvatar[data-color="username-void-pulse"]{ border-color: #00ffff; animation: avatarVoidPulseGlow 1.5s ease-in-out infinite; }
+#previewAvatar[data-color="username-acid"]      { border-color: #ff0000; animation: avatarAcidGlow 0.6s linear infinite; }
+#previewAvatar[data-color="username-fractal"]   { border-color: #ff006e; animation: avatarFractalGlow 2s ease-in-out infinite; }
+#previewAvatar[data-color="username-hyperdrive"]{ border-color: #00ffff; animation: avatarHyperdriveGlow 0.5s linear infinite; }
+#previewAvatar[data-color="username-supernova"] { border-color: #ffff00; animation: avatarSupernovaGlow 0.8s ease-out infinite; }
+#previewAvatar[data-color="username-quantum-entangle"] { border-color: #00d9ff; animation: avatarQuantumEntangleGlow 1.2s ease-in-out infinite; }
+#previewAvatar[data-color="username-dimensional"] { border-color: #ff00ff; animation: avatarDimensionalGlow 1.5s ease-in-out infinite; }
+#previewAvatar[data-color="username-toxic"]     { border-color: #39ff14; animation: avatarToxicGlow 1s linear infinite; }
+#previewAvatar[data-color="username-chaos"]     { border-color: #ff0080; animation: avatarChaosGlow 0.3s ease-in-out infinite; }
+#previewAvatar[data-color="username-singularity"] { border-color: #ffffff; animation: avatarSingularityGlow 2s ease-in-out infinite; }
+#previewAvatar[data-color="username-matrix-code"] { border-color: #00ff41; animation: avatarMatrixCodeGlow 2s linear infinite; }
+
+.voice-participant .user-badge,
+.voice-participant .overlay-level,
+.voice-participant .overlay-prestige,
+.voice-participant img[title="Admin"],
+.voice-participant .overlay-mute {
+  animation: none !important;
+  transform: none !important;
+  filter: none !important;
+  z-index: 11;
+}
+
+#loveTab::-webkit-scrollbar {
+    width: 6px;
+}
+
+#loveTab::-webkit-scrollbar-track {
+    background: #2f3136;
+    border-radius: 10px;
+}
+
+#loveTab::-webkit-scrollbar-thumb {
+    background: #4f545c;
+    border-radius: 10px;
+}
+
+#loveTab::-webkit-scrollbar-thumb:hover {
+    background: #5d6269;
+}
+
+
+.ss-card {
+  position: relative;
+  display: block;
+  margin: 10px 0;
+  width: 100%;
+  max-width: 640px;
+  background: #111214;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #FF0000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+ 
+.ss-video {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 65vh;
+  display: block !important;
+  background: #000;
+}
+ 
+.ss-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #111214;
+  color: #b9bbbe;
+  font-size: 13px;
+  z-index: 3;
+}
+ 
+.ss-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #FF0000;
+  border-top-color: transparent;
+  animation: spin 0.7s linear infinite;
+
+}
+ 
+.ss-chip {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.61);
+  padding: 5px 10px 5px 8px;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  z-index: 4;
+}
+ 
+.ss-chip .ss-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FF0000;
+  flex-shrink: 0;
+}
+ 
+.ss-card.ss-local .ss-chip .ss-dot {
+  background: #23a559;
+}
+ 
+.ss-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  z-index: 5;
+}
+ 
+
+.ss-controls {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ss-card:hover .ss-controls {
+  opacity: 1;
+}
+ 
+.ss-btn {
+  background: #4f545c; 
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+ 
+.ss-btn:hover {
+  background: #FF0000; 
+}
+ 
+.ss-btn.ss-btn-danger:hover {
+  background: #ed4245; 
+}
+ 
+.ss-volume {
+  position: absolute;
+  right: 8px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.61);
+  padding: 4px 10px;
+  border-radius: 6px;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ss-card:hover .ss-volume {
+  opacity: 1;
+}
+ 
+.ss-volume input[type="range"] {
+  width: 80px;
+  accent-color: #FF0000; 
+}
+ 
+.ss-volume-pct {
+  color: #b9bbbe;
+  font-size: 11px;
+  min-width: 30px;
+  text-align: right;
+}
+
+.voice-btn.sharing {
+  background: #FF0000;
+}
+
+.sidebar-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #1a1a1c;
+  border: none;
+  color: #c9c9cc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  padding: 0;
+}
+.sidebar-icon-btn:hover {
+  background: #FF0000;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+#channelsList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  max-height: calc(6 * 36px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-right: -20px;
+  padding-right: 20px;
+  scrollbar-width: none;      
+  -ms-overflow-style: none;    
+}
+
+#channelsList::-webkit-scrollbar {
+  display: none;            
+}
+
+#BadgeBtw {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.input-icon-btn:hover {
+    background: transparent;
+    color: inherit; 
+}
+
+.message img.emoji {
+  max-width: 80px !important;
+  max-height: 80px !important;
+}
+
+
+.username-default {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: #616161;
+  color: #616161;
+  text-shadow: none;
+  animation: none !important;
+  filter: none;
+}
+
+.user:hover .username-default,
+.message:hover .username-default,
+.voice-participant.speaking .username-default,
+#popupUsername .username-default,
+#previewUsername.username-default {
+  animation: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  background: none !important;
+  -webkit-text-fill-color: #616161 !important;
+}
+
+
+.message .pfp[data-color="username-default"],
+.user img[data-color="username-default"],
+.popup-avatar[data-color="username-default"],
+#previewAvatar[data-color="username-default"] {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+
+
+.voice-participant.speaking[data-username-color="username-default"] img:not(.user-badge):not(.voice-icon):not(.role-badge) {
+  outline: 3px solid #616161;
+  outline-offset: 2px;
+}
+.username-default,
+.username-wrapper.username-default {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: #616161 !important;
+  color: #616161 !important;
+  text-shadow: none !important;
+  animation: none !important;
+  filter: none !important;
+}
+
+
+
+.message:hover .pfp[data-color="username-default"],
+.user:hover img[data-color="username-default"] {
+  box-shadow: 0 0 14px rgba(255,255,255,0.5);
+}
+

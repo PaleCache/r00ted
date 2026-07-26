@@ -1,0 +1,32 @@
+{
+  "pepeList": [
+    "omegalul.png"
+  ],
+  "prestigeBadges": [
+    {
+      "level": 10,
+      "badge": "/badges/prestige1.png",
+      "label": "Poor"
+    },
+    {
+      "level": 20,
+      "badge": "/badges/prestige2.png",
+      "label": "Bronze"
+    },
+    {
+      "level": 30,
+      "badge": "/badges/prestige3.png",
+      "label": "Silver"
+    },
+    {
+      "level": 50,
+      "badge": "/badges/prestige4.png",
+      "label": "Gold"
+    },
+    {
+      "level": 100,
+      "badge": "/badges/prestige5.png",
+      "label": "OG"
+    }
+  ]
+}

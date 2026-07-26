@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html, body { margin:0; background:transparent; overflow:hidden; font-family: Arial; }
+#panel {
+  position: fixed; top: 420px; left: 0px;
+  background: rgba(17, 18, 20, 0); border-radius: 10px;
+  padding: 0px 4px; color: #ffffff; min-width: 220px;
+  border: 1px solid #3a3c4200;
+}
+.vp { display:flex; align-items:center; gap:8px; padding:4px 0; }
+.vp img.avatar { width:48px; height:48px; border-radius:50%; box-sizing:border-box; transition: border-color 0.1s; }
+.overlay-username {
+  font-family: Arial, sans-serif;
+  font-weight: 900;
+  font-size: 15px;
+  line-height: 1.3;
+  max-width: 187px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: middle;
+}
+.overlay-meta { display:flex; align-items:center; gap:4px; }
+.overlay-level {
+  font-size: 10px; font-weight: 700;
+  padding: 1px 5px; border-radius: 3px;
+  border: 1px solid currentColor;
+}
+.overlay-badge { width: 16px; height: 16px;}
+.overlay-prestige { width: 16px; height: 16px;}
+.overlay-crown { width: 14px; height: 14px; }
+.overlay-mute {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  vertical-align: middle;
+  object-fit: contain;
+  opacity: 0.9;
+  filter: brightness(0) saturate(100%) invert(13%) sepia(99%) saturate(3465%) hue-rotate(0deg) brightness(104%);
+}
+
+.overlay-username {
+  font-weight: 900;
+  font-size: 15px;
+  line-height: 1.3;
+  display: inline-block;
+  max-width: 187px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.vp img.avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 3px solid transparent;
+  box-sizing: border-box;
+}
+
+
+@keyframes rainbowAnim { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+@keyframes neonPulse { from { text-shadow: 0 0 8px #00ffea, 0 0 20px #00ffea, 0 0 40px #ff00c8; } to { text-shadow: 0 0 15px #00ffea, 0 0 35px #ff00c8, 0 0 70px #ff00c8; } }
+@keyframes shimmerAnim { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
+@keyframes glitchAnim { 0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); } }
+@keyframes electricAnim { 0% { text-shadow: 0 0 8px #00ddff, 0 0 25px #00ddff; } 100% { text-shadow: 0 0 20px #00ddff, 0 0 50px #00ddff, 0 0 70px #ffffff; } }
+@keyframes matrixAnim { 0% { background-position: 0% 0%; } 100% { background-position: 0% 200%; } }
+@keyframes ghostAnim { 0%, 100% { opacity: 0.7; text-shadow: 0 0 15px #aaaaff; } 50% { opacity: 1; text-shadow: 0 0 30px #ddddff; } }
+@keyframes fireAnim { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+@keyframes hellfireAnim { 0% { background-position: 0% 50%; } 50% { background-position: 400% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes matrixCodeRain { 0% { transform: translateY(-100%); opacity: 0; text-shadow: 0 0 5px #00ff41; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(100%); opacity: 0; text-shadow: 0 0 20px #00ff41; } }
+@keyframes cyberpunkAnim { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes cosmicAnim { 0% { background-position: 0% 50%; filter: brightness(1); } 50% { background-position: 100% 50%; filter: brightness(1.2); } 100% { background-position: 0% 50%; filter: brightness(1); } }
+@keyframes plasmaAnim { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%;} }
+@keyframes auroraAnim { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes infernoAnim { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+@keyframes voidAnim { 0%, 100% { background-position: 0% 50%; text-shadow: 0 0 10px #00ffff; } 50% { background-position: 100% 50%; text-shadow: 0 0 30px #00ffff; } }
+@keyframes candyAnim { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes quantumAnim { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+@keyframes twilightAnim { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes voidPulseAnim { 0%, 100% { background-position: 0% 50%; text-shadow: 0 0 10px #00ffff, 0 0 20px #0066ff; } 50% { background-position: 100% 50%; text-shadow: 0 0 30px #00ffff, 0 0 50px #0066ff; } }
+@keyframes acidAnim { 0% { background-position: 0% 50%; } 25% { background-position: 33% 50%; } 50% { background-position: 66% 50%; } 75% { background-position: 99% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes fractalAnim { 0%, 100% { background-position: 0% 50%; filter: brightness(1.3); } 50% { background-position: 100% 50%; filter: brightness(1.6); } }
+@keyframes hyperdriveAnim { 0% { background-position: 0% 50%; letter-spacing: 1px; } 50% { background-position: 100% 50%; letter-spacing: 3px; } 100% { background-position: 0% 50%; letter-spacing: 1px; } }
+@keyframes supernovaAnim { 0% { background-position: 0% 50%; transform: scale(1); } 50% { background-position: 100% 50%; transform: scale(1.1); } 100% { background-position: 0% 50%; transform: scale(1); } }
+@keyframes quantumEntangleAnim { 0%, 100% { background-position: 0% 50%; } 25% { background-position: 33% 50%; } 50% { background-position: 66% 50%; } 75% { background-position: 99% 50%; } }
+@keyframes dimensionalAnim { 0%, 100% { background-position: 0% 50%; text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff; } 50% { background-position: 100% 50%; text-shadow: 6px 6px 0px #ff00ff, 12px 12px 0px #00ffff; } }
+@keyframes toxicAnim { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+@keyframes chaosAnim { 0% { transform: translate(0,0) rotate(0deg); } 25% { transform: translate(1px,-1px) rotate(-1deg); } 50% { transform: translate(-1px,1px) rotate(1deg); } 75% { transform: translate(1px,1px) rotate(-1deg); } 100% { transform: translate(0,0) rotate(0deg); } }
+@keyframes singularityAnim { 0%, 100% { background-position: 0% 50%; transform: scale(1); } 50% { background-position: 100% 50%; transform: scale(1.05); } }
+@keyframes avatarRainbowGlow {
+  0% { border-color: #ff0000; }
+  14% { border-color: #ff8800; }
+  28% { border-color: #ffff00; }
+  42% { border-color: #00ff00; }
+  57% { border-color: #00ffff; }
+  71% { border-color: #0066ff; }
+  85% { border-color: #cc00ff; }
+  100% { border-color: #ff0000; }
+}
+
+@keyframes avatarNeonGlow {
+  from { border-color: #00ffea; }
+  to { border-color: #ff00c8; }
+}
+
+@keyframes avatarShimmerGlow {
+  0%, 100% { border-color: #aaffff; }
+  50% { border-color: #ffffff; }
+}
+
+@keyframes avatarGlitchGlow {
+  0%, 100% { border-color: #00ffcc; }
+  33% { border-color: #ff00ff; }
+  66% { border-color: #00ffff; }
+}
+
+@keyframes avatarElectricGlow {
+  0% { border-color: #00ddff; }
+  100% { border-color: #ffffff; }
+}
+
+@keyframes avatarMatrixGlow {
+  0%, 100% { border-color: #00ff41; }
+  50% { border-color: #008f1e; }
+}
+
+@keyframes avatarGhostGlow {
+  0%, 100% { border-color: #bbbbff; }
+  50% { border-color: #ffffff; }
+}
+
+@keyframes avatarHellfireGlow {
+  0% { border-color: #ff2200; }
+  50% { border-color: #ffff00; }
+  100% { border-color: #ff2200; }
+}
+
+@keyframes avatarFireGlow {
+  0%, 100% { border-color: #ff4400; }
+  50% { border-color: #ffaa00; }
+}
+
+@keyframes avatarMatrixCodeGlow {
+  0%, 100% { border-color: #00ff41; }
+  50% { border-color: #008f1e; }
+}
+
+@keyframes avatarGoldPulse {
+  0%, 100% { }
+  50% { }
+}
+
+@keyframes avatarPinkPulse {
+  0%, 100% { }
+  50% { }
+}
+
+@keyframes avatarPurplePulse {
+  0%, 100% { }
+  50% { }
+}
+
+@keyframes avatarCyanPulse {
+  0%, 100% { }
+  50% { }
+}
+
+@keyframes avatarGreenPulse {
+  0%, 100% { }
+  50% { }
+}
+
+@keyframes avatarRedPulse {
+  0%, 100% { }
+  50% { }
+}
+
+@keyframes avatarBlueSilverPulse {
+  0%, 100% { }
+  50% { }
+}
+
+@keyframes avatarCyberpunkGlow {
+  0%,100% { border-color:#ff006e; }
+  50% { border-color:#00f5ff; }
+}
+
+@keyframes avatarCosmicGlow {
+  0%,100% { border-color:#a78bfa; }
+  50% { border-color:#60a5fa; }
+}
+
+@keyframes avatarPlasmaGlow {
+  0%,100% { border-color:#ff1493; }
+  50% { border-color:#ffb6c1; }
+}
+
+@keyframes avatarAuroraGlow {
+  0%,100% { border-color:#00ff88; }
+  50% { border-color:#00ffff; }
+}
+
+@keyframes avatarInfernoGlow {
+  0%,100% { border-color:#ff0000; }
+  50% { border-color:#ffff00; }
+}
+
+@keyframes avatarVoidGlow {
+  0%,100% { border-color:#00ffff; }
+  50% { border-color:#0066ff; }
+}
+
+@keyframes avatarCandyGlow {
+  0%,100% { border-color:#ff69b4; }
+  50% { border-color:#ffc0cb; }
+}
+
+@keyframes avatarQuantumGlow {
+  0%,100% { border-color:#00d9ff; }
+  50% { border-color:#6600ff; }
+}
+
+@keyframes avatarTwilightGlow {
+  0%,100% { border-color:#7c3aed; }
+  50% { border-color:#ec4899; }
+}
+
+@keyframes avatarCorruptedGlow {
+  0%,100% { border-color:#ff0080; }
+  50% { border-color:#7928ca; }
+}
+
+@keyframes corruptedGlitch {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes corruptedGlitch1 {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(2px, -2px); }
+  60% { transform: translate(-1px, 1px); }
+  80% { transform: translate(1px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes corruptedGlitch2 {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(2px, -2px); }
+  40% { transform: translate(-2px, 2px); }
+  60% { transform: translate(1px, -1px); }
+  80% { transform: translate(-1px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes avatarVoidPulseGlow {
+  0%,100% { border-color:#00ffff; }
+  50% { border-color:#0066ff; }
+}
+
+@keyframes avatarAcidGlow {
+  0% { border-color:#ff0000; }
+  25% { border-color:#ffff00; }
+  50% { border-color:#00ff00; }
+  75% { border-color:#00ffff; }
+  100% { border-color:#ff0000; }
+}
+
+@keyframes avatarFractalGlow {
+  0%,100% { border-color:#ff006e; }
+  50% { border-color:#3a86ff; }
+}
+
+@keyframes avatarHyperdriveGlow {
+  0%,100% { border-color:#00ffff; }
+  50% { border-color:#ffffff; }
+}
+
+@keyframes avatarSupernovaGlow {
+  0%,100% { border-color:#ffff00; }
+  50% { border-color:#ff0000; }
+}
+
+@keyframes avatarQuantumEntangleGlow {
+  0%,100% { border-color:#00d9ff; }
+  50% { border-color:#6600ff; }
+}
+
+@keyframes avatarDimensionalGlow {
+  0%,100% { border-color:#ff00ff; }
+  50% { border-color:#00ffff; }
+}
+
+@keyframes avatarToxicGlow {
+  0%,100% { border-color:#39ff14; }
+  50% { border-color:#00ff00; }
+}
+
+@keyframes avatarChaosGlow {
+  0%,100% { border-color:#ff0080; }
+  50% { border-color:#40e0d0; }
+}
+
+@keyframes avatarSingularityGlow {
+  0%,100% { border-color:#ffffff; }
+  50% { border-color:#ff00ff; }
+}
+.overlay-mute { width: 14px; height: 14px; opacity: 0.9; filter: brightness(0) saturate(100%) invert(13%) sepia(99%) saturate(3465%) hue-rotate(0deg) brightness(104%); }
+.overlay-badge { width: 16px; height: 16px;}
+.overlay-prestige { width: 16px; height: 16px;box-shadow: 0 0 4px rgba(0,0,0,0.6); }
+.overlay-level { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; border: 1px solid currentColor; }
+.overlay-meta {display: flex;align-items: center;gap: 10px; margin-left: -7px;}
+@keyframes glitch1 {
+  0% { clip: rect(25px, 9999px, 50px, 0); }
+  5% { clip: rect(10px, 9999px, 80px, 0); }
+  10% { clip: rect(60px, 9999px, 90px, 0); }
+}
+
+@keyframes glitch2 {
+  0% { clip: rect(80px, 9999px, 120px, 0); }
+  5% { clip: rect(30px, 9999px, 70px, 0); }
+  10% { clip: rect(50px, 9999px, 100px, 0); }
+}
+
+@keyframes matrixCodeChars {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes matrixCodeGlitch {
+  0% {
+    transform: translateY(-100%) translateX(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(0) translateX(2px);
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(100%) translateX(-2px);
+    opacity: 0;
+  }
+}
+
+@keyframes matrixRain { 
+  0% { background-position: 0% 0%; } 
+  100% { background-position: 0% 220%; } 
+}
+
+@keyframes matrixGlitch { 
+  0%,100% { transform: translate(0); }
+  25% { transform: translate(-3px, 2px); }
+  50% { transform: translate(3px, -2px); }
+  75% { transform: translate(-2px, 2px); }
+}
+
+@keyframes matrixCodeChars {
+  0%   { transform: translateY(-150%); opacity: 0; }
+  10%  { opacity: 0.8; }
+  90%  { opacity: 0.8; }
+  100% { transform: translateY(150%); opacity: 0; }
+}
+
+.overlay-username.username-glitch {
+  position: relative;
+}
+.overlay-username.username-glitch.speaking::before,
+.overlay-username.username-glitch.speaking::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+  pointer-events: none;
+  background: linear-gradient(90deg,#00ffcc,#ff00ff,#00ffcc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.overlay-username.username-glitch.speaking::before {
+  animation: glitch1 0.6s infinite !important;
+  color: #00ffff !important;
+  left: 2px !important;
+  text-shadow: -2px 0 #ff00ff !important;
+  clip: rect(0, 900px, 0, 0);
+}
+.overlay-username.username-glitch.speaking::after {
+  animation: glitch2 0.4s infinite !important;
+  color: #ff00ff !important;
+  left: -2px !important;
+  text-shadow: 2px 0 #00ffff !important;
+  clip: rect(0, 900px, 0, 0);
+}
+
+
+span.overlay-username.username-matrix-code.speaking::before {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.7;
+    animation: matrixCodeGlitch 2s linear infinite;
+    color: #00ff41;
+    text-shadow: 0 0 10px #00ff41;
+    -webkit-clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%);
+    clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%);
+}
+
+.overlay-username.username-matrix-code.speaking::after {
+  content: '01 10 11 00 01 10 01 11' !important;
+  position: absolute !important;
+  left: -40px !important; 
+  top: 0 !important;
+  width: 300% !important;
+  height: 100% !important;
+  opacity: 0.55 !important;
+  animation: matrixCodeChars 1.7s linear infinite !important;
+  color: #00dd44 !important;
+  font-size: 0.75em !important;
+  letter-spacing: 3px !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  z-index: 3;
+}
+
+
+.overlay-username.username-corrupted.speaking{
+    animation: corruptedGlitch 0.4s linear infinite !important;
+    text-shadow: 2px 2px 0px #ff0080, -2px -2px 0px #7928ca, 0px 0px 20px #ff0080;
+}
+
+.overlay-username.username-corrupted.speaking::before {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.8 !important;
+  animation: corruptedGlitch1 0.3s infinite !important;
+  color: #ff0080 !important;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%) !important;
+}
+
+.overlay-username.username-corrupted.speaking::after {
+  content: attr(data-text) !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.8 !important;
+  animation: corruptedGlitch2 0.25s infinite !important;
+  color: #7928ca !important;
+  clip-path: polygon(0 35%, 100% 35%, 100% 65%, 0 65%) !important;
+}
+
+.overlay-username.username-plasma.speaking {
+  text-shadow: 0 0 20px #ff1493, 
+               0 0 35px #ff69b4 !important;
+}
+
+.overlay-username.username-aurora.speaking {
+text-shadow: 0 0 15px #00ff88 !important;
+}
+
+.overlay-username.username-inferno.speaking {
+text-shadow: 0 0 25px #ff4500;
+}
+
+
+
+.overlay-username.username-quantum.speaking {
+text-shadow: 0 0 15px #00d9ff;
+}
+
+.overlay-username.username-acid.speaking {
+text-shadow: 0 0 5px #ff0000, 0 0 10px #ffff00, 0 0 15px #00ff00, 0 0 20px #00ffff;
+}
+
+.overlay-username.username-fractal.speaking {
+text-shadow: 0 0 10px #ff006e, 0 0 20px #8338ec, 0 0 30px #3a86ff;
+}
+
+.overlay-username.username-supernova.speaking {
+ text-shadow: 0 0 10px #ffff00, 0 0 20px #ff8800, 0 0 40px #ff0000, 0 0 60px #ffff00;
+}
+
+.overlay-username.username-quantum-entangle.speaking {
+text-shadow: 0 0 10px #00d9ff, 0 0 20px #6600ff;
+}
+
+.overlay-username.username-chaos.speaking {
+text-shadow: 0 0 10px #ff0080, 0 0 20px #ff8c00;
+}
+.overlay-username.username-singularity.speaking {
+text-shadow: 0 0 5px #ffffff, 0 0 15px #ff00ff, 0 0 15px #ff00ff;
+}
+
+
+#musicArt, #musicArtFallback {
+  outline: none;
+  transition: outline-width 0.08s linear, outline-color 0.08s linear;
+}
+
+
+</style>
+</head>
+<body>
+
+<div id="widgetStack" style="
+  position: fixed;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  gap: 0px;
+">
+  <div id="musicWidget" style="
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    backdrop-filter: blur(2px);
+    max-width: 260px;
+  ">
+    <img id="musicArt" src="" style="
+      width: 39px;
+      height: 39px;
+      border-radius: 6px;
+      object-fit: cover;
+      display: block;
+      flex-shrink: 0;
+    ">
+    <div id="musicArtFallback" style="
+      width: 39px; height: 39px; border-radius: 6px; flex-shrink: 0;
+      background: rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+    ">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" opacity="0.7">
+        <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+      </svg>
+    </div>
+    <div style="min-width:0; overflow:hidden;">
+      <div id="musicTitle" style="
+        color:#fff; font-weight:700; font-size:12.5px;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+      "></div>
+      <div id="musicArtist" style="
+        color:rgba(255,255,255,0.7); font-size:11px;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+      "></div>
+    </div>
+  </div>
+
+
+
+
+<div id="brandWidget" style="
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px 6px 1px;
+    border-radius: 12px;
+    backdrop-filter: blur(6px);
+   
+  ">
+    <img id="brandLogo" src="" style="
+      height:56px; width:60px; object-fit:contain; border-radius:8px;
+      filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+    " alt="R00TED">
+
+    <div style="display:flex; flex-direction:column; gap:1px; padding-right:2px;">
+      <span id="brandClock" style="
+        color:#fff; font-weight:700; font-size:13px; line-height:1.1;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+        font-variant-numeric: tabular-nums;
+      "></span>
+    <span id="brandVersion" style="
+      color:rgba(255,255,255,0.45); font-size:9.5px; font-weight:600; line-height:1.1;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    "></span>
+    </div>
+
+    <div id="pingDivider" style="display:none; width:1px; height:22px; background:rgba(255,255,255,0.15);"></div>
+
+    <span id="pingIndicator" style="display:none; align-items:center; gap:5px; padding:4px 9px; background: rgb(115 115 115 / 2%); border-radius:20px;">
+      <svg id="pingBarsIcon" width="14" height="11" viewBox="0 0 14 11" style="flex-shrink:0;">
+        <rect x="0"  y="7" width="2.5" height="4" rx="0.5" fill="currentColor" opacity="0.3"/>
+        <rect x="3.5" y="5" width="2.5" height="6" rx="0.5" fill="currentColor" opacity="0.3"/>
+        <rect x="7"  y="3" width="2.5" height="8" rx="0.5" fill="currentColor" opacity="0.3"/>
+        <rect x="10.5" y="0" width="2.5" height="11" rx="0.5" fill="currentColor" opacity="0.3"/>
+      </svg>
+      <span id="pingText" style="
+        color:#fff; font-weight:700; font-size:11.5px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.2px;
+      ">--</span>
+    </span>
+</div>
+<div id="panel"></div>
+<script>
+const panel = document.getElementById('panel');
+let SERVER_ORIGIN = 'http://127.0.0.1:5350/';
+
+if (window.overlayAPI) {
+window.overlayAPI.onConfig((config) => {
+  if (config && config.serverUrl) {
+    SERVER_ORIGIN = config.serverUrl.replace(/\/$/, '') + '/';
+  }
+  if (config && config.version) {
+    document.getElementById('brandVersion').textContent = `v${config.version} alpha`;
+  }
+  brandLogo.src = resolveUrl('/icon.png');
+  if (config && config.position && config.position.x != null && config.position.y != null) {
+    panel.style.left = config.position.x + 'px';
+    panel.style.top = config.position.y + 'px';
+  }
+      syncWidgetStackPosition(); 
+    brandWidget.style.display = 'flex';
+  window.overlayAPI.ackConfig();
+});
+}
+
+window.overlayAPI.onMusicLevel((level) => {
+  const threshold = 0.03;
+  if (level < threshold) {
+    musicArt.style.outline = 'none';
+    musicArtFallback.style.outline = 'none';
+    return;
+  }
+  const width = Math.min(8, 2 + level * 6);
+  const outline = `${width}px solid #FF0000`;
+  musicArt.style.outline = outline;
+  musicArtFallback.style.outline = outline;
+});
+
+function resolveUrl(src) {
+  if (!src) return '';
+  if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('blob:')) return src;
+  const base = SERVER_ORIGIN.replace(/\/$/, '');
+  const path = src.startsWith('/') ? src : `/${src}`;
+  return `${base}${path}`;
+}
+const COLOR_META = {
+  'username-gold':        { bg: 'linear-gradient(90deg,#ffd700,#ff8800)' },
+  'username-pink':        { bg: 'linear-gradient(90deg,#ff2d95,#c800ff)' },
+  'username-purple':      { bg: 'linear-gradient(90deg,#9d4eff,#4b00ff)' },
+  'username-cyan':        { bg: 'linear-gradient(90deg,#00f2ff,#0066ff)' },
+  'username-green':       { bg: 'linear-gradient(90deg,#39ff6e,#008f2e)' },
+  'username-red':         { bg: 'linear-gradient(90deg,#ff3333,#aa0000)' },
+  'username-blue-silver': { bg: 'linear-gradient(90deg,#3399ff,#c0d4ff)' },
+  'username-rainbow':     { bg: 'linear-gradient(90deg,red,orange,yellow,lime,cyan,blue,violet)', bgSize: '300% 100%', anim: 'rainbowAnim 2s linear infinite' },
+  'username-fire':        { bg: 'linear-gradient(90deg,#ff4400,#ffaa00,#ffff00,#ff4400)', bgSize: '200% 100%', anim: 'fireAnim 1s linear infinite' },
+  'username-neon':        { bg: 'linear-gradient(90deg,#00ffea,#ff00c8)', anim: 'neonPulse 1.4s ease-in-out infinite alternate' },
+  'username-shimmer':     { bg: 'linear-gradient(90deg,#ffffff,#aaffff,#ffffff,#aaffff)', bgSize: '300% 300%', anim: 'shimmerAnim 2.5s linear infinite' },
+  'username-glitch':      { bg: 'linear-gradient(90deg,#00ffcc,#ff00ff,#00ffcc)', anim: 'glitchAnim 0.8s linear infinite' },
+  'username-electric':    { bg: 'linear-gradient(90deg,#00ddff,#ffffff,#00ddff)', anim: 'electricAnim 0.15s linear infinite alternate' },
+  'username-matrix':      { bg: 'linear-gradient(180deg,#00ff41,#008f1e)', bgSize: '100% 200%', anim: 'matrixAnim 4s linear infinite' },
+  'username-ghost':       { bg: 'linear-gradient(90deg,#ffffff,#bbbbff,#ffffff)', anim: 'ghostAnim 3s ease-in-out infinite' },
+  'username-hellfire':    { bg: 'linear-gradient(90deg,#ff2200,#ffaa00,#ffff00,#ff2200)', bgSize: '400% 400%', anim: 'hellfireAnim 1.2s linear infinite' },
+  'username-matrix-code': { bg: 'linear-gradient(180deg,#00ff41,#008f1e)', anim: 'matrixCodeRain 2s linear infinite'},
+  'username-cyberpunk':   { bg: 'linear-gradient(90deg,#ff006e,#00f5ff,#ff006e)', bgSize: '300% 100%', anim: 'cyberpunkAnim 1.5s linear infinite' },
+  'username-cosmic':      { bg: 'linear-gradient(90deg,#a78bfa,#60a5fa,#34d399,#a78bfa)', bgSize: '300% 100%', anim: 'cosmicAnim 2.5s ease-in-out infinite' },
+  'username-plasma':      { bg: 'linear-gradient(90deg,#ff1493,#ff69b4,#ffb6c1,#ff1493)', bgSize: '300% 100%', anim: 'plasmaAnim 1.2s linear infinite'},
+  'username-aurora':      { bg: 'linear-gradient(90deg,#00ff88,#00ffff,#ff00ff,#00ff88)', bgSize: '400% 100%', anim: 'auroraAnim 3s ease-in-out infinite' },
+  'username-inferno':     { bg: 'linear-gradient(90deg,#ff0000,#ff7f00,#ffff00,#ff0000)', bgSize: '300% 100%', anim: 'infernoAnim 0.8s linear infinite' },
+  'username-void':        { bg: 'linear-gradient(90deg,#0a0e27,#16213e,#0f3460,#0a0e27)', bgSize: '300% 100%', anim: 'voidAnim 2s ease-in-out infinite' },
+  'username-candy':       { bg: 'linear-gradient(90deg,#ff69b4,#ffb6d9,#ffc0cb,#ff69b4)', bgSize: '300% 100%', anim: 'candyAnim 1.5s ease-in-out infinite' },
+  'username-quantum':     { bg: 'linear-gradient(90deg,#00d9ff,#0099ff,#6600ff,#00d9ff)', bgSize: '300% 100%', anim: 'quantumAnim 1.3s linear infinite' },
+  'username-twilight':    { bg: 'linear-gradient(90deg,#7c3aed,#ec4899,#f59e0b,#7c3aed)', bgSize: '300% 100%', anim: 'twilightAnim 2s ease-in-out infinite' },
+  'username-corrupted':   { bg: 'linear-gradient(90deg,#ff0080,#7928ca,#ff0080)', bgSize: '200% 100%', anim: 'corruptedGlitch 0.4s linear infinite' },
+  'username-void-pulse':  { bg: 'radial-gradient(circle,#00ffff,#0066ff,#000000)', bgSize: '200% 200%', anim: 'voidPulseAnim 1.5s ease-in-out infinite' },
+  'username-acid':        { bg: 'linear-gradient(45deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)', bgSize: '400% 400%', anim: 'acidAnim 0.6s linear infinite' },
+  'username-fractal':     { bg: 'linear-gradient(90deg,#ff006e,#8338ec,#3a86ff,#ff006e)', bgSize: '300% 100%', anim: 'fractalAnim 2s ease-in-out infinite' },
+  'username-hyperdrive':  { bg: 'linear-gradient(90deg,#00ffff,#ffffff,#00ffff)', bgSize: '300% 100%', anim: 'hyperdriveAnim 0.5s linear infinite' },
+  'username-supernova':   { bg: 'linear-gradient(90deg,#ffff00,#ff8800,#ff0000,#ffff00)', bgSize: '300% 100%', anim: 'supernovaAnim 0.8s ease-out infinite' },
+  'username-quantum-entangle': { bg: 'linear-gradient(90deg,#00d9ff,#6600ff,#00d9ff)', bgSize: '300% 100%', anim: 'quantumEntangleAnim 1.2s ease-in-out infinite' },
+  'username-dimensional': { bg: 'linear-gradient(90deg,#ff00ff,#00ffff,#ff00ff)', bgSize: '300% 100%', anim: 'dimensionalAnim 1.5s ease-in-out infinite' },
+  'username-toxic':       { bg: 'linear-gradient(90deg,#39ff14,#00ff00,#ffff00,#39ff14)', bgSize: '300% 100%', anim: 'toxicAnim 1s linear infinite' },
+  'username-chaos':       { bg: 'linear-gradient(90deg,#ff0080,#ff8c00,#40e0d0,#ff0080)', bgSize: '300% 100%', anim: 'chaosAnim 0.3s ease-in-out infinite' },
+  'username-singularity': { bg: 'radial-gradient(circle at center,#ffffff,#ff00ff,#000000)', bgSize: '200% 200%', anim: 'singularityAnim 2s ease-in-out infinite' },
+};
+const colorClassToHex = {
+  'username-matrix-code': '#00ff41', 'username-gold': '#ffd700', 'username-pink': '#ff2d95',
+  'username-purple': '#9d4eff', 'username-cyan': '#00f2ff', 'username-green': '#39ff6e',
+  'username-red': '#ff3333', 'username-blue-silver': '#3399ff', 'username-neon': '#00ffea',
+  'username-shimmer': '#aaffff', 'username-glitch': '#00ffcc', 'username-electric': '#00ddff',
+  'username-matrix': '#00ff41', 'username-ghost': '#ffffff', 'username-hellfire': '#ff2200',
+  'username-fire': '#ff4400', 'username-rainbow': '#ff0000', 'username-cyberpunk': '#ff006e',
+  'username-cosmic': '#a78bfa', 'username-plasma': '#ff1493', 'username-aurora': '#00ff88',
+  'username-inferno': '#ff0000', 'username-void': '#00ffff', 'username-candy': '#ff69b4',
+  'username-quantum': '#00d9ff', 'username-twilight': '#7c3aed', 'username-corrupted': '#ff0080',
+  'username-void-pulse': '#00ffff', 'username-acid': '#ff0000', 'username-fractal': '#ff006e',
+  'username-hyperdrive': '#00ffff', 'username-supernova': '#ffff00',
+  'username-quantum-entangle': '#00d9ff', 'username-dimensional': '#ff00ff',
+  'username-toxic': '#39ff14', 'username-chaos': '#ff0080', 'username-singularity': '#ffffff',
+  'username-default': '#616161'
+};
+
+const AVATAR_ANIM = {
+  'username-rainbow': 'avatarRainbowGlow 2s linear infinite',
+  'username-fire': 'avatarFireGlow 1s linear infinite',
+  'username-neon': 'avatarNeonGlow 1.4s ease-in-out infinite',
+  'username-shimmer': 'avatarShimmerGlow 2.5s linear infinite',
+  'username-glitch': 'avatarGlitchGlow 0.8s linear infinite',
+  'username-electric': 'avatarElectricGlow 0.15s linear infinite',
+  'username-matrix': 'avatarMatrixGlow 4s linear infinite',
+  'username-ghost': 'avatarGhostGlow 3s ease-in-out infinite',
+  'username-hellfire': 'avatarHellfireGlow 1.2s linear infinite',
+  'username-matrix-code': 'avatarMatrixCodeGlow 2s linear infinite',
+  'username-cyberpunk': 'avatarCyberpunkGlow 1.5s linear infinite',
+  'username-cosmic': 'avatarCosmicGlow 2.5s ease-in-out infinite',
+  'username-plasma': 'avatarPlasmaGlow 1.2s linear infinite',
+  'username-aurora': 'avatarAuroraGlow 3s ease-in-out infinite',
+  'username-inferno': 'avatarInfernoGlow 0.8s linear infinite',
+  'username-void': 'avatarVoidGlow 2s ease-in-out infinite',
+  'username-candy': 'avatarCandyGlow 1.5s ease-in-out infinite',
+  'username-quantum': 'avatarQuantumGlow 1.3s linear infinite',
+  'username-twilight': 'avatarTwilightGlow 2s ease-in-out infinite',
+  'username-corrupted': 'avatarCorruptedGlow 0.4s linear infinite',
+  'username-void-pulse': 'avatarVoidPulseGlow 1.5s ease-in-out infinite',
+  'username-acid': 'avatarAcidGlow 0.6s linear infinite',
+  'username-fractal': 'avatarFractalGlow 2s ease-in-out infinite',
+  'username-hyperdrive': 'avatarHyperdriveGlow 0.5s linear infinite',
+  'username-supernova': 'avatarSupernovaGlow 0.8s ease-out infinite',
+  'username-quantum-entangle': 'avatarQuantumEntangleGlow 1.2s ease-in-out infinite',
+  'username-dimensional': 'avatarDimensionalGlow 1.5s ease-in-out infinite',
+  'username-toxic': 'avatarToxicGlow 1s linear infinite',
+  'username-chaos': 'avatarChaosGlow 0.3s ease-in-out infinite',
+  'username-singularity': 'avatarSingularityGlow 2s ease-in-out infinite',
+  'username-gold': 'avatarGoldPulse 2s ease-in-out infinite',
+  'username-pink': 'avatarPinkPulse 2s ease-in-out infinite',
+  'username-purple': 'avatarPurplePulse 2s ease-in-out infinite',
+  'username-cyan': 'avatarCyanPulse 2s ease-in-out infinite',
+  'username-green': 'avatarGreenPulse 2s ease-in-out infinite',
+  'username-red': 'avatarRedPulse 2s ease-in-out infinite',
+  'username-blue-silver': 'avatarBlueSilverPulse 2s ease-in-out infinite',
+};
+
+
+const widgetStack = document.getElementById('widgetStack');
+
+function syncWidgetStackPosition() {
+  const leftPx = parseInt(panel.style.left, 10) || 0;
+  const topPx  = parseInt(panel.style.top, 10)  || 420;
+  widgetStack.style.left = (leftPx) + 'px';
+  widgetStack.style.bottom = `calc(100% - ${topPx}px + 8px)`;
+}
+
+
+const brandWidget = document.getElementById('brandWidget');
+const brandClock = document.getElementById('brandClock');
+
+function updateClock() {
+  const now = new Date();
+  brandClock.textContent = now.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+
+
+
+const musicWidget = document.getElementById('musicWidget');
+const brandLogo = document.getElementById('brandLogo');
+
+const musicArt = document.getElementById('musicArt');
+const musicArtFallback = document.getElementById('musicArtFallback');
+const musicTitle = document.getElementById('musicTitle');
+const musicArtist = document.getElementById('musicArtist');
+
+if (window.overlayAPI.onMusicUpdate) {
+  window.overlayAPI.onMusicUpdate((data) => {
+  if (!data) {
+    musicWidget.style.display = 'none';
+    musicArt.style.outline = 'none';
+    musicArtFallback.style.outline = 'none';
+    return;
+  }
+    musicTitle.textContent = data.title || '';
+    musicArtist.textContent = data.artist || '';
+
+    if (data.artUrl) {
+      musicArt.src = resolveUrl(data.artUrl);
+      musicArt.style.display = 'block';
+      musicArtFallback.style.display = 'none';
+    } else {
+      musicArt.style.display = 'none';
+      musicArtFallback.style.display = 'flex';
+    }
+
+    syncWidgetStackPosition();
+    musicWidget.style.display = 'flex';
+  });
+}
+
+
+function getLevelColor(level) {
+  const hue = (level * 137.508) % 360;
+  const saturation = 70 + (level % 3) * 10;
+  const lightness = 55 + (level % 2) * 10;
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+const pingIndicator = document.getElementById('pingIndicator');
+const pingDivider = document.getElementById('pingDivider');
+const pingTextEl = document.getElementById('pingText');
+const pingBarsIcon = document.getElementById('pingBarsIcon');
+
+function getPingColor(ping) {
+  if (ping === null || ping <= 0) return '#888888';
+  if (ping < 170) return '#23a559';
+  if (ping < 190) return '#f0b232';
+  return '#ff3333';
+}
+
+function getPingBarCount(ping) {
+  if (ping === null || ping <= 0) return 0;
+  if (ping < 100) return 4;
+  if (ping < 170) return 3;
+  if (ping < 190) return 2;
+  return 1;
+}
+
+function buildParticipantEl(p) {
+  const el = document.createElement('div');
+  el.className = 'vp';
+  el.dataset.id = p.id;
+
+  const avatarUrl = resolveUrl(p.avatar);
+  const level = p.level || 1;
+  const lvlColor = getLevelColor(level);
+
+  let badgesHtml = '';
+  if (p.badge) badgesHtml += `<img class="overlay-badge" src="${resolveUrl(p.badge)}">`;
+  if (p.prestigeBadge) badgesHtml += `<img class="overlay-prestige" src="${resolveUrl(p.prestigeBadge)}">`;
+  if (p.isAdmin) {
+    badgesHtml += `
+      <svg viewBox="0 0 16 16" width="16" height="16" title="Admin">
+        <path d="M2 13 L2.8 7.5 L5.5 10 L8 3.5 L10.5 10 L13.2 7.5 L14 13 Z" fill="#f0b232"/>
+        <rect x="2" y="13" width="12" height="1.8" rx="0.9" fill="#f0b232"/>
+        <circle cx="8" cy="3.5" r="1.2" fill="#f0b232"/>
+        <circle cx="2.8" cy="7.5" r="1.1" fill="#f0b232"/>
+        <circle cx="13.2" cy="7.5" r="1.1" fill="#f0b232"/>
+      </svg>`;
+  }
+
+  if (p.isDeveloper && p.devBadgeUrl) badgesHtml += `<img class="overlay-badge" src="${p.devBadgeUrl}" title="Developer">`;
+  if (p.isPromptEngineer && p.promptEngineerBadgeUrl) badgesHtml += `<img class="overlay-badge" src="${p.promptEngineerBadgeUrl}" title="Prompt Engineer" style="filter:brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(240deg);">`;
+
+  (p.customRoles || []).forEach(role => {
+  const hasName = role.name && role.name.trim() !== "";
+  if (!hasName && role.badge) {
+    badgesHtml += `<img class="overlay-badge" src="${resolveUrl(role.badge)}" title="${role.name || 'Custom Role'}">`;
+    return;
+  }
+  const textColor = getReadableTextColorOverlay(role.color);
+  const badgeImg = role.badge
+    ? `<img src="${resolveUrl(role.badge)}" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:3px;">`
+    : '';
+  badgesHtml += `
+    <span style="
+      font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;
+      display:inline-flex; align-items:center; vertical-align:middle; white-space:nowrap;
+      background:${role.color}; color:${textColor}; border:1px solid rgba(0,0,0,0.25);
+      box-shadow:0 0 6px ${role.color}66; margin-left:4px;
+    ">${badgeImg}${role.name}</span>`;
+});
+  const muteIcon = p.isMuted ? `<img class="overlay-mute mute-icon" width="14" height="14" src="${resolveUrl('/avatars/svgs/mic-on.svg')}" title="Muted">` : '';
+  const deafenIcon = p.isDeafened ? `<img class="overlay-mute deafen-icon" width="14" height="14" src="${resolveUrl('/avatars/svgs/def.svg')}" title="Deafened">` : '';
+
+
+
+el.innerHTML = `
+    <img class="avatar" src="${avatarUrl}">
+    <div>
+      <div class="overlay-meta">
+        <span class="overlay-username"></span>
+        <span class="overlay-level" style="color:${lvlColor};">${level}</span>
+        ${muteIcon}
+        ${deafenIcon}
+        ${badgesHtml}
+      </div>
+    </div>
+  `;
+
+  el.dataset.staticSig = JSON.stringify([p.avatar, p.badge, p.prestigeBadge, p.isAdmin, p.isDeveloper, p.isPromptEngineer, p.isMuted, p.isDeafened, level,p.customRoles]);
+  applySpeakingState(el, p);
+  return el;
+}
+
+function getReadableTextColorOverlay(color) {
+  let r, g, b;
+  if (color.startsWith('rgba') || color.startsWith('rgb')) {
+    const nums = color.match(/[\d.]+/g);
+    r = parseInt(nums[0]); g = parseInt(nums[1]); b = parseInt(nums[2]);
+  } else {
+    r = parseInt(color.slice(1, 3), 16);
+    g = parseInt(color.slice(3, 5), 16);
+    b = parseInt(color.slice(5, 7), 16);
+  }
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? "#111214" : "#ffffff";
+}
+
+function applySpeakingState(el, p) {
+  const nameEl = el.querySelector('.overlay-username');
+  const avatarEl = el.querySelector('.avatar');
+  const meta = COLOR_META[p.usernameColor];
+  const flatColor = colorClassToHex[p.usernameColor] || '#00f2ff';
+  console.log('usernameColor:', p.usernameColor);
+  nameEl.textContent = p.username;
+  nameEl.setAttribute('data-text', p.username);
+  let classes = 'overlay-username';
+  if (p.usernameColor) {
+    classes += ' ' + p.usernameColor;
+  }
+  if (p.speaking) {
+    classes += ' speaking';
+  }
+  nameEl.className = classes;
+
+  const wasSpeaking = el.dataset.wasSpeaking === '1';
+  const colorChanged = el.dataset.animColor !== p.usernameColor;
+
+  let nameStyle = '';
+  if (meta) {
+    nameStyle = `background:${meta.bg};${meta.bgSize ? `background-size:${meta.bgSize};` : ''}-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;`;
+    if (p.speaking && meta.anim) nameStyle += `animation:${meta.anim};`;
+  } else {
+    nameStyle = `color:${flatColor};`;
+  }
+  if (meta && meta.shadow) {
+    nameStyle += `text-shadow:${meta.shadow};`;
+  }
+  if (wasSpeaking !== p.speaking || colorChanged) {
+    nameEl.style.cssText = nameStyle;
+
+    const borderColor = p.speaking ? (p.avatarBorderColor || flatColor) : 'transparent';
+    const avatarAnim = p.speaking ? (AVATAR_ANIM[p.usernameColor] || '') : '';
+    avatarEl.style.cssText = `border-color:${borderColor};${avatarAnim ? `animation:${avatarAnim};` : ''}`;
+  }
+
+  el.dataset.wasSpeaking = p.speaking ? '1' : '0';
+  el.dataset.animColor = p.usernameColor;
+  el.classList.toggle('speaking', !!p.speaking);
+  el.dataset.speakSig = JSON.stringify([p.speaking, p.usernameColor, p.avatarBorderColor]);
+}
+
+
+window.overlayAPI.onPingUpdate((ping) => {
+  if (ping === null || ping === undefined) {
+    pingIndicator.style.display = 'none';
+    pingDivider.style.display = 'none';
+    return;
+  }
+  pingIndicator.style.display = 'flex';
+  pingDivider.style.display = 'block';
+
+  const color = getPingColor(ping);
+  const activeBars = getPingBarCount(ping);
+
+  pingTextEl.textContent = ping > 0 ? `${ping}ms` : '--';
+  pingTextEl.style.color = color;
+  pingBarsIcon.style.color = color;
+
+  pingBarsIcon.querySelectorAll('rect').forEach((rect, i) => {
+    rect.setAttribute('opacity', i < activeBars ? '1' : '0.3');
+  });
+});
+
+window.overlayAPI.onVoiceUpdate((participants) => {
+  const incomingIds = new Set(participants.map(p => p.id));
+
+  [...panel.children].forEach(el => {
+    if (!incomingIds.has(el.dataset.id)) el.remove();
+  });
+
+  participants.forEach(p => {
+    let el = panel.querySelector(`[data-id="${p.id}"]`);
+   const staticSig = JSON.stringify([p.avatar, p.badge, p.prestigeBadge, p.isAdmin, p.isDeveloper, p.isPromptEngineer, p.isMuted, p.isDeafened, p.level || 1, p.customRoles]);
+
+    if (!el) {
+      el = buildParticipantEl(p);
+      panel.appendChild(el);
+      return;
+    }
+
+    if (el.dataset.staticSig !== staticSig) {
+      const newEl = buildParticipantEl(p);
+      el.replaceWith(newEl);
+      return;
+    }
+
+    const speakSig = JSON.stringify([p.speaking, p.usernameColor, p.avatarBorderColor]);
+    if (el.dataset.speakSig !== speakSig) {
+      applySpeakingState(el, p);
+    }
+  });
+});
+
+window.overlayAPI.onReposition((pos) => {
+  panel.style.left = pos.x + 'px';
+  panel.style.top = pos.y + 'px';
+  syncWidgetStackPosition();
+  brandWidget.style.display = 'flex';
+});
+
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "klipyApiKey": "key here",
+  "chatPassword": "chatpasswordhere",
+  "kickTokenPath": "path to kick api key here should be stored in json example {token: key_here}",
+  "streamerConfigPath": "./config/streamers-config.json",
+  "serverBanner": "/avatars/v.png",
+  "botPassword": "your_bot_password_here",
+  "public": {
+    "backgroundImageUrl": "/avatars/v.png",
+    "loginImageUrl": "/avatars/v.png",
+    "pingdomain": "https://mydomain/ [domain for vc ping tests here] ",
+    "servericon": "https://mydomain/ [dev badge icon]"
+  },
+  "jitsi": {
+    "domain": "mydomain [jitsi domain here ex jitsi.org no ports no https://]",
+    "embeddomain": "https://mydomain/ [jitsi domain here ex jitsi.org can have ports no https://]",
+    "externalApiUrl": "https://mydomain/external_api.js",
+    "libJitsiUrl": "https://mydomain/libs/lib-jitsi-meet.min.js",
+    "roomName": "embed room name",
+    "bosh": "https://mydomain/http-bind",
+    "muc": "conference.mydomain.com",
+    "focusUserJid": "focus@conference.mydomain",
+    "p2pEnabled": false,
+    "startAudioOnly": true,
+    "startWithAudioMuted": false,
+    "startWithVideoMuted": true,
+    "constraints": {
+      "video": {
+        "height": {
+          "ideal": 720
+        },
+        "width": {
+          "ideal": 1280
+        }
+      }
+    }
+  }
+}

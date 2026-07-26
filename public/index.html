@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Security-Policy" content="
+  default-src 'self' https: wss: blob: data:;
+  script-src 'self' https: 'unsafe-inline';
+  style-src 'self' https: 'unsafe-inline';
+">
+  <script>
+    if (!localStorage.getItem("chatToken")) {
+      window.location.href = "/login";
+    }
+  </script>
+  <link rel="icon" type="image/svg+xml" href="/r00ted.svg">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/@tabler/icons-webfont/3.31.0/tabler-icons.min.css">
+  <title>R00TED</title>
+  <script id="jitsiLibScript"></script>
+  <script src="/socket.io/socket.io.js"></script>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+</head>
+<script id="jitsiLibScript"></script>
+<body>
+<meta charset="UTF-8">
+
+<div class="app">
+  <div class="sidebar">
+      <img id="appIcon" src="icon.png" alt="App Icon" style="
+      width: 75px;
+      height: 75px;
+      border-radius: 16px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      -webkit-user-drag: none;
+    " title="R00TED">
+<div class="sidebar-actions" style="
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+">
+
+<button id="liveStreamsBtn" class="sidebar-icon-btn" title="Live Streams">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-brand-kick">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M4 4h5v4h3v-2h2v-2h6v4h-2v2h-2v4h2v2h2v4h-6v-2h-2v-2h-3v4h-5l0 -16" />
+  </svg>
+</button>
+</div>
+    <div class="sidebar-bottom">
+      <button id="settingsBtn" title="Settings">⚙</button>
+    </div>
+  </div>
+  <div id="liveStreamsModal" style="display: none; position: fixed; inset: 0;  z-index: 9999; align-items: center; justify-content: center;">
+    <div style="position: relative; width: 680px;  max-width: 90vw; max-height: 85vh; background: rgba(0, 0, 0, 0.876);  box-shadow: 0 0px 3px rgb(103 103 103); border-radius: 10px; display: flex; overflow: hidden;">
+      <button class="settings-close" style="position: absolute; top: 14px; right: 14px; background: transparent; border: none; color: #b9bbbe; font-size: 28px; cursor: pointer; z-index: 10; padding: 4px 10px; border-radius: 50%; transition: 0.2s;">
+        ×
+      </button>
+
+      
+      <div style="flex: 1; padding: 30px; color: white; overflow-y: auto;">
+       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+  <img src="icon.png" alt="Live" style="width: 84px; height: 84px; object-fit: contain;">
+  <h2 style="margin: 0; font-size: 20px; color: #FF0000;"></h2>
+</div>
+        <div id="streamsList" style="display: flex; flex-direction: column; gap: 12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar2">
+  <div id="serverBanner" style="
+    width: 100%;
+    height: 131px;
+    background-size: 100% 100%;
+    background-position: center;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+  ">
+    <div style="
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+    "></div>
+    
+    <div style="
+      position: relative;
+      z-index: 2;
+      color: white;
+      width: 100%;
+    ">
+      <h3 style="margin: 0; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">R00TED</h3>
+      <p style="margin: 2px 0 0 0; font-size: 12px; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Beyond identity. Beyond control. True Freedom.</p>
+    </div>
+  </div>
+<div class="sidebar2-scroll">
+  <div class="sidebar2-content">
+    
+  <div style="padding: 7px;">
+
+  <div id="channelsList" style="display: flex;
+        flex-direction: column;
+        gap: 4px;
+        position: relative;
+        max-height: calc(6 * 36px);
+        overflow-y: scroll;
+        overflow-x: hidden;
+        margin-right: -20px;
+        padding-right: 20px;">
+
+</div>
+</div>
+<div style="padding: 12px;">
+
+  <div id="voiceChannelsList" style="display: flex; flex-direction: column; gap: 4px;"></div>
+</div>
+    <div id="voicePanel">
+    <div class="voice-header">
+      <span id="voiceRoomName"></span>
+    </div>
+    <div class="voice-participants" id="voiceParticipants"></div>
+    <div id="jitsiContainer"></div>
+  </div>
+</div>
+</div>
+
+<div id="voiceParticipantsDropdown" class="voice-participants-dropdown" style="display:none; position:absolute; background:#121314; border-left: 4px solid #FF0000 !important; border:1px solid #40444b; border-radius:8px; padding:8px; width:267px; max-height:300px; overflow-y:auto; z-index:1000; box-shadow:0 8px 24px rgba(0,0,0,0.6);"></div>
+  <div class="sidebar2-bottom">
+
+    <div id="voiceControls" class="voice-controls" style="display:none; height:auto; flex-direction:column; padding:12px; gap:8px;">
+  <div style="display: flex; flex-direction: column; gap: 4px; width: 100%; margin-left:15px">
+    <span id="voiceStatusLabel" style="font-size: 12px; color: #b9bbbe; font-weight: 500;">Voice Connected</span>
+    <span id="voiceRoomLabel" style="font-size: 11px; color: #72767d; margin-left: 39px;"></span>
+    <div id="pingDisplay" title="0ms" style="
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      cursor: help;
+      width: fit-content;
+    ">
+      <div id="pingBars" style="
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 14px;
+      ">
+        <div class="ping-bar" style="height: 4px; width: 2px; border-radius: 1px;"></div>
+        <div class="ping-bar" style="height: 8px; width: 2px; border-radius: 1px;"></div>
+        <div class="ping-bar" style="height: 12px; width: 2px; border-radius: 1px;"></div>
+        <div class="ping-bar" style="height: 14px; width: 2px; border-radius: 1px;"></div>
+      </div>
+      <span id="pingText" style="display: none;"></span>
+    </div>
+  </div>
+
+ 
+  <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
+    <button class="voice-btn" id="muteBtn" onclick="toggleMute()">
+      <img src="/avatars/svgs/mic-on.svg" alt="Mute" style="width:16px; height:16px;">
+    </button>
+
+    <button class="voice-btn" id="deafenBtn" onclick="toggleDeafen()">
+      <img src="/avatars/svgs/def.svg" style="width:16px; height:16px;">
+    </button>
+
+    <button class="voice-btn" id="screenBtn" onclick="toggleScreenShare()">
+      <img src="/avatars/svgs/sharescreen.svg" style="width:16px; height:16px;">
+    </button>
+
+    <button class="voice-btn" style="background:#ed4245;" onclick="leaveVoice()">📞</button>
+  </div>
+</div>
+
+  <div id="embeddedJitsiModal" style="display:none; position:fixed; inset:0; z-index:99999; align-items:center; justify-content:center;">
+  <div style="background:#2b2d31; width:95%; max-width:1200px; height:90vh; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+    
+    <div style="background:#202225; padding:12px 20px; display:flex; align-items:center; justify-content:space-between;">
+      <span style="font-weight:600; font-size:18px;">🕪 Voice Chat 2 (Embedded)</span>
+      <button onclick="closeEmbeddedJitsi()" style="background:none; border:none; color:#FF0000; font-size:32px; cursor:pointer;">✕</button>
+    </div>
+    <div id="jitsiEmbedContainer" style="flex:1; background:#000; position:relative;">
+    </div>
+  </div>
+</div>
+
+  <div id="voiceModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.95); z-index:99999; align-items:center; justify-content:center;">
+  <div style="background:#2b2d31; width:90%; max-width:900px; height:85vh; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+    <div style="background:#202225; padding:12px 20px; display:flex; align-items:center; justify-content:space-between;">
+      <span id="modalVoiceRoomName" style="display:inline-flex; align-items:center;">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="transform: scaleX(-1);">
+    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+  </svg>
+</span>
+      <button onclick="closeVoiceModal()" style="background:none; border:none; color:#ed4245; font-size:28px; cursor:pointer;">✕</button>
+    </div>
+    <div id="jitsiContainerModal" style="flex:1; background:#000;"></div>
+    <div style="background:#202225; padding:10px; text-align:center; font-size:13px; color:#b9bbbe;">
+      <button onclick="toggleMute()" style="margin:0 8px; padding:8px 16px;">🎤 Mute</button>
+      <button onclick="leaveVoiceModal()" style="margin:0 8px; padding:8px 16px; background:#ed4245;">Leave Call</button>
+    </div>
+  </div>
+</div>
+        
+    </div>
+    
+  </div>
+ 
+  <div class="chat">
+    <div class="messages" id="messages"></div>
+     <div id="screenContainer" style="margin-top:10px;"></div>
+    <div id="typingIndicator" class="typing-indicator"></div>
+    <div id="uploadProgress" style="display:none; color:#b9bbbe; font-size:12px; margin-top:5px;">
+  Uploading: <span id="uploadPercent">0%</span>
+
+</div>
+
+<div id="dropZone" style="
+  position: fixed;
+  inset: 0;
+  background: rgba(171, 142, 217, 0.15);
+  border: 4px dashed #FF0000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  color: #FF0000;
+  z-index: 9998;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.2s ease-in;
+  flex-direction: column;
+  gap: 16px;
+">
+  <div style="font-size: 64px;">💩</div>
+  <div style="font-size: 24px; font-weight: 600;">Drop shit here</div>
+  <div style="font-size: 14px; opacity: 0.8;">Images & Videos</div>
+
+</div>
+
+<div class="input">
+  <div id="levelContainer" style="position: absolute; bottom: 65px; left: 28px; z-index: 10;">
+    <div class="circular-level">
+      <svg width="40" height="40" viewBox="0 0 42 42">
+        <circle cx="21" cy="21" r="15" fill="none" stroke="#40444b" stroke-width="6"></circle>
+        <circle id="xpCircle" cx="21" cy="21" r="15" fill="none" 
+                stroke="#FF0000" stroke-width="6" 
+                stroke-dasharray="94.2" 
+                stroke-dashoffset="94.2"
+                stroke-linecap="round"
+                transform="rotate(-90 21 21)"></circle>
+      </svg>
+      <div class="level-center">
+        <div id="levelText" class="level-number">1</div>
+      </div>
+    </div>
+    
+  <div id="levelContainer" title="0 / 100 XP" style="position: absolute; bottom: 65px; left: 28px; z-index: 10;">
+    </div>
+
+    <div id="version" style="text-align:center; font-size:11px; color:#b9bbbe; margin-top:4px; opacity:0.85;">
+    </div>
+  </div>
+  
+
+<div class="input-wrapper">
+    <form autocomplete="off" onsubmit="return false;" style="display:contents;">
+      <input id="input" type="search" name="chat-message-field" autocomplete="off" data-form-type="other" placeholder="Send Message As" />
+    </form>
+    <div id="mentionDropdown" style="display: none;"></div>
+    <button id="uploadBtn" title="Upload Files">✚</button>
+    <button id="pepeBtn" class="input-icon-btn" title="Emote Menu" style="font-size: 21px; background: transparent; border: none; cursor: pointer; padding: 0 8px;">☹</button>
+    <button id="emojiBtn" class="input-icon-btn" style=font-size:24px; title="Emoji">☠</button>
+    <button id="gifBtn" title="GIF Search" class="input-icon-btn" style="font-size: 21px; background: transparent; border: none; cursor: pointer; padding: 0 8px;">〠</button>
+    <input type="file" id="imageInput" accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime" style="display:none">
+  </div>
+</div>
+
+</div>
+<div class="users" id="usersList"></div>
+<div id="userProfilePopup">
+  <div class="popup-banner" id="popupBanner">
+    <button class="popup-close" onclick="hideProfilePopup()">✕</button>
+    <img id="popupAvatar" class="popup-avatar" src="" alt="">
+  </div>
+  <div class="popup-content">
+    <div id="popupUsername" class="popup-username"></div>
+    <div id="popupStatus" class="popup-status">
+      <span id="popupStatusDot" class="popup-status-dot"></span>
+      <span id="popupStatusText"></span>
+    </div>
+    <div id="popupLevel" class="popup-level"></div>
+    <div class="popup-actions">
+     <button class="popup-btn" onclick="startDM()">Whisper</button>
+    </div>
+  </div>
+</div>
+
+<div id="imageModal">
+  <span class="modal-close" onclick="closeImageModal()">✕</span>
+  <img id="modalImage" src="" alt="Enlarged image">
+</div>
+<div id="settingsModal">
+  <div class="settings-content">
+    <button id="closeSettingsBtn" class="settings-close">✕</button>
+    <div class="settings-sidebar">
+      <div class="settings-tab active" data-tab="appearance">Appearance</div>
+      <div class="settings-tab" data-tab="audio">Audio</div>
+      <div class="settings-tab" data-tab="adminPanel" id="adminTabBtn" style="display:none;">Admin</div>
+       <div class="settings-tab" data-tab="encryption">Encryption</div>
+      <div class="settings-tab" data-tab="notifications">Setup</div>
+       <div class="settings-tab" data-tab="overlay">Overlay</div>
+    <div class="settings-tab" data-tab="love">❤️</div>
+    </div>
+    <div class="settings-main">
+  <div class="tab-content active" id="appearanceTab">
+    <h2>Appearance</h2>
+    
+    <div class="setting-item" style="display: flex; flex-direction: row; align-items: flex-start; gap: 20px;">
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink: 0;">
+    <label style="margin-bottom: 0;">Profile Picture</label>
+    <img id="settingsPfp" class="settings-pfp">
+    <button onclick="document.getElementById('pfpUpload').click()">Change</button>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px; flex: 1; min-width: 0;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <label style="margin-bottom: 0;">Username</label>
+      <div style="display: flex; gap: 8px;">
+        <input id="settingsNameInput" placeholder="Enter username" style="flex: 1; min-width: 0;">
+        <button id="saveNameBtn">Save</button>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <label style="margin-bottom: 0;">Custom Status</label>
+      <div style="display: flex; gap: 8px;">
+        <input id="settingsStatusInput" placeholder="What's your status?" maxlength="60" style="flex: 1; min-width: 0;">
+        <button id="saveStatusBtn">Save Status</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+ 
+<div class="setting-item">
+  <label>Profile Image Top</label>
+  <div id="bannerPreview" class="banner-preview"></div>
+  <button onclick="document.getElementById('bannerUpload').click()">Change Banner</button>
+  <input type="file" id="bannerUpload" accept="image/*" style="display:none">
+  <button onclick="removeBanner()" style="background: #ed4245; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Remove Banner</button>
+  <input type="file" id="bannerUpload" accept="image/*" style="display:none">
+</div>
+
+<div class="setting-item">
+  <label style="color: #fff; font-weight: 600; margin-bottom: 8px; display: block;">Profile Image Bottom</label>
+  <div class="banner-preview" id="profileHeaderPreview" style="width: 100%; height: 140px; background-size: cover; background-position: center; border-radius: 8px; margin: 10px 0; border: 2px solid #40444b;"></div>
+  <button onclick="document.getElementById('profileHeaderUpload').click()" style="background: #FF0000; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-top: 10px;">Upload Header Image</button>
+  <input type="file" id="profileHeaderUpload" style="display: none;" accept="image/*">
+  <button onclick="removeProfileHeader()" style="background: #ed4245; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Remove Header</button>
+  <input type="file" id="profileHeaderUpload" style="display: none;" accept="image/*">
+</div>
+
+
+<div class="setting-item">
+  <label>Badge (Toggleable Emote) 
+    <span style="font-size:12px; color:#b9bbbe; margin-left:8px;">
+      (Unlocked at Level 2)
+    </span>
+  </label>
+  
+  <div id="BadgeBtw" style="display: flex; gap: 10px; flex-wrap: wrap;">
+  </div>
+</div>
+
+
+   <div class="setting-item">
+  <label>Animated Gradient Name Color 
+    <span style="font-size:12px; color:#b9bbbe; margin-left:8px;">
+      (Unlocked at Level 2)
+    </span>
+  </label>
+  
+  <div id="AnimatedgradientButtons" style="display: flex; gap: 10px; flex-wrap: wrap;">
+  </div>
+</div>
+
+    <div class="setting-item">
+  <label>Gradient Name Color 
+    <span style="font-size:12px; color:#b9bbbe; margin-left:8px;">
+      (Unlocked at Level 2)
+    </span>
+  </label>
+  
+  <div id="gradientButtons" style="display: flex; gap: 10px; flex-wrap: wrap;">
+  </div>
+</div>
+
+<div class="setting-item">
+  <label>Preview</label>
+  <div id="namePreviewCard" style="
+    background: #111214;
+    border: 1px solid #3a3c42;
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  ">
+    <img id="previewAvatar" style="width:40px; height:40px; border-radius:50%;" src="">
+    <div style="display:flex; flex-direction:column; gap:4px;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span id="previewUsername" class="username-wrapper username-cyan" data-text="Username">Username</span>
+        <span id="previewLevel" style="font-size:11px; font-weight:700; padding:2px 6px; border-radius:3px; border:1px solid; display:inline-block;">1</span>
+        <img id="previewBadge" src="" style="width:20px; height:20px; display:none; border-radius:4px;">
+      </div>
+      <span style="font-size:12px; color:#72767d;">Today at 12:00 PM</span>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="overlayTab" class="tab-content">
+  <h3>Game Overlay</h3>
+<div class="setting-item">
+  <label>Enable in-game voice overlay</label>
+  <label class="toggle-switch">
+    <input type="checkbox" id="toggleGameOverlay" checked>
+    <span class="slider"></span>
+  </label>
+</div>
+
+  <p style="font-size:12px;color:#b9bbbe; margin-top:12px;">
+    Drag the red box below to position the overlay on your screen.
+  </p>
+
+    <p style="font-size:12px;color:#b9bbbe; margin-top:12px;">
+    ⚠️ Using this overlay in games with anticheat risks bans <br>
+    the chances are low but they have happened before on trashcord so fyi ⚠️.
+  </p>
+
+<div id="overlayPreviewScreen" style="
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: #0a0a0c;
+  border: 2px solid #3a3c42;
+  border-radius: 8px;
+  margin: 10px 0;
+  overflow: hidden;
+">
+    <div id="overlayPreviewBox" style="
+      position: absolute;
+      width: 90px;
+      height: 60px;
+      background: rgba(255,0,0,0.35);
+      border: 2px solid #FF0000;
+      border-radius: 6px;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #fff;
+      user-select: none;
+    ">User</div>
+  </div>
+
+  <button id="resetOverlayPosBtn">Reset Position</button>
+</div>
+<div class="tab-content" id="notificationsTab">
+  <h2>Setup</h2>
+<div class="setting-item">
+  <label style="color:#b9bbbe; font-size:13px; font-weight:600;">Wallpaper</label>
+  <div id="bgPreview" style="width:100%; height:100px; border-radius:8px; background-size:cover; background-position:center; border:2px solid #40444b; margin:8px 0;"></div>
+  <div style="display:flex; gap:8px;">
+    <input type="file" id="bgUploadInput" accept="image/*" style="display:none;">
+    <button id="bgUploadBtn" type="button">Upload Image</button>
+    <button id="bgResetBtn" type="button">Reset to Default</button>
+  </div>
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <input type="text" id="bgUrlInput" placeholder="Or paste an image URL..." style="flex:1; box-sizing:border-box; padding:8px 10px; background:#40444b; border:1px solid #40444b; border-radius:6px; color:#fff; font-size:13px; outline:none;">
+    <button id="bgUrlBtn" type="button">Set URL</button>
+  </div>
+</div>
+  <div class="setting-item">
+    <label>Enable Browser Notifications</label>
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggleBrowserNotif" checked>
+      <span class="slider"></span>
+    </label>
+    <p style="font-size:13px; color:#b9bbbe; margin-top:4px;">
+      Shows desktop notifications when mentioned or someone goes live
+    </p>
+  </div>
+
+  <div class="setting-item">
+    <label>In-App Live Stream Banners</label>
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggleLiveBanner" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="setting-item">
+    <label>Notification Sound</label>
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggleNotifSound" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+  <button id="requestNotifPermissionBtn" style="margin-top:15px;">
+    Request Browser Permission
+  </button>
+</div>
+
+<div class="tab-content" id="encryptionTab" style="padding: 30px;">
+  <h2>🔒 Encryption</h2>
+  <p style="font-size:13px; color:#b9bbbe; margin-bottom:20px;">
+    Set a shared password to encrypt your messages (text only). Anyone using the same password can read them (so make it a strong one), everyone else just sees "Encrypted".
+  </p>
+
+  <div class="setting-item">
+    <label>Encryption Password</label>
+    <form autocomplete="off" onsubmit="return false;" style="display:contents;">
+      <input type="text" name="fake-username" autocomplete="off" style="display:none" tabindex="-1" aria-hidden="true">
+      <input type="password" id="encryptionPasswordInput" name="encryption-key" placeholder="Shared password..." autocomplete="new-password" data-form-type="other">
+    </form>
+    <button id="saveEncryptionPasswordBtn">Save Password</button>
+    <button id="clearEncryptionPasswordBtn" style="background:#ed4245; color:white; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-size:13px;">Clear Password</button>
+  </div>
+</div> 
+
+<div class="tab-content" id="adminPanelTab">
+  <h2>Admin Tools</h2>
+  <div class="setting-item">
+    <label>Emote Manager</label>
+    <p style="font-size:13px; color:#b9bbbe; margin-bottom:12px;">Upload or remove emotes for all users.</p>
+    <button onclick="openEmoteManager()" style="background:#FF0000; border:none; color:white; padding:10px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;">
+      Manage Emotes
+    </button>
+  </div>
+
+  <div class="setting-item">
+    <label>Server Banner</label>
+    <div id="serverBannerPreview" style="width:100%; height:100px; background-image:url('/avatars/evilcorp.jpg'); background-size:cover; background-position:center; border-radius:8px; border:2px solid #40444b; margin-bottom:10px;"></div>
+    <button onclick="document.getElementById('serverBannerUpload').click()" style="background:#FF0000; border:none; color:white; padding:10px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;">
+      Upload Banner
+    </button>
+    <input type="file" id="serverBannerUpload" accept="image/*" style="display:none">
+    <button onclick="removeServerBanner()" style="background:#ed4245; border:none; color:white; padding:10px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;">
+      Remove Banner
+    </button>
+  </div>
+
+  <div class="setting-item">
+    <label>Roles</label>
+    <p style="font-size:13px; color:#b9bbbe; margin-bottom:12px;">Create custom roles, assign colors, and manage who has them.</p>
+    <button onclick="openRoleManager()" style="background:#FF0000; border:none; color:white; padding:10px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;">
+      Manage Roles
+    </button>
+  </div>
+
+</div>
+  </div>
+      <div class="tab-content" id="loveTab" style="display: none; padding: 30px; text-align: center; max-height: 520px; overflow-y: auto;">
+  
+  <div style="margin-bottom: 25px; margin-right: 53px;">
+    <img src="icon.png" alt="r00ted Logo" style="width: 90px; height: 90px; border-radius: 18px;">
+  </div>
+
+
+  <p style="color: #e0e0e0; font-size: 16px; line-height: 1.75; margin-bottom: 18px; font-weight: 500;">
+    Privacy isn’t a privilege. It’s a right. And I will not apologize for defending it!
+  </p>
+
+  <p style="color: #b9bbbe; font-size: 15px; line-height: 1.75; margin-bottom: 18px;">
+    I’m sick of governments turning free speech into a crime. Sick of them throwing people in prison for opinions. Sick of “think of the children” being used as cover while they force ID verification on everything even video games.
+  </p>
+
+  <p style="color: #b9bbbe; font-size: 15px; line-height: 1.75; margin-bottom: 18px;">
+    They want your face, your fingerprints, your location, your every word tracked and controlled.
+  </p>
+
+  <p style="color: #FF0000; font-size: 15px; line-height: 1.8; margin-bottom: 25px; font-weight: 600;">
+    Walls aren’t built for safety. They’re built to cage us. ID verification is the lock. <strong>r00ted</strong> is the key.
+  </p>
+
+  <p style="color: #b9bbbe; font-size: 14.5px; line-height: 1.7; margin-bottom: 20px;">
+    r00ted started out life as a private Discord replacement for me and my friends, real text based end-to-end encryption, no bullshit keys, no surveillance.<br>
+    Now it’s open source for anyone who’s tired of the same shit.
+  </p>
+
+  <p style="color: #e0e0e0; font-size: 15px; line-height: 1.7; margin-bottom: 30px;">
+    Because anonymity still matters. Because free speech still matters. Because I remember when freedom wasn’t treated like a threat. So here's something they can't control.
+    Stay anonymous. Stay free.
+  </p>
+
+  <a href="https://github.com/PaleCache/R00TED" target="_blank" style="display: inline-block; color: #FF0000; text-decoration: none; font-weight: bold; border: 2px solid #FF0000; padding: 12px 24px; border-radius: 4px; transition: all 0.2s;">
+    Remember, remember. Star the source.
+  </a>
+
+    <h2 style="color: #fff; margin: 40px 20px 25px 0px;">
+    Made with ❤️ by: <span style="color: #FF0000;">PaleCache</span>
+  </h2>
+</div>
+
+<div class="tab-content" id="audioTab" style="padding: 132px;text-align: center;">
+  <h2>Audio</h2>
+
+  <div class="setting-item">
+    <label>Input Device (Microphone)</label>
+    <select id="audioInputSelect" style="
+      background:#40444b; border:1px solid #40444b; border-radius:8px;
+      color:#fff; padding:10px 12px; font-size:14px; cursor:pointer;
+      outline:none; width:100%; margin-top:8px; appearance:none;
+      background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%23b9bbbe%22 d=%22M6 8L1 3h10z%22/></svg>');
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 36px;
+    "></select>
+  </div>
+
+<div class="setting-item">
+  <label>Mic Level</label>
+  <div style="background:#1e1f22; border-radius:8px; padding:16px; margin-top:8px;">
+    <div style="height:10px; background:#40444b; border-radius:5px; overflow:hidden;">
+      <div id="micLevelBar" style="height:100%; width:0%; background:#FF0000; border-radius:5px; transition:width 0.05s;"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+      <span id="micStatusText" style="font-size:13px; color:#b9bbbe;">Select a device and speak...</span>
+      <span id="micLevelText" style="font-size:13px; color:#72767d; font-weight:600; min-width:36px; text-align:right;">0%</span>
+    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px solid #40444b;">
+      <div>
+        <span style="font-size:13px; color:#b9bbbe; font-weight:500;">Hear myself</span>
+        <p style="font-size:11px; color:#72767d; margin:2px 0 0;">Routes mic audio back to your speakers</p>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="micLoopbackToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+  <div class="setting-item">
+    <label>Output Device (Speakers)</label>
+    <select id="audioOutputSelect" style="
+      background:#40444b; border:1px solid #40444b; border-radius:8px;
+      color:#fff; padding:10px 12px; font-size:14px; cursor:pointer;
+      outline:none; width:100%; margin-top:8px; appearance:none;
+      background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%23b9bbbe%22 d=%22M6 8L1 3h10z%22/></svg>');
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 36px;
+    "></select>
+    <p style="font-size:12px; color:#72767d; margin-top:6px;">Output switching may not be supported in all browsers.</p>
+  </div>
+
+  <div class="setting-item" style="border:none; padding-top:0;">
+    <button id="applyAudioDevices" style="
+      background:#FF0000; border:none; color:#fff;
+      padding:10px 20px; border-radius:8px; font-size:14px;
+      font-weight:600; cursor:pointer; transition:background 0.15s; width:100%;
+    "
+    onmouseover="this.style.background='#cc0000'"
+    onmouseout="this.style.background='#FF0000'">
+      Apply & Save
+    </button>
+  </div>
+</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="avatarEditorModal" class="modal" style="
+  display: none; 
+  position: fixed;
+  inset: 0;
+  z-index: 10005;
+  background: rgba(0, 0, 0, 0.8);
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+">
+  <div class="avatar-editor-content" style="
+    background: #2b2d31;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+    overflow: hidden;
+  ">
+    <div class="modal-header" style="
+      background: #202225;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    ">
+      <h3 style="margin: 0; color: #fff; font-size: 16px;">Adjust Avatar</h3>
+      <button id="closeAvatarEditor" class="close-btn" style="
+        background: none;
+        border: none;
+        color: #b9bbbe;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: 0.2s;
+      ">&times;</button>
+    </div>
+    
+    <div class="editor-body" style="
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    ">
+    
+      <div style="
+        background: #000;
+        border-radius: 8px;
+        overflow: hidden;
+        max-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        <img id="avatarToCrop" src="" alt="Avatar to crop" style="
+          max-width: 100%;
+          max-height: 400px;
+          display: block;
+        ">
+      </div>
+      <div class="editor-controls" style="
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      ">
+        <div class="control-group" style="
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        ">
+          <button id="resetBtn" title="Reset" style="
+            flex: 1;
+            min-width: 70px;
+            padding: 8px 11px;
+            background: #36393f;
+            color: #b9bbbe;
+            border: 1px solid #40444b;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: 0.2s;
+          ">↺ Reset</button>
+          
+          <button id="flipHBtn" title="Flip Horizontal" style="
+            flex: 1;
+            min-width: 70px;
+            padding: 8px 8px;
+            background: #36393f;
+            color: #b9bbbe;
+            border: 1px solid #40444b;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: 0.2s;
+          ">⇄ Flip H</button>
+          
+          <button id="flipVBtn" title="Flip Vertical" style="
+            flex: 1;
+            min-width: 70px;
+            padding: 8px 11px;
+            background: #36393f;
+            color: #b9bbbe;
+            border: 1px solid #40444b;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: 0.2s;
+          ">⇅ Flip V</button>
+          
+          <button id="rotateLBtn" title="Rotate Left" style="
+            flex: 1;
+            min-width: 70px;
+            padding: 8px 12px;
+            background: #36393f;
+            color: #b9bbbe;
+            border: 1px solid #40444b;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: 0.2s;
+          ">↺ -90°</button>
+          
+          <button id="rotateRBtn" title="Rotate Right" style="
+            flex: 1;
+            min-width: 70px;
+            padding: 8px 12px;
+            background: #36393f;
+            color: #b9bbbe;
+            border: 1px solid #40444b;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: 0.2s;
+          ">↻ +90°</button>
+        </div>
+        <div class="control-group" style="
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        ">
+          <label style="
+            color: #b9bbbe;
+            font-size: 12px;
+            white-space: nowrap;
+            flex-shrink: 0;
+          ">Zoom: <span id="zoomLevel" style="color: #FF0000; font-weight: 600;">1.0</span>x</label>
+          <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1" style="
+            flex: 1;
+            cursor: pointer;
+          ">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="
+      background: #202225;
+      padding: 16px 20px;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      border-top: 1px solid #40444b;
+    ">
+      <button id="cancelCropBtn" class="btn btn-secondary" style="
+        padding: 8px 16px;
+        background: #36393f;
+        color: #b9bbbe;
+        border: 1px solid #40444b;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: 0.2s;
+      ">Cancel</button>
+      
+      <button id="saveCropBtn" class="btn btn-primary" style="
+        padding: 8px 16px;
+        background: #FF0000;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: 0.2s;
+      ">Save & Apply</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="pfpUpload" accept="image/*" style="display: none;">
+
+
+ <script src="script.js"></script>
+ <script src="music-player.js"></script>
+ <script src="whispers.js" defer></script>
+
+
+</body>
+</html>

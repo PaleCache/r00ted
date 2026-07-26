@@ -1,0 +1,79 @@
+{
+  "name": "r00ted",
+  "version": "0.3.3",
+  "desktopName": "r00ted.desktop",
+  "description": "Beyond identity. Beyond control. True Freedom.",
+  "main": "./app/main.js",
+  "keywords": [],
+  "author": "PaleCache",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.67",
+    "axios": "^1.16.0",
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "sharp": "^0.35.3",
+    "socket.io": "^4.8.3",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1"
+  },
+  "scripts": {
+    "start": "electron --ozone-platform=x11 .",
+    "server": "node server.js",
+    "clean": "rm -rf dist out release",
+    "build:dir": "npm run clean && electron-builder --dir",
+    "build": "npm run clean && electron-builder",
+    "build-appimage": "npm run clean && electron-builder --linux AppImage"
+  },
+  "build": {
+    "appId": "com.r00ted.app",
+    "productName": "R00TED",
+    "files": [
+      "./app/main.js",
+      "./app/preload.js",
+      "./app/overlay-preload.js",
+      "public/index.html",
+      "public/script.js",
+      "public/styles.css",
+      "public/tmdb.js",
+      "./app/overlay.html",
+      "public/r00ted.png",
+      "node_modules/**/*",
+      "public/games.json",
+      "./app/configs/appconfig.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/@napi-rs/**/*"
+    ],
+    "directories": {
+      "buildResources": "public",
+      "output": "dist"
+    },
+    "afterPack": "scripts/afterPack.js",
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "icon": "public/r00ted.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "public/r00ted.png",
+      "category": "Utility",
+      "extraResources": [
+        {
+          "from": "helpers/shape-clickthrough",
+          "to": "shape-clickthrough"
+        }
+      ]
+    }
+  }
+}
