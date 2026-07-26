@@ -15,7 +15,7 @@ A self hosted, privacy first communication platform built for people who value d
 
 ## What is R00TED?
 
-R00TED is a decentralized, privacy first communication platform that puts you in control of your own community.
+R00TED is a self hosted, privacy first communication platform that puts you in control of your own community.
 
 No ads. No tracking. No centralized servers.
 
