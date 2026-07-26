@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/icon.png" alt="R00TED Logo" width="220">
+  <img src="./public/icon-default.png" alt="R00TED Logo" width="220">
 </p>
 
 # R00TED
