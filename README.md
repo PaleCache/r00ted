@@ -31,7 +31,7 @@ No ads. No tracking. No centralized servers.
 - Voice chat and screen sharing via Jitsi Meet.
 - Built in music player with support for local files and server hosted media.
 - Shared playlists with synchronized playback via the built in music bot with music video support.
-- YouTube and Kick live list with embeds, chat, and live stream notifications (Kick API key required).
+- YouTube and Kick live list with muti-view, chat, and live stream notifications (Kick API key required).
 - Bot support.
 - Discord style rich embeds for bots and youtube links.
 - Image and video uploads.
