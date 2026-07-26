@@ -3,11 +3,11 @@
   "chatPassword": "chatpasswordhere",
   "kickTokenPath": "path to kick api key here should be stored in json example {token: key_here}",
   "streamerConfigPath": "./config/streamers-config.json",
-  "serverBanner": "/avatars/v.png",
+  "serverBanner": "/backgrounds/r00ted-banner.png",
   "botPassword": "your_bot_password_here",
   "public": {
-    "backgroundImageUrl": "/avatars/v.png",
-    "loginImageUrl": "/avatars/v.png",
+    "backgroundImageUrl": "/backgrounds/v.png",
+    "loginImageUrl": "/backgrounds/v.png",
     "pingdomain": "https://mydomain/ [domain for vc ping tests here] ",
     "servericon": "https://mydomain/ [dev badge icon]"
   },
