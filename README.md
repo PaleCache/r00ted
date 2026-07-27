@@ -292,3 +292,8 @@ ls -l uploads/<file>
 If necessary, change ownership or rerun the commands with `sudo`.
 
 If you change the user running the Node.js process, rerun the permission commands so the new user has write access.
+
+## 💰 Support Development
+`monero(xmr): 455KNy55xW9cK4sGknaHwEHD7s3RYcS1nb3bdACZVNpJDey47BegHWpjUghbPu64xxMi2fZwqG95wfextdwDcXbbALSDFVw`
+
+---
