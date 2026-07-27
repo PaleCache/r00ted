@@ -1,4 +1,4 @@
-var debugmode = true;
+var debugmode = false;
 const express = require("express");
 const http = require("http");
 const socketIO = require("socket.io");

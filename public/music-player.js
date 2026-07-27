@@ -418,7 +418,34 @@ let cachedPlaylists = {};
 }
 
 #mpEqBass, #mpEqMid, #mpEqTreble {
-  accent-color: #FF0000 !important;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+#mpEqBass::-webkit-slider-thumb, 
+#mpEqMid::-webkit-slider-thumb, 
+#mpEqTreble::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #d8d9db;
+  cursor: pointer;
+}
+
+#mpEqBass::-moz-range-thumb, 
+#mpEqMid::-moz-range-thumb, 
+#mpEqTreble::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #d8d9db;
+  cursor: pointer;
+  border: none;
 }
 
 #mpMiniProgress {
@@ -1846,6 +1873,11 @@ function playTrackAt(index) {
     applyEq(bassFilter, db * 0.6);
   }
 
+  function updateSliderBackground(slider) {
+    const val = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+    slider.style.background = `linear-gradient(to right, #FF0000 0%, #FF0000 ${val}%, #3a3c42 ${val}%, #3a3c42 100%)`;
+  }
+
   const savedEq = (() => {
     try { return JSON.parse(localStorage.getItem("mpEqSettings")) || { bass: 0, mid: 0, treble: 0 }; }
     catch (e) { return { bass: 0, mid: 0, treble: 0 }; }
@@ -1857,6 +1889,10 @@ function playTrackAt(index) {
   applyBass(savedEq.bass);
   applyEq(midFilter, savedEq.mid);
   applyEq(trebleFilter, savedEq.treble);
+  
+  updateSliderBackground(bassSlider);
+  updateSliderBackground(midSlider);
+  updateSliderBackground(trebleSlider);
 
   function saveEq() {
     try {
@@ -1866,13 +1902,28 @@ function playTrackAt(index) {
     } catch (e) {}
   }
 
-  bassSlider.addEventListener("input", () => { applyBass(bassSlider.value); saveEq(); });
-  midSlider.addEventListener("input", () => { applyEq(midFilter, midSlider.value); saveEq(); });
-  trebleSlider.addEventListener("input", () => { applyEq(trebleFilter, trebleSlider.value); saveEq(); });
+  bassSlider.addEventListener("input", () => { 
+    applyBass(bassSlider.value); 
+    updateSliderBackground(bassSlider);
+    saveEq(); 
+  });
+  midSlider.addEventListener("input", () => { 
+    applyEq(midFilter, midSlider.value); 
+    updateSliderBackground(midSlider);
+    saveEq(); 
+  });
+  trebleSlider.addEventListener("input", () => { 
+    applyEq(trebleFilter, trebleSlider.value); 
+    updateSliderBackground(trebleSlider);
+    saveEq(); 
+  });
 
   resetBtn.addEventListener("click", () => {
     bassSlider.value = 0; midSlider.value = 0; trebleSlider.value = 0;
     applyBass(0); applyEq(midFilter, 0); applyEq(trebleFilter, 0);
+    updateSliderBackground(bassSlider);
+    updateSliderBackground(midSlider);
+    updateSliderBackground(trebleSlider);
     saveEq();
   });
 }

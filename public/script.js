@@ -1,4 +1,4 @@
-var debugmode = true;
+var debugmode = false;
 let currentProfileUser = null;
 let lastKnownStatus = new Map();
 let currentVoiceRoom = null;
@@ -2627,6 +2627,8 @@ socket.on("updateUser", (data) => {
     if (data.user.usernameColor) target.usernameColor = data.user.usernameColor;
     if (data.user.badge !== undefined) target.badge = data.user.badge;
     if (data.user.customStatus !== undefined) target.customStatus = data.user.customStatus;
+    if (data.user.banner !== undefined) target.banner = data.user.banner;       
+    if (data.user.profileHeader !== undefined) target.profileHeader = data.user.profileHeader; 
   }
 
   if (data.user.id === user.id) {
@@ -2920,11 +2922,12 @@ function renderUsers(users) {
   });
 
   
-  function rowSignature(u) {
+function rowSignature(u) {
     return [
       u.id, u.username, u.avatar, u.usernameColor, u.status,
       u.level, u.badge, u.prestigeBadge, u.isAdmin, u.isDeveloper,
       u.isPromptEngineer, u.isBot, u.customStatus, u.musicStatus,
+      u.banner, u.profileHeader,                    
       (u.customRoleIds || []).join(",")
     ].join("|");
   }
