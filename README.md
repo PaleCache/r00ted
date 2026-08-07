@@ -24,7 +24,7 @@ No ads. No tracking. No centralized servers.
 - Privacy first, self hosted communication platform.
 - No sign up required.
 - Real time messaging with whispers.
-- AES-256 encrypted text messages (if enabled).
+- Simple AES-256 encrypted messages (text only and opt in).
 - XP and level progression.
 - Custom badges and emotes.
 - GIF search via Klipy (API key required).
@@ -35,6 +35,7 @@ No ads. No tracking. No centralized servers.
 - Bot support.
 - Discord style rich embeds for bots and youtube links.
 - Image and video uploads.
+- A casino style XP wagering system where users can risk and earn in app XP through games like Plinko, Blackjack, and Poker, with both single player and friend based multiplayer modes.
 
 ## Requirements
 
