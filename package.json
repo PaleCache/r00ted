@@ -1,6 +1,6 @@
 {
   "name": "r00ted",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "desktopName": "r00ted.desktop",
   "description": "Beyond identity. Beyond control. True Freedom.",
   "main": "./app/main.js",

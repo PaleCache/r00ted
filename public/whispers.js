@@ -105,7 +105,6 @@ function buildWhispersModal() {
     min-width: 460px; min-height: 340px;
     background: rgba(0, 0, 0, 0.875); border-radius: 12px; overflow: hidden;
     display: flex; flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
     border: 1px solid #3a3c42;
     pointer-events: auto;
   `;
@@ -116,7 +115,7 @@ function buildWhispersModal() {
   const header = document.createElement('div');
 header.style.cssText = `
   display:flex; align-items:center; justify-content:space-between;
-  padding: 10px 14px; border-bottom: 1px solid #3a3c42; flex-shrink:0;
+  padding: 10px 14px;flex-shrink:0;
   cursor: move; user-select: none; background: rgba(0, 0, 0, 0.875);
 `;
   const headerTitle = document.createElement('span');
@@ -134,7 +133,7 @@ header.style.cssText = `
   const listPane = document.createElement('div');
   listPane.id = 'whisperListPane';
 listPane.style.cssText = `
-  width: 230px; flex-shrink:0; border-right: 1px solid #3a3c42;
+  width: 230px; flex-shrink:0;
   display:flex; flex-direction:column; background: rgba(0, 0, 0, 0.875);
 `;
 
@@ -160,8 +159,9 @@ newGroupBtn.onmouseout = () => { newGroupBtn.style.background = 'rgba(0, 0, 0, 0
   const threadHeader = document.createElement('div');
   threadHeader.id = 'whisperThreadHeader';
   threadHeader.style.cssText = `
-    padding:10px 14px; border-bottom:1px solid #3a3c42; flex-shrink:0;
-    display:flex; align-items:center; gap:8px; color:#b9bbbe; font-size:13px;
+    padding:10px 14px;  flex-shrink:0;
+    display:flex; align-items:center; gap:8px; color:#b9bbbe; font-size:13px;border-bottom: 1px solid #3a3c42;
+    border-top: 1px solid #3a3c42;
   `;
   threadHeader.textContent = 'Select a conversation';
 
@@ -170,7 +170,7 @@ newGroupBtn.onmouseout = () => { newGroupBtn.style.background = 'rgba(0, 0, 0, 0
   threadMessages.style.cssText = 'flex:1; overflow-y:auto; padding:10px 14px; display:flex; flex-direction:column; gap:8px;';
 
   const threadInputWrap = document.createElement('div');
-  threadInputWrap.style.cssText = 'padding:8px 10px; border-top:1px solid #3a3c42; flex-shrink:0; display:flex; flex-direction:column; gap:6px;';
+  threadInputWrap.style.cssText = 'padding:8px 10px; flex-shrink:0; display:flex; flex-direction:column; gap:6px;';
 
 
 const toolbar = document.createElement('div');
@@ -402,7 +402,7 @@ function openNewGroupModal() {
       display:flex; flex-direction:column; overflow:hidden;
       box-shadow:0 24px 70px rgba(0,0,0,0.65); border:1px solid #3a3c42;
     ">
-      <div style="padding:20px 22px 14px; border-bottom:1px solid #3a3c42; flex-shrink:0;">
+      <div style="padding:20px 22px 14px;  flex-shrink:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
           <h3 style="margin:0; color:#fff; font-size:17px; display:flex; align-items:center; gap:8px;">
             <span style="font-size:19px;">👥</span> New Group
@@ -453,7 +453,7 @@ function openNewGroupModal() {
 
       <div style="
         display:flex; gap:10px; justify-content:flex-end;
-        padding:16px 22px; border-top:1px solid #3a3c42; flex-shrink:0; background: rgba(0, 0, 0, 0.7);
+        padding:16px 22px;  flex-shrink:0; background: rgba(0, 0, 0, 0.7);
       ">
         <button id="whisperGroupCancel" style="
           background:#1e1f22; border:1px solid #3a3c42; color:#b9bbbe; padding:9px 18px;
@@ -877,7 +877,7 @@ function openAddMembersModal(groupId) {
       display:flex; flex-direction:column; overflow:hidden;
       box-shadow:0 24px 70px rgba(0,0,0,0.65); border:1px solid #3a3c42;
     ">
-      <div style="padding:20px 22px 14px; border-bottom:1px solid #3a3c42; flex-shrink:0;">
+      <div style="padding:20px 22px 14px;  flex-shrink:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
           <h3 style="margin:0; color:#fff; font-size:17px; display:flex; align-items:center; gap:8px;">
             <span style="font-size:19px;">➕</span> Add to "${convo.name}"
@@ -917,7 +917,7 @@ function openAddMembersModal(groupId) {
 
       <div style="
         display:flex; gap:10px; justify-content:flex-end;
-        padding:16px 22px; border-top:1px solid #3a3c42; flex-shrink:0; background:#26282c;
+        padding:16px 22px; flex-shrink:0; background:#26282c;
       ">
         <button id="whisperAddCancel" style="
           background:#1e1f22; border:1px solid #3a3c42; color:#b9bbbe; padding:9px 18px;
@@ -1854,7 +1854,7 @@ function wireWhisperGifPicker(btn) {
     const header = document.createElement("div");
     header.style.cssText = `
       display: flex; align-items: center; gap: 8px;
-      padding: 10px; border-bottom: 1px solid #3a3c42; flex-shrink: 0;
+      padding: 10px;  flex-shrink: 0;
     `;
 
     const backBtn = document.createElement("button");
@@ -1895,7 +1895,7 @@ function wireWhisperGifPicker(btn) {
     const footer = document.createElement("div");
     footer.style.cssText = `
       display: none; align-items: center; justify-content: space-between;
-      padding: 6px 10px; border-top: 1px solid #3a3c42; flex-shrink: 0;
+      padding: 6px 10px;  flex-shrink: 0;
     `;
     const prevBtn = document.createElement("button");
     prevBtn.textContent = "‹ Prev";

@@ -42,18 +42,218 @@
   align-items: center;
   margin-top: 6px;
 ">
-
+ 
 <button id="liveStreamsBtn" class="sidebar-icon-btn" title="Live Streams">
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-brand-kick">
     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
     <path d="M4 4h5v4h3v-2h2v-2h6v4h-2v2h-2v4h2v2h2v4h-6v-2h-2v-2h-3v4h-5l0 -16" />
   </svg>
 </button>
+ 
+<button id="gamesMenuBtn" class="sidebar-icon-btn" title="Games" onclick="openGamesMenu()">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-device-gamepad-2">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 7h6m10 4v6a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-6a5 5 0 0 1 5 -5h6a5 5 0 0 1 5 5" />
+    <path d="M15 10l2 2l2 -2" />
+    <path d="M17 12v6" />
+    <path d="M6 4v6" />
+    <path d="M3 7h6" />
+  </svg>
+</button>
+ 
+
+<div id="hiddenGameButtons" style="display:none;">
+ 
+  <button id="wheelBtn" class="sidebar-icon-btn" title="Daily Wheel" onclick="openWheelModal()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-disc">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+      <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+      <path d="M6.7 6.7l3.1 3.1" />
+      <path d="M14.2 14.2l3.1 3.1" />
+      <path d="M17.3 6.7l-3.1 3.1" />
+      <path d="M9.8 14.2l-3.1 3.1" />
+    </svg>
+  </button>
+ 
+  <button id="pepeRunnerBtn" class="sidebar-icon-btn" title="Pepe Runner" onclick="openPepeRunner()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-paw">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M11 16.5c-2.318 -4.033 -4.972 -6 -8 -6c-1.657 0 -3 1.343 -3 3c0 4.006 4.087 7.5 8 7.5c1.5 0 3 -1.5 3 -4.5z" />
+      <path d="M11 16.5c2.318 -4.033 4.972 -6 8 -6c1.657 0 3 1.343 3 3c0 4.006 -4.087 7.5 -8 7.5c-1.5 0 -3 -1.5 -3 -4.5z" />
+      <path d="M9.5 7a2.5 2.5 0 0 0 -2.5 2.5v0a2.5 2.5 0 0 0 2.5 2.5h5a2.5 2.5 0 0 0 2.5 -2.5v0a2.5 2.5 0 0 0 -2.5 -2.5" />
+    </svg>
+  </button>
+ 
+  <button id="blackjackBtn" onclick="openBlackjack()" class="sidebar-icon-btn" title="Blackjack">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-cards">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M4 8a2 2 0 0 1 2 -2h4l4 4v8a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2z" />
+      <path d="M14 6v-2a2 2 0 0 0 -2 -2h-6a2 2 0 0 0 -2 2v8a2 2 0 0 0 2 2h2" />
+    </svg>
+  </button>
+ 
+  <button id="pokerBtn" class="sidebar-icon-btn" title="Poker" onclick="openPokerModal()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-poker-chip">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+      <path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+      <path d="M12 3l0 3" />
+      <path d="M12 18l0 3" />
+      <path d="M3 12l3 0" />
+      <path d="M18 12l3 0" />
+      <path d="M5.6 5.6l2.1 2.1" />
+      <path d="M16.3 16.3l2.1 2.1" />
+      <path d="M5.6 18.4l2.1 -2.1" />
+      <path d="M16.3 7.7l2.1 -2.1" />
+    </svg>
+  </button>
+ 
+  <button id="pongBtn" class="sidebar-icon-btn" title="Pong">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-table-tennis">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M4.5 12.5m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M6 11l9 -9" />
+      <path d="M9 6l4.5 4.5" />
+      <path d="M11.5 19.5l7 -7a1 1 0 0 0 0 -1.5l-2.5 -2.5a1 1 0 0 0 -1.5 0l-7 7a5 5 0 0 0 4 4z" />
+    </svg>
+  </button>
+ 
+  <button id="plinkoBtn" class="sidebar-icon-btn" title="Plinko">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-circles">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M6 4m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M12 4m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M18 4m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M9 10m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M15 10m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M6 16m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M12 16m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M18 16m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+    </svg>
+  </button>
+
+  <button id="rouletteBtn" class="sidebar-icon-btn" title="Roulette">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-wheel">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <line x1="12" y1="3" x2="12" y2="6" />
+      <line x1="12" y1="18" x2="12" y2="21" />
+      <line x1="3" y1="12" x2="6" y2="12" />
+      <line x1="18" y1="12" x2="21" y2="12" />
+      <line x1="5.64" y1="5.64" x2="7.76" y2="7.76" />
+      <line x1="16.24" y1="16.24" x2="18.36" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="16.24" y2="7.76" />
+      <line x1="7.76" y1="16.24" x2="5.64" y2="18.36" />
+    </svg>
+  </button>
+
+
+  <button id="dartsBtn" class="sidebar-icon-btn" title="Darts">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-target">
+<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+<circle cx="12" cy="12" r="9" />
+<circle cx="12" cy="12" r="5" />
+<circle cx="12" cy="12" r="1" />
+</svg>
+</button>
+
+  <button id="skyrunnerBtn" class="sidebar-icon-btn" title="Skyrunner">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-plane-departure">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M21 21h-18" />
+    <path d="M3.6 11.6l14.09 4.505a2 2 0 0 0 2.31 -.858l.005 -.008a2 2 0 0 0 -1.026 -2.902l-15.98 -6.337" />
+    <path d="M7 15l-3 -5.5" />
+    <path d="M6 10.5l-3 1" />
+    <path d="M10 4l-2 -1.5" />
+    <path d="M9.5 6l-2.5 -.5" />
+    </svg>
+</button>
+
+
+
+<button id="aviaBtn" class="sidebar-icon-btn" title="Avia Runner">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-plane">
+<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+<path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" />
+</svg>
+</button>
+
+<button id="dragonTowerBtn" class="sidebar-icon-btn" title="Tower Climb">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-tower">
+<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+<path d="M4 20l4 -9l4 9" />
+<path d="M6 15h4" />
+<path d="M14 20l3 -12l3 12" />
+<path d="M13.5 12h5" />
+</svg>
+</button>
+
+  <button id="weedGrowBtn" class="sidebar-icon-btn" title="Grow Room">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-plant">
+<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+<path d="M7 20h10" />
+<path d="M10 20c0 -4.4 -2 -8 -2 -12" />
+<path d="M14 20c0 -4.4 2 -8 2 -12" />
+<path d="M8 8c-2.5 0 -4.5 -2 -4.5 -4.5c2.5 0 4.5 2 4.5 4.5" />
+<path d="M16 8c2.5 0 4.5 -2 4.5 -4.5c-2.5 0 -4.5 2 -4.5 4.5" />
+<path d="M8 14c-2.5 0 -4.5 -2 -4.5 -4.5c2.5 0 4.5 2 4.5 4.5" />
+<path d="M16 14c2.5 0 4.5 -2 4.5 -4.5c-2.5 0 -4.5 2 -4.5 4.5" />
+</svg>
+</button>
+ 
+  <button id="minesweeperBtn" class="sidebar-icon-btn" title="Minesweeper">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-bomb">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M17 4a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+      <path d="M19 7v.01" />
+      <path d="M17 5h1.5a1.5 1.5 0 0 1 1.5 1.5v.5" />
+      <path d="M11.5 6.5l2 2" />
+      <path d="M13 5l-1.5 1.5" />
+      <path d="M8 12m-6 0a6 6 0 1 0 12 0a6 6 0 1 0 -12 0" />
+    </svg>
+  </button>
+
+  <button id="airstrikeBtn" class="sidebar-icon-btn" title="Airstrike">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-plane">
+<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+<path d="M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3z" />
+</svg>
+</button>
+ 
+  <button id="diceBtn" onclick="openDiceModal()" class="sidebar-icon-btn" title="Dice">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-dice">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M4 4m0 3a3 3 0 0 1 3 -3h10a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-10a3 3 0 0 1 -3 -3z" />
+      <path d="M8 8v.01" />
+      <path d="M16 16v.01" />
+      <path d="M8 16v.01" />
+      <path d="M16 8v.01" />
+      <path d="M12 12v.01" />
+    </svg>
+  </button>
+
+
+  <button id="slotsBtn" class="sidebar-icon-btn" title="Slots">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-device-gamepad-2">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 12l4 0" />
+    <path d="M8 10l0 4" />
+    <path d="M15 11l0 .01" />
+    <path d="M18 12l0 .01" />
+    <path d="M4.5 8h15a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1 -2.5 2.5c-1.5 0 -3 -1 -4 -2l-.5 -.5h-6l-.5 .5c-1 1 -2.5 2 -4 2a2.5 2.5 0 0 1 -2.5 -2.5v-5a2.5 2.5 0 0 1 2.5 -2.5" />
+  </svg>
+</button>
+ 
 </div>
+  </div>
     <div class="sidebar-bottom">
       <button id="settingsBtn" title="Settings">⚙</button>
     </div>
   </div>
+
+
   <div id="liveStreamsModal" style="display: none; position: fixed; inset: 0;  z-index: 9999; align-items: center; justify-content: center;">
     <div style="position: relative; width: 680px;  max-width: 90vw; max-height: 85vh; background: rgba(0, 0, 0, 0.876);  box-shadow: 0 0px 3px rgb(103 103 103); border-radius: 10px; display: flex; overflow: hidden;">
       <button class="settings-close" style="position: absolute; top: 14px; right: 14px; background: transparent; border: none; color: #b9bbbe; font-size: 28px; cursor: pointer; z-index: 10; padding: 4px 10px; border-radius: 50%; transition: 0.2s;">
@@ -70,6 +270,28 @@
       </div>
     </div>
   </div>
+
+
+  <div id="gamesMenuModal" style="display:none; position:fixed; inset:0; z-index:30800; align-items:center; justify-content:center;">
+  <div style="width:520px; max-width:92vw; max-height:80vh; background:rgba(0,0,0,0.9); border:1px solid #3a3c42; border-radius:14px; display:flex; flex-direction:column; overflow:hidden;">
+ 
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px;">
+      <h3 style="margin:0; color:#fff; font-size:16px;">🎮 Games</h3>
+      <button id="gamesMenuCloseBtn" style="background:none; border:none; color:#72767d; font-size:20px; cursor:pointer;">✕</button>
+    </div>
+ 
+    <div style="display:flex;">
+      <button class="games-menu-tab active" data-tab="singleplayer" style="flex:1; padding:12px; background:none; border:none; color:#fff; font-size:13px; font-weight:600; cursor:pointer; border-bottom:2px solid #FF0000;">Singleplayer</button>
+      <button class="games-menu-tab" data-tab="multiplayer" style="flex:1; padding:12px; background:none; border:none; color:#72767d; font-size:13px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent;">Multiplayer</button>
+    </div>
+ 
+<div style="padding:20px; overflow-y:auto;">
+      <div id="gamesMenuPane-singleplayer" class="games-menu-pane" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap:14px;"></div>
+      <div id="gamesMenuPane-multiplayer" class="games-menu-pane" style="display:none; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap:14px;"></div>
+    </div>
+
+  </div>
+</div>
 
   <div class="sidebar2">
   <div id="serverBanner" style="
@@ -272,9 +494,7 @@
   
 
 <div class="input-wrapper">
-    <form autocomplete="off" onsubmit="return false;" style="display:contents;">
-      <input id="input" type="search" name="chat-message-field" autocomplete="off" data-form-type="other" placeholder="Send Message As" />
-    </form>
+    <div id="input" contenteditable="true" data-placeholder="Send Message As" style="min-height:20px; outline:none; white-space:pre-wrap; word-break:break-word;"></div>
     <div id="mentionDropdown" style="display: none;"></div>
     <button id="uploadBtn" title="Upload Files">✚</button>
     <button id="pepeBtn" class="input-icon-btn" title="Emote Menu" style="font-size: 21px; background: transparent; border: none; cursor: pointer; padding: 0 8px;">☹</button>
@@ -883,10 +1103,26 @@
 </div>
 <input type="file" id="pfpUpload" accept="image/*" style="display: none;">
 
-
+<script src="/games/bonusAccount.js"></script>
  <script src="script.js"></script>
  <script src="music-player.js"></script>
  <script src="whispers.js" defer></script>
+ <script src="/games/blackjack.js"></script>
+ <script src="/games/plinko.js"></script>
+ <script src="/games/minesweeper.js"></script>
+ <script src="/games/wheel.js"></script>
+ <script src="/games/dice.js"></script>
+ <script src="/games/poker.js"></script>
+ <script src="/games/peperunner.js"></script>
+ <script src="/games/pong.js"></script>
+ <script src="/games/games-menu.js"></script>
+ <script src="/games/weedgrow.js"></script>
+ <script src="/games/slots.js"></script>
+ <script src="/games/airstrike.js"></script>
+ <script src="/games/skyrunner.js"></script>
+ <script src="/games/towerclimb.js"></script>
+ <script src="/games/darts.js"></script>
+ <script src="/games/roulette.js"></script>
 
 
 </body>

@@ -1,4 +1,4 @@
-var debugmode = false;
+var debugmode = true;
 const express = require("express");
 const http = require("http");
 const socketIO = require("socket.io");
@@ -23,6 +23,42 @@ let allUsers = new Map();
 const USERS_FILE = "./data/users.json";
 const voiceUserStates = new Map();
 const userSockets = new Map();
+const embedButtonRateLimit = new Map();
+
+
+const SESSION_SECRET_FILE = path.join(__dirname, "./data/session-secret.txt");
+let SESSION_SECRET;
+try {
+  if (fs.existsSync(SESSION_SECRET_FILE)) {
+    SESSION_SECRET = fs.readFileSync(SESSION_SECRET_FILE, "utf8").trim();
+  }
+  if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
+    SESSION_SECRET = crypto.randomBytes(32).toString("hex");
+    fs.writeFileSync(SESSION_SECRET_FILE, SESSION_SECRET);
+    console.log("🔑 Generated new session secret");
+  }
+} catch (e) {
+  console.error("❌ FATAL: could not init session secret", e);
+  process.exit(1);
+}
+
+function signSession(userId) {
+  return crypto.createHmac("sha256", SESSION_SECRET).update(userId).digest("hex");
+}
+
+function verifySession(userId, sessionToken) {
+  if (!userId || !sessionToken) return false;
+  try {
+    const expected = signSession(userId);
+    const a = Buffer.from(expected, "hex");
+    const b = Buffer.from(String(sessionToken), "hex");
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
 let CHANNELS = [];
 const CHANNELS_FILE = path.join(__dirname, "./data/channels.json");
 const DEFAULT_CHANNELS = [
@@ -268,6 +304,10 @@ if (!tokenPath) {
 console.log("✅ Configuration loaded successfully. Starting server...");
 
 
+function stripAtPrefix(str) {
+  if (typeof str !== "string") return "";
+  return str.trim().replace(/^@+/, "");
+}
 
 
 function loadUsers() {
@@ -536,6 +576,2386 @@ async function getYouTubeLiveV2(channels) {
 }
 
 
+const DICE_MAX_BET_CHIPS = 20000;
+const DICE_HOUSE_EDGE = 0.01;     
+const DICE_MIN_TARGET = 2;        
+const DICE_MAX_TARGET = 98;
+const DICE_ANIMATION_MS = 1800; 
+ 
+function diceRoll() {
+  const hundredths = crypto.randomInt(0, 10000);
+  return hundredths / 100;                       
+}
+ 
+function diceWinChance(target, mode) {
+  return mode === "under" ? target : (100 - target);
+}
+ 
+function diceMultiplier(winChance) {
+  if (winChance <= 0) return 0;
+  return (100 / winChance) * (1 - DICE_HOUSE_EDGE);
+}
+
+
+const WHEEL_SPINS_PER_DAY = 3;
+const WHEEL_ANIMATION_MS = 4700;
+const WHEEL_SEGMENTS = [
+  { label: "10 XP",   xp: 10,   weight: 30 },
+  { label: "25 XP",   xp: 25,   weight: 25 },
+  { label: "50 XP",   xp: 50,   weight: 18 },
+  { label: "0 XP",    xp: 0,    weight: 15 },
+  { label: "100 XP",  xp: 100,  weight: 8  },
+  { label: "250 XP",  xp: 250,  weight: 3  },
+  { label: "500 XP",  xp: 500,  weight: 0.8 },
+  { label: "JACKPOT", xp: 1000, weight: 0.2 }
+];
+ 
+function getUtcDateString(ts = Date.now()) {
+  return new Date(ts).toISOString().slice(0, 10); 
+}
+ 
+
+function pickWheelSegment() {
+  const totalWeight = WHEEL_SEGMENTS.reduce((s, seg) => s + seg.weight, 0);
+  const SCALE = 1000;
+  const roll = crypto.randomInt(Math.round(totalWeight * SCALE)) / SCALE;
+  let acc = 0;
+  for (let i = 0; i < WHEEL_SEGMENTS.length; i++) {
+    acc += WHEEL_SEGMENTS[i].weight;
+    if (roll < acc) return i;
+  }
+  return WHEEL_SEGMENTS.length - 1;
+}
+ 
+function getWheelSpinsLeft(userId) {
+  const user = allUsers.get(userId);
+  if (!user) return WHEEL_SPINS_PER_DAY;
+ 
+  const today = getUtcDateString();
+  if (user.wheelDate !== today) {
+    return WHEEL_SPINS_PER_DAY;
+  }
+  return Math.max(0, WHEEL_SPINS_PER_DAY - (user.wheelSpinsUsed || 0));
+}
+
+
+const POKER_SEATS = 6;
+const POKER_SMALL_BLIND = 1;
+const POKER_BIG_BLIND = 2;
+const POKER_MIN_BUYIN = 1;
+const POKER_MAX_BUYIN = 500;
+const POKER_RANK_NAMES = { 11: "J", 12: "Q", 13: "K", 14: "A" };
+ 
+function pokerCardLabel(card) {
+  const r = POKER_RANK_NAMES[card.rank] || String(card.rank);
+  return `${r}${card.suit}`;
+}
+ 
+function pokerFreshDeck() {
+  const suits = ["♠", "♥", "♦", "♣"];
+  const deck = [];
+  for (const s of suits) for (let r = 2; r <= 14; r++) deck.push({ rank: r, suit: s });
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+ 
+
+function pokerCombinations(arr, k) {
+  const results = [];
+  const combo = [];
+  function go(start) {
+    if (combo.length === k) { results.push(combo.slice()); return; }
+    for (let i = start; i < arr.length; i++) {
+      combo.push(arr[i]);
+      go(i + 1);
+      combo.pop();
+    }
+  }
+  go(0);
+  return results;
+}
+ 
+function pokerEval5(cards) {
+  const ranks = cards.map(c => c.rank).sort((a, b) => b - a);
+  const suits = cards.map(c => c.suit);
+  const isFlush = suits.every(s => s === suits[0]);
+ 
+  const countMap = {};
+  ranks.forEach(r => { countMap[r] = (countMap[r] || 0) + 1; });
+  const grouped = Object.entries(countMap)
+    .map(([r, c]) => ({ rank: Number(r), count: c }))
+    .sort((a, b) => (b.count - a.count) || (b.rank - a.rank));
+ 
+  let uniqueRanksDesc = [...new Set(ranks)];
+  let straightHigh = null;
+
+  if (uniqueRanksDesc.includes(14)) uniqueRanksDesc = [...uniqueRanksDesc, 1];
+  for (let i = 0; i <= uniqueRanksDesc.length - 5; i++) {
+    if (uniqueRanksDesc[i] - uniqueRanksDesc[i + 4] === 4) {
+      straightHigh = uniqueRanksDesc[i];
+      break;
+    }
+  }
+  const isStraight = straightHigh !== null;
+ 
+  if (isStraight && isFlush) return [8, straightHigh];
+  if (grouped[0].count === 4) {
+    const kicker = grouped.find(g => g.count === 1)?.rank || 0;
+    return [7, grouped[0].rank, kicker];
+  }
+  if (grouped[0].count === 3 && grouped[1]?.count >= 2) {
+    return [6, grouped[0].rank, grouped[1].rank];
+  }
+  if (isFlush) return [5, ...ranks];
+  if (isStraight) return [4, straightHigh];
+  if (grouped[0].count === 3) {
+    const kickers = grouped.filter(g => g.count === 1).map(g => g.rank).sort((a, b) => b - a);
+    return [3, grouped[0].rank, ...kickers];
+  }
+  if (grouped[0].count === 2 && grouped[1]?.count === 2) {
+    const pairs = grouped.filter(g => g.count === 2).map(g => g.rank).sort((a, b) => b - a);
+    const kicker = grouped.find(g => g.count === 1)?.rank || 0;
+    return [2, pairs[0], pairs[1], kicker];
+  }
+  if (grouped[0].count === 2) {
+    const kickers = grouped.filter(g => g.count === 1).map(g => g.rank).sort((a, b) => b - a);
+    return [1, grouped[0].rank, ...kickers];
+  }
+  return [0, ...ranks];
+}
+ 
+function pokerCompareScores(a, b) {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const av = a[i] || 0, bv = b[i] || 0;
+    if (av !== bv) return av - bv;
+  }
+  return 0;
+}
+ 
+function pokerBestScore(sevenCards) {
+  const combos = pokerCombinations(sevenCards, 5);
+  let best = null;
+  for (const combo of combos) {
+    const score = pokerEval5(combo);
+    if (!best || pokerCompareScores(score, best) > 0) best = score;
+  }
+  return best;
+}
+ 
+const HAND_NAMES = ["High Card", "Pair", "Two Pair", "Three of a Kind", "Straight", "Flush", "Full House", "Four of a Kind", "Straight Flush"];
+ 
+
+const pokerTable = {
+  seats: Array.from({ length: POKER_SEATS }, () => null), 
+  deck: [],
+  community: [],
+  stage: "waiting", 
+  dealerIndex: -1,
+  currentTurnIndex: -1,
+  currentBet: 0,
+  minRaise: POKER_BIG_BLIND,
+  lastAggressorIndex: -1,
+  pots: [], 
+  handNumber: 0
+};
+ 
+function pokerOccupiedSeats() {
+  return pokerTable.seats
+    .map((s, i) => ({ s, i }))
+    .filter(x => x.s && !x.s.sittingOut);
+}
+ 
+function pokerActiveHandSeats() {
+  return pokerTable.seats
+    .map((s, i) => ({ s, i }))
+    .filter(x => x.s && x.s.inHand);
+}
+ 
+function pokerFindUserSeatIndex(userId) {
+  return pokerTable.seats.findIndex(s => s && s.userId === userId);
+}
+ 
+function pokerNextOccupiedIndex(fromIndex) {
+  const occ = pokerOccupiedSeats().map(x => x.i);
+  if (occ.length === 0) return -1;
+  let idx = fromIndex;
+  for (let n = 0; n < POKER_SEATS; n++) {
+    idx = (idx + 1) % POKER_SEATS;
+    if (occ.includes(idx)) return idx;
+  }
+  return -1;
+}
+ 
+function pokerNextToActIndex(fromIndex) {
+  let idx = fromIndex;
+  for (let n = 0; n < POKER_SEATS; n++) {
+    idx = (idx + 1) % POKER_SEATS;
+    const seat = pokerTable.seats[idx];
+    if (seat && seat.inHand && !seat.folded && !seat.allIn) return idx;
+  }
+  return -1;
+}
+ 
+function pokerBroadcastState() {
+  pokerOccupiedSeats().forEach(({ s }) => {
+    const sockets = userSockets.get(s.userId);
+    if (!sockets) return;
+    sockets.forEach(sockId => {
+      io.to(sockId).emit("pokerState", pokerBuildStateFor(s.userId));
+    });
+  });
+
+
+  const seatedIds = new Set(pokerOccupiedSeats().map(({ s }) => s.userId));
+  userSockets.forEach((sockets, userId) => {
+    if (seatedIds.has(userId)) return;
+    sockets.forEach(sockId => {
+      io.to(sockId).emit("pokerSpectatorState", pokerBuildStateFor(userId));
+    });
+  });
+}
+function pokerBuildStateFor(viewerUserId) {
+  return {
+    stage: pokerTable.stage,
+    community: pokerTable.community,
+    currentBet: pokerTable.currentBet,
+    minRaise: pokerTable.minRaise,
+    currentTurnIndex: pokerTable.currentTurnIndex,
+    dealerIndex: pokerTable.dealerIndex,
+    pots: pokerTable.pots,
+    handNumber: pokerTable.handNumber,
+    yourBalance: viewerUserId ? getChipBalance(viewerUserId) : null,
+    seats: pokerTable.seats.map((s, i) => {
+      if (!s) return null;
+      const isMe = s.userId === viewerUserId;
+      const showCards = isMe || pokerTable.stage === "showdown";
+      return {
+        userId: s.userId,
+        username: s.username,
+        avatar: s.avatar,
+        chips: s.chips,
+        betThisRound: s.betThisRound,
+        totalBet: s.totalBet,
+        folded: s.folded,
+        allIn: s.allIn,
+        inHand: s.inHand,
+        sittingOut: s.sittingOut,
+        cards: showCards ? s.cards : (s.cards && s.cards.length ? [null, null] : []),
+        isTurn: i === pokerTable.currentTurnIndex,
+        seatIndex: i
+      };
+    }),
+    yourSeatIndex: viewerUserId ? pokerFindUserSeatIndex(viewerUserId) : -1
+  };
+}
+ 
+function pokerResetSeatForHand(seat) {
+  seat.cards = [];
+  seat.folded = false;
+  seat.allIn = false;
+  seat.betThisRound = 0;
+  seat.totalBet = 0;
+  seat.actedThisRound = false;
+  seat.inHand = !seat.sittingOut && seat.chips > 0;
+}
+ 
+function pokerStartHand() {
+  const occ = pokerOccupiedSeats();
+  if (occ.length < 2) {
+    pokerTable.stage = "waiting";
+    pokerBroadcastState();
+    return;
+  }
+ 
+  pokerTable.handNumber++;
+  pokerTable.deck = pokerFreshDeck();
+  pokerTable.community = [];
+  pokerTable.pots = [];
+  pokerTable.currentBet = 0;
+  pokerTable.minRaise = POKER_BIG_BLIND;
+ 
+  pokerTable.seats.forEach(s => { if (s) pokerResetSeatForHand(s); });
+ 
+  pokerTable.dealerIndex = pokerNextOccupiedIndex(pokerTable.dealerIndex === -1 ? -1 : pokerTable.dealerIndex);
+  if (pokerTable.dealerIndex === -1) { pokerTable.stage = "waiting"; pokerBroadcastState(); return; }
+ 
+  const sbIndex = pokerNextOccupiedIndex(pokerTable.dealerIndex);
+  const bbIndex = pokerNextOccupiedIndex(sbIndex);
+  pokerOccupiedSeats().forEach(({ s }) => {
+    s.cards = [pokerTable.deck.pop(), pokerTable.deck.pop()];
+  });
+ 
+  
+  pokerPostBet(sbIndex, Math.min(POKER_SMALL_BLIND, pokerTable.seats[sbIndex].chips));
+  pokerPostBet(bbIndex, Math.min(POKER_BIG_BLIND, pokerTable.seats[bbIndex].chips));
+  pokerTable.currentBet = POKER_BIG_BLIND;
+  pokerTable.lastAggressorIndex = bbIndex;
+ 
+  pokerTable.stage = "preflop";
+  pokerTable.currentTurnIndex = pokerNextToActIndex(bbIndex);
+  pokerBroadcastState();
+}
+ 
+function pokerPostBet(seatIndex, amount) {
+  const seat = pokerTable.seats[seatIndex];
+  if (!seat) return;
+  amount = Math.min(amount, seat.chips);
+  seat.chips -= amount;
+  seat.betThisRound += amount;
+  seat.totalBet += amount;
+  if (seat.chips === 0) seat.allIn = true;
+}
+ 
+function pokerBettingRoundComplete() {
+  const active = pokerActiveHandSeats().filter(({ s }) => !s.folded && !s.allIn);
+  if (active.length === 0) return true;
+  return active.every(({ s }) => s.actedThisRound && s.betThisRound === pokerTable.currentBet);
+}
+ 
+function pokerCountNonFolded() {
+  return pokerActiveHandSeats().filter(({ s }) => !s.folded).length;
+}
+ 
+function pokerAdvanceStage() {
+  pokerTable.seats.forEach(s => { if (s && s.inHand) { s.betThisRound = 0; s.actedThisRound = false; } });
+  pokerTable.currentBet = 0;
+  pokerTable.minRaise = POKER_BIG_BLIND;
+ 
+  if (pokerTable.stage === "preflop") {
+    pokerTable.deck.pop(); 
+    pokerTable.community.push(pokerTable.deck.pop(), pokerTable.deck.pop(), pokerTable.deck.pop());
+    pokerTable.stage = "flop";
+  } else if (pokerTable.stage === "flop") {
+    pokerTable.deck.pop();
+    pokerTable.community.push(pokerTable.deck.pop());
+    pokerTable.stage = "turn";
+  } else if (pokerTable.stage === "turn") {
+    pokerTable.deck.pop();
+    pokerTable.community.push(pokerTable.deck.pop());
+    pokerTable.stage = "river";
+  } else if (pokerTable.stage === "river") {
+    pokerShowdown();
+    return;
+  }
+ 
+  if (pokerCountNonFolded() <= 1) { pokerShowdown(); return; }
+  const active = pokerActiveHandSeats().filter(({ s }) => !s.folded && !s.allIn);
+  if (active.length <= 1) {
+    setTimeout(() => pokerAdvanceStage(), 900);
+    pokerBroadcastState();
+    return;
+  }
+ 
+  pokerTable.currentTurnIndex = pokerNextToActIndex(pokerTable.dealerIndex);
+  pokerBroadcastState();
+}
+ 
+function pokerBuildPots() {
+  const contributors = pokerActiveHandSeats().map(({ s, i }) => ({ i, totalBet: s.totalBet, folded: s.folded, userId: s.userId }));
+  const levels = [...new Set(contributors.filter(c => c.totalBet > 0).map(c => c.totalBet))].sort((a, b) => a - b);
+  const pots = [];
+  let prevLevel = 0;
+  for (const level of levels) {
+    const layerContributors = contributors.filter(c => c.totalBet >= level);
+    const amount = (level - prevLevel) * layerContributors.length;
+    const eligible = layerContributors.filter(c => !c.folded).map(c => c.userId);
+    if (amount > 0) pots.push({ amount, eligibleUserIds: eligible });
+    prevLevel = level;
+  }
+  return pots;
+}
+ 
+function pokerShowdown() {
+  pokerTable.stage = "showdown";
+  const pots = pokerBuildPots();
+  pokerTable.pots = pots;
+
+  const nonFolded = pokerActiveHandSeats().filter(({ s }) => !s.folded);
+  const winnings = {};
+
+  pots.forEach(pot => {
+    const contenders = nonFolded.filter(({ s }) => pot.eligibleUserIds.includes(s.userId));
+    if (contenders.length === 0) return;
+    let winners = [];
+    let bestScore = null;
+    contenders.forEach(({ s }) => {
+      const seven = [...s.cards, ...pokerTable.community];
+      const score = seven.length >= 5 ? pokerBestScore(seven) : [0];
+      s._lastScore = score;
+      if (!bestScore || pokerCompareScores(score, bestScore) > 0) {
+        bestScore = score;
+        winners = [s];
+      } else if (pokerCompareScores(score, bestScore) === 0) {
+        winners.push(s);
+      }
+    });
+    const share = Math.floor(pot.amount / winners.length);
+    winners.forEach(w => {
+      w.chips += share;
+      winnings[w.userId] = (winnings[w.userId] || 0) + share;
+    });
+  });
+
+
+  pokerActiveHandSeats().forEach(({ s }) => {
+    const won = winnings[s.userId] || 0;
+    const net = won - s.totalBet;
+    emitToUser(s.userId, "pokerHandResult", {
+      folded: s.folded,
+      won: won > 0,
+      amountWon: won,
+      net,
+      handName: (!s.folded && s._lastScore) ? HAND_NAMES[s._lastScore[0]] : null
+    });
+  });
+
+  pokerBroadcastState();
+
+  setTimeout(() => {
+    pokerTable.seats.forEach(s => { if (s && s.chips <= 0) { s.sittingOut = true; } });
+    pokerStartHand();
+  }, 5000);
+}
+ 
+function pokerHandleFold(userId) {
+  const idx = pokerFindUserSeatIndex(userId);
+  const seat = pokerTable.seats[idx];
+  if (!seat || idx !== pokerTable.currentTurnIndex) return;
+  seat.folded = true;
+  seat.actedThisRound = true;
+  pokerAfterAction(idx);
+}
+ 
+function pokerHandleCheck(userId) {
+  const idx = pokerFindUserSeatIndex(userId);
+  const seat = pokerTable.seats[idx];
+  if (!seat || idx !== pokerTable.currentTurnIndex) return;
+  if (seat.betThisRound !== pokerTable.currentBet) return; 
+  seat.actedThisRound = true;
+  pokerAfterAction(idx);
+}
+ 
+function pokerHandleCall(userId) {
+  const idx = pokerFindUserSeatIndex(userId);
+  const seat = pokerTable.seats[idx];
+  if (!seat || idx !== pokerTable.currentTurnIndex) return;
+  const toCall = Math.min(pokerTable.currentBet - seat.betThisRound, seat.chips);
+  pokerPostBet(idx, toCall);
+  seat.actedThisRound = true;
+  pokerAfterAction(idx);
+}
+ 
+function pokerHandleBetRaise(userId, amount) {
+  const idx = pokerFindUserSeatIndex(userId);
+  const seat = pokerTable.seats[idx];
+  if (!seat || idx !== pokerTable.currentTurnIndex) return;
+  amount = Math.floor(Number(amount));
+  if (!Number.isFinite(amount) || amount <= 0) return;
+ 
+  const totalTarget = pokerTable.currentBet + amount; 
+  const chipsNeeded = Math.min(totalTarget - seat.betThisRound, seat.chips);
+  if (chipsNeeded <= 0) return;
+ 
+  pokerPostBet(idx, chipsNeeded);
+ 
+  if (seat.betThisRound > pokerTable.currentBet) {
+    pokerTable.minRaise = Math.max(POKER_BIG_BLIND, seat.betThisRound - pokerTable.currentBet);
+    pokerTable.currentBet = seat.betThisRound;
+    pokerTable.lastAggressorIndex = idx;
+    pokerActiveHandSeats().forEach(({ s, i }) => { if (i !== idx && !s.folded && !s.allIn) s.actedThisRound = false; });
+  }
+  seat.actedThisRound = true;
+  pokerAfterAction(idx);
+}
+ 
+function pokerAfterAction(actedIndex) {
+  if (pokerCountNonFolded() <= 1) { pokerShowdown(); return; }
+ 
+  if (pokerBettingRoundComplete()) {
+    pokerAdvanceStage();
+    return;
+  }
+ 
+  pokerTable.currentTurnIndex = pokerNextToActIndex(actedIndex);
+  pokerBroadcastState();
+}
+
+const PEPE_HIGHSCORE_FILE = path.join(__dirname, "./data/pepeHighscore.json");
+const PEPE_SCORE_RATE_CAP = 8;     
+const PEPE_RATE_BUFFER = 1.25;    
+const pepeRunStarts = new Map();   
+
+let pepeHighscore = { username: null, userId: null, score: 0, ts: 0 };
+function loadPepeHighscore() {
+  if (fs.existsSync(PEPE_HIGHSCORE_FILE)) {
+    try { return JSON.parse(fs.readFileSync(PEPE_HIGHSCORE_FILE, "utf8")); }
+    catch (e) { console.error("❌ pepeHighscore.json load failed", e); }
+  }
+  return { username: null, userId: null, score: 0, ts: 0 };
+}
+function savePepeHighscore() {
+  fs.writeFileSync(PEPE_HIGHSCORE_FILE, JSON.stringify(pepeHighscore, null, 2));
+}
+pepeHighscore = loadPepeHighscore();
+const PONG_WIDTH = 700;
+const PONG_HEIGHT = 420;
+const PONG_PADDLE_HEIGHT = 80;
+const PONG_PADDLE_WIDTH = 12;
+const PONG_PADDLE_MARGIN = 20;
+const PONG_BALL_SIZE = 10;
+const PONG_WIN_SCORE = 7;
+const PONG_TICK_MS = 1000 / 60;
+const PONG_XP_REWARD = 10;
+const PONG_BASE_BALL_SPEED = 4;
+const PONG_MAX_BALL_SPEED = 9;
+const PONG_PADDLE_SPEED = 9;
+
+const SLOTS_MAX_BET_CHIPS = 20000;
+const SLOTS_REEL_COUNT = 3;
+const SLOTS_ANIMATION_MS = 900 + 1150 + 1400; 
+const SLOTS_FREE_SPINS_COST = 5;
+const SLOTS_FREE_SPINS_COUNT = 10;
+const SLOTS_FREE_SPIN_BET = 1
+ 
+const SLOTS_SYMBOLS = [
+  { id: "cherry", weight: 32 },
+  { id: "lemon",  weight: 26 },
+  { id: "bell",   weight: 18 },
+  { id: "clover", weight: 12 },
+  { id: "star",   weight: 7  },
+  { id: "pepe",   weight: 4  },
+  { id: "seven",  weight: 1  },
+];
+ 
+
+const SLOTS_PAYOUTS = {
+  cherry: 13,
+  lemon:  18,
+  bell:   27,
+  clover: 44,
+  star:   90,
+  pepe:   225,
+  seven:  450,
+};
+
+
+const slotsFreeSpinSessions = new Map(); 
+
+function slotsFreeSpinsState(userId) {
+  const session = slotsFreeSpinSessions.get(userId);
+  return {
+    active: !!session,
+    remaining: session ? session.remaining : 0,
+    account: session ? session.account : null,
+    cost: SLOTS_FREE_SPINS_COST,
+    count: SLOTS_FREE_SPINS_COUNT,
+    fixedBet: SLOTS_FREE_SPIN_BET
+  };
+}
+ 
+
+const SLOTS_HOUSE_EDGE = 0.96;
+ 
+function slotsPickSymbol() {
+  const totalWeight = SLOTS_SYMBOLS.reduce((s, sym) => s + sym.weight, 0);
+  const SCALE = 1000;
+  const roll = crypto.randomInt(Math.round(totalWeight * SCALE)) / SCALE;
+  let acc = 0;
+  for (const sym of SLOTS_SYMBOLS) {
+    acc += sym.weight;
+    if (roll < acc) return sym.id;
+  }
+  return SLOTS_SYMBOLS[SLOTS_SYMBOLS.length - 1].id;
+}
+ 
+function slotsSpinReels() {
+  const reels = [];
+  for (let i = 0; i < SLOTS_REEL_COUNT; i++) reels.push(slotsPickSymbol());
+  return reels;
+}
+ 
+function slotsEvaluate(reels, betChips) {
+  const allSame = reels.every((r) => r === reels[0]);
+  if (!allSame) {
+    return { multiplier: 0, payoutChips: 0 };
+  }
+  const baseMult = SLOTS_PAYOUTS[reels[0]] || 0;
+  const multiplier = Math.round(baseMult * SLOTS_HOUSE_EDGE * 100) / 100;
+  const payoutChips = Math.floor(betChips * multiplier);
+  return { multiplier, payoutChips };
+}
+ 
+
+let pongQueue = [];             
+const pongRooms = new Map();     
+const pongUserRoom = new Map(); 
+ 
+function pongMakeRoomId() {
+  return "pong_" + crypto.randomUUID();
+}
+ 
+function pongGetUserInfo(userId) {
+  const online = onlineUsers.get(userId);
+  const db = allUsers.get(userId);
+  return {
+    userId,
+    username: online?.username || db?.username || "Anonymous",
+    avatar: online?.avatar || db?.avatar || "/avatars/default1.png"
+  };
+}
+ 
+function pongResetBall(room) {
+  room.ball = { x: PONG_WIDTH / 2, y: PONG_HEIGHT / 2, vx: 0, vy: 0 };
+}
+ 
+
+function pongPrepareServe(room, serverUserId) {
+  room.status = "serving";
+  room.serverUserId = serverUserId;
+  pongResetBall(room);
+}
+ 
+
+function pongServeBall(room, serverUserId) {
+  if (room.status !== "serving") return false;
+  if (room.serverUserId !== serverUserId) return false;
+
+  const server = room.players.find(p => p.userId === serverUserId);
+  const towardsRight = server.side === "left";
+
+  room.status = "launching"; 
+  setTimeout(() => {
+    if (room.status !== "launching") return; 
+    room.ball.vx = (towardsRight ? 1 : -1) * PONG_BASE_BALL_SPEED;
+    room.ball.vy = (crypto.randomInt(2) === 0 ? -1 : 1) * (PONG_BASE_BALL_SPEED * 0.5);
+    room.status = "playing";
+    pongBroadcastState(room);
+  }, 500); 
+
+  return true;
+}
+ 
+function pongCreateRoom(userIdA, userIdB) {
+  const roomId = pongMakeRoomId();
+  const room = {
+    id: roomId,
+    players: [
+      { ...pongGetUserInfo(userIdA), side: "left", y: PONG_HEIGHT / 2 - PONG_PADDLE_HEIGHT / 2, score: 0, keys: { up: false, down: false } },
+      { ...pongGetUserInfo(userIdB), side: "right", y: PONG_HEIGHT / 2 - PONG_PADDLE_HEIGHT / 2, score: 0, keys: { up: false, down: false } }
+    ],
+    ball: null,
+    status: "serving", 
+    serverUserId: null,
+    interval: null,
+    lastScorer: null
+  };
+ 
+  const openingServer = crypto.randomInt(2) === 0 ? userIdA : userIdB;
+  pongPrepareServe(room, openingServer);
+ 
+  pongRooms.set(roomId, room);
+  pongUserRoom.set(userIdA, roomId);
+  pongUserRoom.set(userIdB, roomId);
+ 
+  room.interval = setInterval(() => pongTick(room), PONG_TICK_MS);
+ 
+  room.players.forEach((p, idx) => {
+    emitToUser(p.userId, "pongMatchFound", {
+      roomId,
+      yourUserId: p.userId,
+      yourSide: p.side,
+      opponent: room.players[1 - idx]
+    });
+  });
+ 
+  console.log(`🏓 Pong match started: ${room.players[0].username} vs ${room.players[1].username}`);
+  return room;
+}
+ 
+function pongBuildState(room) {
+  return {
+    roomId: room.id,
+    status: room.status,
+    serverUserId: room.serverUserId,
+    ball: room.ball,
+    players: room.players.map(p => ({
+      userId: p.userId,
+      username: p.username,
+      avatar: p.avatar,
+      side: p.side,
+      y: p.y,
+      score: p.score
+    })),
+    width: PONG_WIDTH,
+    height: PONG_HEIGHT,
+    paddleHeight: PONG_PADDLE_HEIGHT,
+    paddleWidth: PONG_PADDLE_WIDTH,
+    paddleMargin: PONG_PADDLE_MARGIN,
+    ballSize: PONG_BALL_SIZE,
+    winScore: PONG_WIN_SCORE
+  };
+}
+ 
+function pongBroadcastState(room) {
+  const state = pongBuildState(room);
+  room.players.forEach(p => emitToUser(p.userId, "pongState", state));
+}
+ 
+function pongTick(room) {
+  if (room.status === "over") return;
+  room.players.forEach(p => {
+    if (p.keys.up) p.y -= PONG_PADDLE_SPEED;
+    if (p.keys.down) p.y += PONG_PADDLE_SPEED;
+    p.y = Math.max(0, Math.min(PONG_HEIGHT - PONG_PADDLE_HEIGHT, p.y));
+  });
+ 
+  if (room.status !== "playing") {
+    pongBroadcastState(room);
+    return;
+  }
+ 
+  const ball = room.ball;
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+ 
+ 
+  if (ball.y - PONG_BALL_SIZE / 2 <= 0) {
+    ball.y = PONG_BALL_SIZE / 2;
+    ball.vy *= -1;
+  } else if (ball.y + PONG_BALL_SIZE / 2 >= PONG_HEIGHT) {
+    ball.y = PONG_HEIGHT - PONG_BALL_SIZE / 2;
+    ball.vy *= -1;
+  }
+ 
+  const left = room.players.find(p => p.side === "left");
+  const right = room.players.find(p => p.side === "right");
+ 
+ 
+  const leftPaddleX = PONG_PADDLE_MARGIN;
+  if (
+    ball.vx < 0 &&
+    ball.x - PONG_BALL_SIZE / 2 <= leftPaddleX + PONG_PADDLE_WIDTH &&
+    ball.x - PONG_BALL_SIZE / 2 >= leftPaddleX &&
+    ball.y >= left.y &&
+    ball.y <= left.y + PONG_PADDLE_HEIGHT
+  ) {
+    const hitPos = (ball.y - (left.y + PONG_PADDLE_HEIGHT / 2)) / (PONG_PADDLE_HEIGHT / 2); 
+    const speed = Math.min(PONG_MAX_BALL_SPEED, Math.hypot(ball.vx, ball.vy) * 1.06);
+    const angle = hitPos * (Math.PI / 3); 
+    ball.vx = Math.abs(speed * Math.cos(angle));
+    ball.vy = speed * Math.sin(angle);
+    ball.x = leftPaddleX + PONG_PADDLE_WIDTH + PONG_BALL_SIZE / 2;
+  }
+ 
+ 
+  const rightPaddleX = PONG_WIDTH - PONG_PADDLE_MARGIN - PONG_PADDLE_WIDTH;
+  if (
+    ball.vx > 0 &&
+    ball.x + PONG_BALL_SIZE / 2 >= rightPaddleX &&
+    ball.x + PONG_BALL_SIZE / 2 <= rightPaddleX + PONG_PADDLE_WIDTH &&
+    ball.y >= right.y &&
+    ball.y <= right.y + PONG_PADDLE_HEIGHT
+  ) {
+    const hitPos = (ball.y - (right.y + PONG_PADDLE_HEIGHT / 2)) / (PONG_PADDLE_HEIGHT / 2);
+    const speed = Math.min(PONG_MAX_BALL_SPEED, Math.hypot(ball.vx, ball.vy) * 1.06);
+    const angle = hitPos * (Math.PI / 3);
+    ball.vx = -Math.abs(speed * Math.cos(angle));
+    ball.vy = speed * Math.sin(angle);
+    ball.x = rightPaddleX - PONG_BALL_SIZE / 2;
+  }
+ 
+ 
+  if (ball.x < -PONG_BALL_SIZE) {
+    right.score++;
+    room.lastScorer = right.userId;
+    pongAfterScore(room, "right");
+  } else if (ball.x > PONG_WIDTH + PONG_BALL_SIZE) {
+    left.score++;
+    room.lastScorer = left.userId;
+    pongAfterScore(room, "left");
+  }
+ 
+  pongBroadcastState(room);
+}
+ 
+function pongAfterScore(room, scoredSide) {
+  const winner = room.players.find(p => p.score >= PONG_WIN_SCORE);
+  if (winner) {
+    pongEndRoom(room, winner);
+    return;
+  }
+  
+  const concedingSide = scoredSide === "left" ? "right" : "left";
+  const nextServer = room.players.find(p => p.side === concedingSide);
+  pongPrepareServe(room, nextServer.userId);
+  pongBroadcastState(room);
+}
+ 
+function pongEndRoom(room, winner) {
+  room.status = "over";
+  clearInterval(room.interval);
+  room.interval = null;
+ 
+  const loser = room.players.find(p => p.userId !== winner.userId);
+ 
+  addServerXP(winner.userId, PONG_XP_REWARD);
+ 
+  room.players.forEach(p => {
+    emitToUser(p.userId, "pongGameOver", {
+      winnerId: winner.userId,
+      winnerUsername: winner.username,
+      youWon: p.userId === winner.userId,
+      finalScore: { left: room.players.find(x => x.side === "left").score, right: room.players.find(x => x.side === "right").score },
+      xpAwarded: PONG_XP_REWARD
+    });
+    pongUserRoom.delete(p.userId);
+  });
+ 
+  console.log(`🏓 Pong match over: ${winner.username} beat ${loser?.username || "?"} (+${PONG_XP_REWARD} XP)`);
+ 
+  
+  setTimeout(() => pongRooms.delete(room.id), 10000);
+}
+ 
+function pongHandleLeave(userId, reason = "left") {
+  pongQueue = pongQueue.filter(id => id !== userId);
+  const roomId = pongUserRoom.get(userId);
+  if (!roomId) return;
+  const room = pongRooms.get(roomId);
+  if (!room || room.status !== "playing") return;
+ 
+  const winner = room.players.find(p => p.userId !== userId);
+  if (winner) {
+    pongEndRoom(room, winner);
+  }
+}
+
+
+const DICE_LEADERBOARD_FILE = path.join(__dirname, "./data/diceLeaderboard.json");
+const DICE_LEADERBOARD_TOP_N = 10;
+let diceLeaderboard = new Map(); 
+
+function diceLoadLeaderboard() {
+  if (fs.existsSync(DICE_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(DICE_LEADERBOARD_FILE, "utf8"));
+      diceLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded dice leaderboard (${diceLeaderboard.size} players)`);
+    } catch (e) {
+      console.error("❌ diceLeaderboard.json load failed", e);
+    }
+  }
+}
+function diceSaveLeaderboard() {
+  try {
+    fs.writeFileSync(DICE_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(diceLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save diceLeaderboard.json:", e);
+  }
+}
+diceLoadLeaderboard();
+
+function diceRecordWin(userId, payoutChips) {
+  const current = diceLeaderboard.get(userId) || 0;
+  if (payoutChips > current) {
+    diceLeaderboard.set(userId, payoutChips);
+    diceSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+
+function diceBuildLeaderboardPayload() {
+  const leaders = Array.from(diceLeaderboard.entries())
+    .map(([userId, payout]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        payout
+      };
+    })
+    .sort((a, b) => b.payout - a.payout)
+    .slice(0, DICE_LEADERBOARD_TOP_N);
+  return { leaders };
+}
+function diceBroadcastLeaderboard() {
+  io.emit("diceLeaderboardState", diceBuildLeaderboardPayload());
+}
+function diceBroadcastRecentBet(entry) {
+  io.emit("diceRecentBet", entry);
+}
+
+
+const PLINKO_LEADERBOARD_FILE = path.join(__dirname, "./data/plinkoLeaderboard.json");
+const PLINKO_LEADERBOARD_TOP_N = 10;
+let plinkoLeaderboard = new Map(); 
+
+function plinkoLoadLeaderboard() {
+  if (fs.existsSync(PLINKO_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(PLINKO_LEADERBOARD_FILE, "utf8"));
+      plinkoLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded plinko leaderboard (${plinkoLeaderboard.size} players)`);
+    } catch (e) {
+      console.error("❌ plinkoLeaderboard.json load failed", e);
+    }
+  }
+}
+function plinkoSaveLeaderboard() {
+  try {
+    fs.writeFileSync(PLINKO_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(plinkoLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save plinkoLeaderboard.json:", e);
+  }
+}
+plinkoLoadLeaderboard();
+
+function plinkoRecordWin(userId, payoutChips, multiplier) {
+  const current = plinkoLeaderboard.get(userId);
+  if (!current || payoutChips > current.payout) {
+    plinkoLeaderboard.set(userId, { payout: payoutChips, multiplier, ts: Date.now() });
+    plinkoSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+
+function plinkoBuildLeaderboardPayload() {
+  const leaders = Array.from(plinkoLeaderboard.entries())
+    .map(([userId, entry]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        payout: entry.payout,
+        multiplier: entry.multiplier
+      };
+    })
+    .sort((a, b) => b.payout - a.payout)
+    .slice(0, PLINKO_LEADERBOARD_TOP_N);
+  return { leaders };
+}
+function plinkoBroadcastLeaderboard() {
+  io.emit("plinkoLeaderboardState", plinkoBuildLeaderboardPayload());
+}
+
+
+function plinkoBroadcastRecentBet(entry) {
+  io.emit("plinkoRecentBet", entry);
+}
+
+const AVIA_LEADERBOARD_FILE = path.join(__dirname, "./data/aviaLeaderboard.json");
+const AVIA_LEADERBOARD_TOP_N = 10;
+let aviaLeaderboard = new Map();
+ 
+function aviaLoadLeaderboard() {
+  if (fs.existsSync(AVIA_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(AVIA_LEADERBOARD_FILE, "utf8"));
+      aviaLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded avia leaderboard (${aviaLeaderboard.size} players)`);
+    } catch (e) {
+      console.error("❌ aviaLeaderboard.json load failed", e);
+    }
+  }
+}
+function aviaSaveLeaderboard() {
+  try {
+    fs.writeFileSync(AVIA_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(aviaLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save aviaLeaderboard.json:", e);
+  }
+}
+aviaLoadLeaderboard();
+function aviaRecordResult(userId, multiplier, payoutChips) {
+  const current = aviaLeaderboard.get(userId);
+  if (!current || multiplier > current.multiplier) {
+    aviaLeaderboard.set(userId, { multiplier, payout: payoutChips, ts: Date.now() });
+    aviaSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+ 
+function aviaBuildLeaderboardPayload() {
+  return Array.from(aviaLeaderboard.entries())
+    .map(([userId, entry]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        name: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        multiplier: entry.multiplier,
+        payout: entry.payout
+      };
+    })
+    .sort((a, b) => b.multiplier - a.multiplier)
+    .slice(0, AVIA_LEADERBOARD_TOP_N);
+}
+ 
+function aviaBroadcastLeaderboard() {
+  io.emit("aviaLeaderboard", aviaBuildLeaderboardPayload());
+}
+
+
+const AVIA_TRACK_LENGTH = 1000;       
+const AVIA_MAX_BET_CHIPS = 20000;
+const AVIA_HOUSE_EDGE = 0.97;
+const AVIA_FAIR_LAMBDA = 0.008;
+const AVIA_SPEEDS = {
+  cruise: { label: "Cruise", unitsPerSec: 45,  lambda: AVIA_FAIR_LAMBDA, emoji: "🐢" },
+  steady: { label: "Steady", unitsPerSec: 75,  lambda: AVIA_FAIR_LAMBDA, emoji: "🚶" },
+  fast:   { label: "Fast",   unitsPerSec: 115, lambda: AVIA_FAIR_LAMBDA, emoji: "💨" },
+  turbo:  { label: "Turbo",  unitsPerSec: 170, lambda: AVIA_FAIR_LAMBDA, emoji: "⚡" },
+};
+const AVIA_STAR_VALUES = [
+  { v: 0.2, w: 20 }, { v: 0.3, w: 18 }, { v: 0.5, w: 16 }, { v: 0.8, w: 12 }, { v: 1, w: 10 },
+  { v: 1.5, w: 9 }, { v: 2, w: 8 }, { v: 3, w: 6 }, { v: 4, w: 5 }, { v: 5, w: 4 },
+  { v: 7, w: 3 }, { v: 10, w: 2 }, { v: 15, w: 1 }, { v: 25, w: 0.5 }, { v: 50, w: 0.2 },
+];
+ 
+const aviaSessions = new Map(); 
+ 
+function aviaPickStarValue() {
+  const total = AVIA_STAR_VALUES.reduce((s, x) => s + x.w, 0);
+  const SCALE = 1000;
+  const roll = crypto.randomInt(Math.round(total * SCALE)) / SCALE;
+  let acc = 0;
+  for (const s of AVIA_STAR_VALUES) {
+    acc += s.w;
+    if (roll < acc) return s.v;
+  }
+  return AVIA_STAR_VALUES[AVIA_STAR_VALUES.length - 1].v;
+}
+ 
+function aviaGenerateStars(trackLength) {
+  const count = 8 + crypto.randomInt(3); 
+  const segment = (trackLength - 160) / count;
+  const stars = [];
+  for (let i = 0; i < count; i++) {
+    const base = 100 + i * segment;
+    const jitter = crypto.randomInt(Math.max(1, Math.floor(segment * 0.6)));
+    const distance = Math.round(base + jitter);
+    stars.push({ distance, value: aviaPickStarValue() });
+  }
+  return stars.sort((a, b) => a.distance - b.distance);
+}
+ 
+function aviaGenerateCrashDistance(lambda) {
+  const r = Math.min(crypto.randomInt(0, 1000000) / 1000000, 0.999999);
+  return -Math.log(1 - r) / lambda;
+}
+ 
+function aviaMultiplierAt(stars, distance) {
+  let mult = 1;
+  for (const s of stars) {
+    if (s.distance <= distance) mult += s.value;
+  }
+  return Math.round(mult * AVIA_HOUSE_EDGE * 100) / 100;
+}
+ 
+function aviaClearTimer(session) {
+  if (session && session.timer) {
+    clearTimeout(session.timer);
+    session.timer = null;
+  }
+}
+ 
+function aviaResolveEnd(userId) {
+  const session = aviaSessions.get(userId);
+  if (!session || !session.active) return;
+ 
+  const endDistance = Math.min(session.crashDistance, AVIA_TRACK_LENGTH);
+ 
+  if (session.crashDistance >= AVIA_TRACK_LENGTH) {
+    const multiplier = aviaMultiplierAt(session.stars, AVIA_TRACK_LENGTH);
+    const payoutChips = Math.floor(session.betChips * multiplier);
+ 
+    if (session.useBonus) creditBonusWin(userId, payoutChips);
+    else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+ 
+    emitToUser(userId, "aviaFullClear", {
+      multiplier,
+      payoutChips,
+      account: session.useBonus ? "bonus" : "normal",
+      balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+    });
+
+    if (aviaRecordResult(userId, multiplier, payoutChips)) aviaBroadcastLeaderboard();
+
+  
+ 
+    console.log(`🏆 Avia full clear: ${onlineUsers.get(userId)?.username || userId} landed at ${multiplier.toFixed(2)}x -> ${payoutChips}`);
+  } else {
+    const multiplierAtCrash = aviaMultiplierAt(session.stars, endDistance);
+    emitToUser(userId, "aviaCrashed", {
+      crashDistance: endDistance,
+      multiplierAtCrash,
+      betChips: session.betChips
+    });
+    console.log(`💥 Avia crash: ${onlineUsers.get(userId)?.username || userId} went down at distance ${endDistance.toFixed(0)} (would've been ${multiplierAtCrash.toFixed(2)}x)`);
+  }
+ 
+  session.active = false;
+  aviaSessions.delete(userId);
+}
+
+const wgClickHistory = new Map();
+const WG_CLICK_HISTORY_MAX = 50;
+const WG_AUTOCLICK_INTERVAL_THRESHOLD_MS = 120; 
+const WG_AUTOCLICK_VARIANCE_THRESHOLD = 15;  
+const AS_ROUND_GAP_MS = 8000;    
+const AS_GROWTH_RATE = 0.17;      
+const AS_HOUSE_EDGE = 0.97;         
+const AS_MAX_BET_CHIPS = 20000;
+const AS_POST_CRASH_DELAY_MS = 3000; 
+const AS_LEADERBOARD_FILE = path.join(__dirname, "./data/airstrikeLeaderboard.json");
+const AS_LEADERBOARD_TOP_N = 10;
+ 
+let airstrikeLeaderboard = new Map(); 
+ 
+function asLoadLeaderboard() {
+  if (fs.existsSync(AS_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(AS_LEADERBOARD_FILE, "utf8"));
+      airstrikeLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded airstrike leaderboard (${airstrikeLeaderboard.size} players)`);
+    } catch (e) {
+      console.error("❌ airstrikeLeaderboard.json load failed", e);
+    }
+  }
+}
+function asSaveLeaderboard() {
+  try {
+    fs.writeFileSync(AS_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(airstrikeLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save airstrikeLeaderboard.json:", e);
+  }
+}
+asLoadLeaderboard();
+ 
+function asRecordMultiplier(userId, multiplier) {
+  const current = airstrikeLeaderboard.get(userId) || 0;
+  if (multiplier > current) {
+    airstrikeLeaderboard.set(userId, multiplier);
+    asSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+ 
+function asBuildLeaderboardPayload() {
+  const entries = Array.from(airstrikeLeaderboard.entries())
+    .map(([userId, mult]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        multiplier: mult
+      };
+    })
+    .sort((a, b) => b.multiplier - a.multiplier)
+    .slice(0, AS_LEADERBOARD_TOP_N);
+  return { leaders: entries };
+}
+function asBroadcastLeaderboard() {
+  io.emit("airstrikeLeaderboardState", asBuildLeaderboardPayload());
+}
+ 
+const airstrikeRound = {
+  state: "waiting",      
+  roundId: 0,
+  crashPoint: 1,
+  startedAt: 0,
+  countdownEndsAt: Date.now() + AS_ROUND_GAP_MS,
+  bets: new Map(),       
+  timer: null,
+  liveInterval: null
+};
+ 
+function asGenerateCrashPoint() {
+  const r = crypto.randomInt(0, 1000000) / 1000000;
+  if (r < 0.03) return 1.00; 
+  const raw = AS_HOUSE_EDGE / (1 - r);
+  return Math.max(1.00, Math.floor(raw * 100) / 100);
+}
+ 
+function asCurrentMultiplier() {
+  if (airstrikeRound.state === "crashed") return airstrikeRound.crashPoint;
+  if (airstrikeRound.state !== "flying") return 1;
+  const elapsed = (Date.now() - airstrikeRound.startedAt) / 1000;
+  const growth = Math.pow(Math.E, elapsed * AS_GROWTH_RATE);
+  return Math.min(Math.round(growth * 100) / 100, airstrikeRound.crashPoint);
+}
+ 
+function asBuildStateFor(userId) {
+  const myBet = userId ? airstrikeRound.bets.get(userId) : null;
+  return {
+    state: airstrikeRound.state,
+    roundId: airstrikeRound.roundId,
+    multiplier: asCurrentMultiplier(),
+    countdownMsLeft: airstrikeRound.state === "waiting" ? Math.max(0, airstrikeRound.countdownEndsAt - Date.now()) : 0,
+    crashPoint: airstrikeRound.state === "crashed" ? airstrikeRound.crashPoint : null,
+    balance: userId ? getChipBalance(userId) : null,
+    bonusBalance: userId ? getBonusBalance(userId) : null,
+    yourBet: myBet ? { amount: myBet.amount, cashedOutAt: myBet.cashedOutAt, useBonus: myBet.useBonus } : null,
+    players: Array.from(airstrikeRound.bets.values()).map(b => ({
+      username: b.username,
+      avatar: b.avatar,
+      amount: b.amount,
+      cashedOutAt: b.cashedOutAt
+    }))
+  };
+}
+ 
+function asBroadcastState() {
+  io.sockets.sockets.forEach(sock => {
+    if (!sock.userId || sock.isBot) return;
+    sock.emit("airstrikeState", asBuildStateFor(sock.userId));
+  });
+}
+ 
+function asStartCountdown() {
+  airstrikeRound.state = "waiting";
+  airstrikeRound.bets.clear();
+  airstrikeRound.countdownEndsAt = Date.now() + AS_ROUND_GAP_MS;
+  asBroadcastState();
+ 
+  clearTimeout(airstrikeRound.timer);
+  airstrikeRound.timer = setTimeout(asStartFlight, AS_ROUND_GAP_MS);
+}
+ 
+function asStartFlight() {
+  airstrikeRound.roundId++;
+  airstrikeRound.crashPoint = asGenerateCrashPoint();
+  airstrikeRound.startedAt = Date.now();
+  airstrikeRound.state = "flying";
+  asBroadcastState();
+  const neededSeconds = Math.log(Math.max(airstrikeRound.crashPoint, 1.0001)) / AS_GROWTH_RATE;
+  const flightMs = Math.max(300, neededSeconds * 1000);
+ 
+  clearTimeout(airstrikeRound.timer);
+  airstrikeRound.timer = setTimeout(asTriggerCrash, flightMs);
+ 
+  clearInterval(airstrikeRound.liveInterval);
+  airstrikeRound.liveInterval = setInterval(() => {
+    if (airstrikeRound.state !== "flying") {
+      clearInterval(airstrikeRound.liveInterval);
+      return;
+    }
+    asBroadcastState();
+  }, 150);
+ 
+  
+}
+ 
+function asTriggerCrash() {
+  airstrikeRound.state = "crashed";
+  clearInterval(airstrikeRound.liveInterval);
+ 
+  let leaderboardChanged = false;
+  airstrikeRound.bets.forEach((bet, userId) => {
+    if (bet.cashedOutAt) {
+      if (asRecordMultiplier(userId, bet.cashedOutAt)) leaderboardChanged = true;
+    }
+  });
+  if (leaderboardChanged) asBroadcastLeaderboard();
+ 
+  asBroadcastState();
+  
+ 
+  clearTimeout(airstrikeRound.timer);
+  airstrikeRound.timer = setTimeout(asStartCountdown, AS_POST_CRASH_DELAY_MS);
+}
+ 
+
+asStartCountdown();
+
+const WG_POT_COUNT = 3;
+const WG_GROW_MS = 60 * 60 * 1000;           
+const WG_WATER_INTERVAL_MIN_MS = 10 * 60 * 1000;
+const WG_WATER_INTERVAL_MAX_MS = 20 * 60 * 1000;
+const WG_DEATH_GRACE_MS = 10 * 60 * 1000;   
+const WG_HARVEST_XP = 30;
+const WG_LEADERBOARD_FILE = path.join(__dirname, "./data/weedLeaderboard.json");
+const WG_LEADERBOARD_TOP_N = 10;
+function wgRandomWaterInterval() {
+  return WG_WATER_INTERVAL_MIN_MS + crypto.randomInt(0, WG_WATER_INTERVAL_MAX_MS - WG_WATER_INTERVAL_MIN_MS + 1);
+}
+let weedLeaderboard = new Map();
+
+function wgLoadLeaderboard() {
+  if (fs.existsSync(WG_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(WG_LEADERBOARD_FILE, "utf8"));
+      weedLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded weed grow leaderboard (${weedLeaderboard.size} growers)`);
+    } catch (e) {
+      console.error("❌ weedLeaderboard.json load failed", e);
+    }
+  }
+}
+function wgSaveLeaderboard() {
+  try {
+    fs.writeFileSync(WG_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(weedLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save weedLeaderboard.json:", e);
+  }
+}
+wgLoadLeaderboard();
+
+function wgRecordHarvest(userId) {
+  weedLeaderboard.set(userId, (weedLeaderboard.get(userId) || 0) + 1);
+  wgSaveLeaderboard();
+}
+
+function wgBuildLeaderboardPayload() {
+  const entries = Array.from(weedLeaderboard.entries())
+    .map(([userId, count]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        count
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, WG_LEADERBOARD_TOP_N);
+  return { leaders: entries };
+}
+function wgBroadcastLeaderboard() {
+  io.emit("weedLeaderboardState", wgBuildLeaderboardPayload());
+}
+
+const weedGardens = new Map();
+
+function wgEmptyPot() {
+  return {
+    stage: "empty",
+    plantedAt: null,
+    wateredAt: null,
+    nextWaterDueAt: null,
+    wilted: false,
+    wiltedAt: null,
+    growAccumMs: 0,   
+    growSince: null,  
+    timer: null
+  };
+}
+
+function wgGetGarden(userId) {
+  let garden = weedGardens.get(userId);
+  if (!garden) {
+    garden = Array.from({ length: WG_POT_COUNT }, () => wgEmptyPot());
+    weedGardens.set(userId, garden);
+  }
+  return garden;
+}
+
+
+function wgProgress(pot, now = Date.now()) {
+  if (!pot || pot.stage === "empty") return 0;
+  const activeMs = pot.growAccumMs + (pot.wilted ? 0 : Math.max(0, now - pot.growSince));
+  return Math.min(1, activeMs / WG_GROW_MS);
+}
+
+function wgSerializePot(pot) {
+  if (!pot || pot.stage === "empty") return { stage: "empty" };
+  const now = Date.now();
+  const progress = wgProgress(pot, now);
+  const stage = progress >= 1 ? "ready" : "growing";
+  const needsWater = stage !== "ready" && !pot.wilted && pot.nextWaterDueAt !== null && now >= pot.nextWaterDueAt;
+
+  return {
+    stage,
+    plantedAt: pot.plantedAt,
+    progress,
+    needsWater,
+    wilted: !!pot.wilted,
+    deathInMs: pot.wilted ? Math.max(0, (pot.wiltedAt + WG_DEATH_GRACE_MS) - now) : null,
+    growMsLeft: stage === "ready" ? 0 : Math.max(0, WG_GROW_MS - (pot.growAccumMs + (pot.wilted ? 0 : Math.max(0, now - pot.growSince))))
+  };
+}
+
+function wgBroadcastState(userId) {
+  const garden = wgGetGarden(userId);
+  emitToUser(userId, "weedState", { pots: garden.map(wgSerializePot) });
+}
+
+function wgClearTimer(pot) {
+  if (pot && pot.timer) {
+    clearTimeout(pot.timer);
+    pot.timer = null;
+  }
+}
+
+
+function wgScheduleNext(userId, potIndex, pot) {
+  wgClearTimer(pot);
+  if (!pot || pot.stage === "empty") return;
+
+  const now = Date.now();
+
+  if (pot.wilted) {
+    const delay = Math.max(0, (pot.wiltedAt + WG_DEATH_GRACE_MS) - now);
+    pot.timer = setTimeout(() => wgHandleTimer(userId, potIndex, pot), delay);
+    return;
+  }
+
+  const activeMs = pot.growAccumMs + Math.max(0, now - pot.growSince);
+  const msToReady = Math.max(0, WG_GROW_MS - activeMs);
+  const msToWaterDue = Math.max(0, pot.nextWaterDueAt - now);
+  pot.timer = setTimeout(() => wgHandleTimer(userId, potIndex, pot), Math.min(msToReady, msToWaterDue));
+}
+
+function wgHandleTimer(userId, potIndex, pot) {
+  const garden = wgGetGarden(userId);
+  if (garden[potIndex] !== pot) return; 
+  if (pot.stage === "empty") return;
+
+  const now = Date.now();
+  const progress = wgProgress(pot, now);
+
+  if (!pot.wilted && progress >= 1) {
+    emitToUser(userId, "weedReady", { potIndex, pot: wgSerializePot(pot) });
+    return;
+  }
+
+  if (!pot.wilted && pot.nextWaterDueAt !== null && now >= pot.nextWaterDueAt) {
+    pot.wilted = true;
+    pot.wiltedAt = now;
+    pot.growAccumMs += Math.max(0, now - pot.growSince);
+    pot.growSince = null;
+    emitToUser(userId, "weedWilted", { potIndex, pot: wgSerializePot(pot) });
+    wgScheduleNext(userId, potIndex, pot);
+    return;
+  }
+
+if (pot.wilted && now >= pot.wiltedAt + WG_DEATH_GRACE_MS) {
+    garden[potIndex] = wgEmptyPot();
+    emitToUser(userId, "weedDied", { potIndex, pot: wgSerializePot(garden[potIndex]) });
+
+    const displayName = onlineUsers.get(userId)?.username || allUsers.get(userId)?.username || userId;
+    console.log(`💀 Plant died from neglect in pot ${potIndex} for ${displayName}`);
+    return;
+}
+
+  wgScheduleNext(userId, potIndex, pot);
+}
+
+
+const DARTS_MAX_BET_CHIPS = 20000;
+const DARTS_HOUSE_EDGE = 0.97;
+const DARTS_ANIMATION_MS = 1600;
+
+
+const DARTS_RINGS = [
+  { id: "bullseye",  label: "Bullseye",   weight: 3,  multiplier: 15 },
+  { id: "inner",     label: "Inner Ring", weight: 10, multiplier: 4  },
+  { id: "middle",    label: "Middle Ring",weight: 22, multiplier: 2  },
+  { id: "outer",     label: "Outer Ring", weight: 30, multiplier: 1.2},
+  { id: "miss",      label: "Miss",       weight: 35, multiplier: 0  },
+];
+
+function dartsPickRing() {
+  const totalWeight = DARTS_RINGS.reduce((s, r) => s + r.weight, 0);
+  const SCALE = 1000;
+  const roll = crypto.randomInt(Math.round(totalWeight * SCALE)) / SCALE;
+  let acc = 0;
+  for (let i = 0; i < DARTS_RINGS.length; i++) {
+    acc += DARTS_RINGS[i].weight;
+    if (roll < acc) return i;
+  }
+  return DARTS_RINGS.length - 1;
+}
+
+function dartsEvaluate(ringIndex, betChips) {
+  const ring = DARTS_RINGS[ringIndex];
+  const multiplier = Math.round(ring.multiplier * DARTS_HOUSE_EDGE * 100) / 100;
+  const payoutChips = Math.floor(betChips * multiplier);
+  return { multiplier, payoutChips, ring };
+}
+
+const DARTS_LEADERBOARD_FILE = path.join(__dirname, "./data/dartsLeaderboard.json");
+const DARTS_LEADERBOARD_TOP_N = 10;
+let dartsLeaderboard = new Map();
+
+function dartsLoadLeaderboard() {
+  if (fs.existsSync(DARTS_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(DARTS_LEADERBOARD_FILE, "utf8"));
+      dartsLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded darts leaderboard (${dartsLeaderboard.size} players)`);
+    } catch (e) {
+      console.error("❌ dartsLeaderboard.json load failed", e);
+    }
+  }
+}
+function dartsSaveLeaderboard() {
+  try {
+    fs.writeFileSync(DARTS_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(dartsLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save dartsLeaderboard.json:", e);
+  }
+}
+dartsLoadLeaderboard();
+
+function dartsRecordWin(userId, payoutChips) {
+  const current = dartsLeaderboard.get(userId) || 0;
+  if (payoutChips > current) {
+    dartsLeaderboard.set(userId, payoutChips);
+    dartsSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+
+function dartsBuildLeaderboardPayload() {
+  const leaders = Array.from(dartsLeaderboard.entries())
+    .map(([userId, payout]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        payout
+      };
+    })
+    .sort((a, b) => b.payout - a.payout)
+    .slice(0, DARTS_LEADERBOARD_TOP_N);
+  return { leaders }; 
+}
+function dartsBroadcastLeaderboard() {
+  io.emit("dartsLeaderboardState", dartsBuildLeaderboardPayload());
+}
+
+const DT_ROWS = 9;
+const DT_HOUSE_EDGE = 0.97;
+const DT_MAX_BET_CHIPS = 20000;
+
+const DT_DIFFICULTIES = {
+  easy:   { tiles: 4, mines: 1 },
+  medium: { tiles: 3, mines: 1 },
+  hard:   { tiles: 2, mines: 1 },
+  expert: { tiles: 3, mines: 2 },
+  master: { tiles: 4, mines: 3 },
+};
+
+const DT_LEADERBOARD_FILE = path.join(__dirname, "./data/dragonTowerLeaderboard.json");
+const DT_LEADERBOARD_TOP_N = 10;
+let dragonTowerLeaderboard = new Map();
+
+function dtLoadLeaderboard() {
+  if (fs.existsSync(DT_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(DT_LEADERBOARD_FILE, "utf8"));
+      dragonTowerLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded dragon tower leaderboard (${dragonTowerLeaderboard.size} players)`);
+    } catch (e) {
+      console.error("❌ dragonTowerLeaderboard.json load failed", e);
+    }
+  }
+}
+function dtSaveLeaderboard() {
+  try {
+    fs.writeFileSync(DT_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(dragonTowerLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save dragonTowerLeaderboard.json:", e);
+  }
+}
+dtLoadLeaderboard();
+
+function dtRecordResult(userId, multiplier, payoutChips) {
+  const current = dragonTowerLeaderboard.get(userId);
+  if (!current || multiplier > current.multiplier) {
+    dragonTowerLeaderboard.set(userId, { multiplier, payout: payoutChips, ts: Date.now() });
+    dtSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+
+function dtBuildLeaderboardPayload() {
+  return Array.from(dragonTowerLeaderboard.entries())
+    .map(([userId, entry]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        multiplier: entry.multiplier,
+        payout: entry.payout
+      };
+    })
+    .sort((a, b) => b.multiplier - a.multiplier)
+    .slice(0, DT_LEADERBOARD_TOP_N);
+}
+function dtBroadcastLeaderboard() {
+  io.emit("dragonTowerLeaderboard", dtBuildLeaderboardPayload());
+}
+
+
+const dragonTowerSessions = new Map();
+
+function dtGenerateRowMines(cfg) {
+  const indices = Array.from({ length: cfg.tiles }, (_, i) => i);
+  const mines = new Set();
+  while (mines.size < cfg.mines) {
+    mines.add(indices[crypto.randomInt(indices.length)]);
+  }
+  return mines;
+}
+
+function dtMultiplierForLevel(cfg, level) {
+  const safeTiles = cfg.tiles - cfg.mines;
+  let mult = 1;
+  for (let i = 0; i < level; i++) {
+    mult *= cfg.tiles / safeTiles;
+  }
+  return Math.round(mult * DT_HOUSE_EDGE * 10000) / 10000;
+}
+
+function dtEmitState(userId, socket) {
+  const session = dragonTowerSessions.get(userId);
+  const target = socket || null;
+  const payload = (!session || !session.active)
+    ? { active: false, balance: getChipBalance(userId), bonusBalance: getBonusBalance(userId) }
+    : {
+        active: true,
+        difficulty: session.difficulty,
+        tiles: DT_DIFFICULTIES[session.difficulty].tiles,
+        rows: DT_ROWS,
+        betChips: session.betChips,
+        account: session.useBonus ? "bonus" : "normal",
+        currentLevel: session.currentLevel,
+        multiplier: dtMultiplierForLevel(DT_DIFFICULTIES[session.difficulty], session.currentLevel),
+        revealedRows: session.revealedRows 
+      };
+  if (target) target.emit("dragonTowerState", payload);
+  else emitToUser(userId, "dragonTowerState", payload);
+}
+
+const ROULETTE_ROUND_GAP_MS = 15000;      
+const ROULETTE_SPIN_MS = 5500;            
+const ROULETTE_RESULT_DISPLAY_MS = 5000;   
+const ROULETTE_MAX_BET_CHIPS = 20000;
+const ROULETTE_HOUSE_EDGE_NUMBERS = 37;   
+
+const ROULETTE_WHEEL_ORDER = [
+  0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5,
+  24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26
+];
+const ROULETTE_RED_NUMBERS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+
+function rouletteNumberColor(n) {
+  if (n === 0) return "green";
+  return ROULETTE_RED_NUMBERS.has(n) ? "red" : "black";
+}
+
+
+const ROULETTE_PAYOUTS = {
+  straight: 35, red: 1, black: 1, odd: 1, even: 1, low: 1, high: 1,
+  dozen1: 2, dozen2: 2, dozen3: 2, col1: 2, col2: 2, col3: 2
+};
+
+function rouletteBetWins(bet, winningNumber) {
+  const color = rouletteNumberColor(winningNumber);
+  switch (bet.type) {
+    case "straight": return bet.number === winningNumber;
+    case "red": return color === "red";
+    case "black": return color === "black";
+    case "odd": return winningNumber !== 0 && winningNumber % 2 === 1;
+    case "even": return winningNumber !== 0 && winningNumber % 2 === 0;
+    case "low": return winningNumber >= 1 && winningNumber <= 18;
+    case "high": return winningNumber >= 19 && winningNumber <= 36;
+    case "dozen1": return winningNumber >= 1 && winningNumber <= 12;
+    case "dozen2": return winningNumber >= 13 && winningNumber <= 24;
+    case "dozen3": return winningNumber >= 25 && winningNumber <= 36;
+    case "col1": return winningNumber !== 0 && (winningNumber - 1) % 3 === 0;
+    case "col2": return winningNumber !== 0 && (winningNumber - 2) % 3 === 0;
+    case "col3": return winningNumber !== 0 && (winningNumber - 3) % 3 === 0;
+    default: return false;
+  }
+}
+
+const ROULETTE_LEADERBOARD_FILE = path.join(__dirname, "./data/rouletteLeaderboard.json");
+const ROULETTE_LEADERBOARD_TOP_N = 10;
+let rouletteLeaderboard = new Map();
+
+function rouletteLoadLeaderboard() {
+  if (fs.existsSync(ROULETTE_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(ROULETTE_LEADERBOARD_FILE, "utf8"));
+      rouletteLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded roulette leaderboard (${rouletteLeaderboard.size} players)`);
+    } catch (e) { console.error("❌ rouletteLeaderboard.json load failed", e); }
+  }
+}
+function rouletteSaveLeaderboard() {
+  try {
+    fs.writeFileSync(ROULETTE_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(rouletteLeaderboard), null, 2));
+  } catch (e) { console.error("❌ Failed to save rouletteLeaderboard.json:", e); }
+}
+rouletteLoadLeaderboard();
+
+function rouletteRecordWin(userId, netWin) {
+  const current = rouletteLeaderboard.get(userId) || 0;
+  if (netWin > current) {
+    rouletteLeaderboard.set(userId, netWin);
+    rouletteSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+
+function rouletteBuildLeaderboardPayload() {
+  const entries = Array.from(rouletteLeaderboard.entries())
+    .map(([userId, netWin]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        netWin
+      };
+    })
+    .sort((a, b) => b.netWin - a.netWin)
+    .slice(0, ROULETTE_LEADERBOARD_TOP_N);
+  return { leaders: entries };
+}
+function rouletteBroadcastLeaderboard() {
+  io.emit("rouletteLeaderboardState", rouletteBuildLeaderboardPayload());
+}
+
+const rouletteRound = {
+  state: "betting",       
+  roundId: 0,
+  bettingEndsAt: Date.now() + ROULETTE_ROUND_GAP_MS,
+  winningNumber: null,
+  bets: new Map(),        
+  timer: null
+};
+
+function rouletteGenerateWinningNumber() {
+  return crypto.randomInt(0, 37);
+}
+
+function rouletteBuildStateFor(userId) {
+  const myBets = userId ? (rouletteRound.bets.get(userId) || []) : [];
+  const allBetsFlat = [];
+  rouletteRound.bets.forEach((betsArr, uid) => {
+    const u = onlineUsers.get(uid) || allUsers.get(uid) || {};
+    betsArr.forEach(b => {
+      allBetsFlat.push({
+        userId: uid,
+        username: u.username || "Anonymous",
+        avatar: u.avatar || "/avatars/default1.png",
+        type: b.type,
+        number: b.number,
+        amount: b.amount
+      });
+    });
+  });
+
+  return {
+    state: rouletteRound.state,
+    roundId: rouletteRound.roundId,
+    bettingMsLeft: rouletteRound.state === "betting" ? Math.max(0, rouletteRound.bettingEndsAt - Date.now()) : 0,
+    winningNumber: (rouletteRound.state === "results" || rouletteRound.state === "spinning") ? rouletteRound.winningNumber : null,
+    winningColor: (rouletteRound.state === "results" || rouletteRound.state === "spinning") ? rouletteNumberColor(rouletteRound.winningNumber) : null,
+    yourBets: myBets,
+    yourBalance: userId ? getChipBalance(userId) : null,
+    yourBonusBalance: userId ? getBonusBalance(userId) : null,
+    allBets: allBetsFlat,
+    maxBet: ROULETTE_MAX_BET_CHIPS
+  };
+}
+
+function rouletteBroadcastState() {
+  io.sockets.sockets.forEach(sock => {
+    if (!sock.userId || sock.isBot) return;
+    sock.emit("rouletteState", rouletteBuildStateFor(sock.userId));
+  });
+}
+
+function rouletteStartBetting() {
+  rouletteRound.state = "betting";
+  rouletteRound.roundId++;
+  rouletteRound.bets.clear();
+  rouletteRound.winningNumber = null;
+  rouletteRound.bettingEndsAt = Date.now() + ROULETTE_ROUND_GAP_MS;
+  rouletteBroadcastState();
+
+  clearTimeout(rouletteRound.timer);
+  rouletteRound.timer = setTimeout(rouletteStartSpin, ROULETTE_ROUND_GAP_MS);
+}
+
+function rouletteStartSpin() {
+  rouletteRound.state = "spinning";
+  rouletteRound.winningNumber = rouletteGenerateWinningNumber();
+  rouletteBroadcastState();
+
+  clearTimeout(rouletteRound.timer);
+  rouletteRound.timer = setTimeout(rouletteResolveRound, ROULETTE_SPIN_MS);
+}
+
+function rouletteResolveRound() {
+  rouletteRound.state = "results";
+  const winningNumber = rouletteRound.winningNumber;
+  let leaderboardChanged = false;
+
+  rouletteRound.bets.forEach((betsArr, userId) => {
+    let totalStaked = 0;
+    let totalPayout = 0;
+
+    betsArr.forEach(bet => {
+      totalStaked += bet.amount;
+      if (rouletteBetWins(bet, winningNumber)) {
+        const mult = ROULETTE_PAYOUTS[bet.type] || 0;
+        totalPayout += bet.amount + (bet.amount * mult);
+      }
+    });
+
+    const netWin = totalPayout - totalStaked;
+
+    
+    if (totalPayout > 0) {
+      const useBonus = betsArr[0]?.useBonus; 
+      if (useBonus) creditBonusWin(userId, totalPayout);
+      else adjustUserXp(userId, totalPayout * BJ_XP_PER_CHIP);
+    }
+
+    if (netWin > 0 && rouletteRecordWin(userId, netWin)) leaderboardChanged = true;
+
+    emitToUser(userId, "rouletteRoundResult", {
+      winningNumber,
+      winningColor: rouletteNumberColor(winningNumber),
+      totalStaked,
+      totalPayout,
+      netWin,
+      balance: getChipBalance(userId),
+      bonusBalance: getBonusBalance(userId)
+    });
+  });
+
+  if (leaderboardChanged) rouletteBroadcastLeaderboard();
+  rouletteBroadcastState();
+
+  clearTimeout(rouletteRound.timer);
+  rouletteRound.timer = setTimeout(rouletteStartBetting, ROULETTE_RESULT_DISPLAY_MS);
+}
+
+rouletteStartBetting();
+const PLINKO_ROWS = 16;              
+const PLINKO_MAX_BET_CHIPS = 20000; 
+const PLINKO_MULTIPLIERS = [1000, 130, 26, 9, 4, 2, 0.4, 0.2, 0.2, 0.2, 0.4, 2, 4, 9, 26, 130, 1000];
+const PLINKO_ANIMATION_MS = 150 + PLINKO_ROWS * 230 + 300;
+const MS_GRID_SIZE = 5;
+const MS_TILE_COUNT = MS_GRID_SIZE * MS_GRID_SIZE;
+const MS_MAX_BET_CHIPS = 20000;
+const MS_ALLOWED_MINE_COUNTS = [3, 5, 8, 12];
+const msSessions = new Map();
+const BJ_SEATS = 5;
+const BJ_MIN_BET = 1;
+const BJ_MAX_BET_CHIPS = 100000;
+const BJ_XP_PER_CHIP = 10;
+const BJ_SUITS = ["♠", "♥", "♦", "♣"];
+const BJ_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const BJ_BETTING_WINDOW_MS = 15000;
+const BJ_TURN_TIMEOUT_MS = 20000;
+const BJ_RESULT_DISPLAY_MS = 6000;
+
+function bjFreshDeck() {
+  const d = [];
+  for (const s of BJ_SUITS) for (const r of BJ_RANKS) d.push({ r, s });
+  for (let i = d.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [d[i], d[j]] = [d[j], d[i]];
+  }
+  return d;
+}
+function bjCardValue(card) {
+  if (card.r === "A") return 11;
+  if (["K", "Q", "J"].includes(card.r)) return 10;
+  return parseInt(card.r, 10);
+}
+function bjHandTotal(hand) {
+  let total = hand.reduce((sum, c) => sum + bjCardValue(c), 0);
+  let aces = hand.filter((c) => c.r === "A").length;
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  return total;
+}
+function bjIsBlackjack(hand) {
+  return hand.length === 2 && bjHandTotal(hand) === 21;
+}
+
+
+const bjTable = {
+  seats: Array.from({ length: BJ_SEATS }, () => null),
+ 
+  deck: [],
+  dealerHand: [],
+  dealerHoleHidden: true,
+  stage: "waiting",
+  currentTurnIndex: -1,
+  bettingDeadline: 0,
+  turnDeadline: 0,
+  handNumber: 0,
+  timers: { betting: null, turn: null, results: null }
+};
+
+function bjOccupiedSeats() {
+  return bjTable.seats
+    .map((s, i) => ({ s, i }))
+    .filter(x => x.s && !x.s.sittingOut);
+}
+
+function bjFindUserSeatIndex(userId) {
+  return bjTable.seats.findIndex(s => s && s.userId === userId);
+}
+
+function bjClearTimers() {
+  Object.keys(bjTable.timers).forEach(k => {
+    if (bjTable.timers[k]) { clearTimeout(bjTable.timers[k]); bjTable.timers[k] = null; }
+  });
+}
+
+function bjBroadcastState() {
+  bjTable.seats.forEach(s => {
+    if (!s) return;
+    const sockets = userSockets.get(s.userId);
+    if (!sockets) return;
+    sockets.forEach(sockId => io.to(sockId).emit("bjState", bjBuildStateFor(s.userId)));
+  });
+  const seatedIds = new Set(bjTable.seats.filter(Boolean).map(s => s.userId));
+  userSockets.forEach((sockets, userId) => {
+    if (seatedIds.has(userId)) return;
+    sockets.forEach(sockId => io.to(sockId).emit("bjSpectatorState", bjBuildStateFor(userId)));
+  });
+}
+
+function bjBuildStateFor(viewerUserId) {
+  return {
+    stage: bjTable.stage,
+    handNumber: bjTable.handNumber,
+    minBet: BJ_MIN_BET,
+    maxBet: BJ_MAX_BET_CHIPS,
+    dealerHand: bjTable.dealerHoleHidden && bjTable.dealerHand.length
+      ? [bjTable.dealerHand[0], null]
+      : bjTable.dealerHand,
+    dealerHoleHidden: bjTable.dealerHoleHidden,
+    currentTurnIndex: bjTable.currentTurnIndex,
+    bettingMsLeft: bjTable.stage === "betting" ? Math.max(0, bjTable.bettingDeadline - Date.now()) : 0,
+    turnMsLeft: bjTable.stage === "playing" ? Math.max(0, bjTable.turnDeadline - Date.now()) : 0,
+    yourBalance: viewerUserId ? getChipBalance(viewerUserId) : null,
+    yourSeatIndex: viewerUserId ? bjFindUserSeatIndex(viewerUserId) : -1,
+    seats: bjTable.seats.map((s, i) => {
+      if (!s) return null;
+      return {
+        userId: s.userId,
+        username: s.username,
+        avatar: s.avatar,
+        chips: s.chips,
+        bet: s.bet,
+        hand: s.hand,
+        done: s.done,
+        busted: s.busted,
+        doubled: s.doubled,
+        sittingOut: s.sittingOut,
+        seatIndex: i,
+        isTurn: i === bjTable.currentTurnIndex,
+        result: s.result || null
+      };
+    })
+  };
+}
+
+function bjMaybeStartBettingRound() {
+  if (bjTable.stage !== "waiting") return;
+  const occ = bjOccupiedSeats();
+  if (occ.length === 0) return;
+
+  bjTable.handNumber++;
+  bjTable.stage = "betting";
+  bjTable.bettingDeadline = Date.now() + BJ_BETTING_WINDOW_MS;
+  bjTable.seats.forEach(s => {
+    if (!s) return;
+    s.bet = 0;
+    s.hand = [];
+    s.done = false;
+    s.busted = false;
+    s.doubled = false;
+    s.result = null;
+  });
+
+  bjClearTimers();
+  bjTable.timers.betting = setTimeout(bjLockBetsAndDeal, BJ_BETTING_WINDOW_MS);
+  bjBroadcastState();
+}
+
+function bjLockBetsAndDeal() {
+  bjClearTimers();
+  const bettors = bjOccupiedSeats().filter(({ s }) => s.bet > 0);
+  if (bettors.length === 0) {
+    bjTable.stage = "waiting";
+    bjBroadcastState();
+    return;
+  }
+
+  bjTable.deck = bjFreshDeck();
+  bjTable.dealerHand = [];
+  bjTable.dealerHoleHidden = true;
+  bjTable.stage = "playing";
+
+  bettors.forEach(({ s }) => { s.hand = [bjTable.deck.pop(), bjTable.deck.pop()]; });
+  bjTable.dealerHand.push(bjTable.deck.pop(), bjTable.deck.pop());
+
+ 
+  bjOccupiedSeats().forEach(({ s }) => { if (s.bet <= 0) s.done = true; });
+
+  bjTable.currentTurnIndex = bjNextToAct(-1);
+  if (bjTable.currentTurnIndex === -1) {
+    bjResolveTable();
+    return;
+  }
+  bjStartTurnTimer();
+  bjBroadcastState();
+}
+
+function bjNextToAct(fromIndex) {
+  let idx = fromIndex;
+  for (let n = 0; n < BJ_SEATS; n++) {
+    idx = (idx + 1) % BJ_SEATS;
+    const s = bjTable.seats[idx];
+    if (s && !s.sittingOut && s.bet > 0 && !s.done) return idx;
+  }
+  return -1;
+}
+
+function bjStartTurnTimer() {
+  if (bjTable.timers.turn) clearTimeout(bjTable.timers.turn);
+  bjTable.turnDeadline = Date.now() + BJ_TURN_TIMEOUT_MS;
+  bjTable.timers.turn = setTimeout(() => {
+  
+    const idx = bjTable.currentTurnIndex;
+    const s = bjTable.seats[idx];
+    if (s) s.done = true;
+    bjAdvanceTurn(idx);
+  }, BJ_TURN_TIMEOUT_MS);
+}
+
+function bjAdvanceTurn(actedIndex) {
+  const next = bjNextToAct(actedIndex);
+  if (next === -1) {
+    bjResolveTable();
+    return;
+  }
+  bjTable.currentTurnIndex = next;
+  bjStartTurnTimer();
+  bjBroadcastState();
+}
+
+function bjResolveTable() {
+  bjClearTimers();
+  bjTable.stage = "dealer";
+  bjTable.currentTurnIndex = -1;
+  bjTable.dealerHoleHidden = false;
+
+  const active = bjOccupiedSeats().filter(({ s }) => s.bet > 0 && !s.busted);
+  if (active.length > 0) {
+    while (bjHandTotal(bjTable.dealerHand) < 17) {
+      bjTable.dealerHand.push(bjTable.deck.pop());
+    }
+  }
+
+  const dealerTotal = bjHandTotal(bjTable.dealerHand);
+  const dealerBJ = bjIsBlackjack(bjTable.dealerHand);
+
+  bjOccupiedSeats().forEach(({ s }) => {
+  if (s.bet <= 0) return;
+  const total = bjHandTotal(s.hand);
+  const playerBJ = bjIsBlackjack(s.hand);
+  let type, text, payoutChips; 
+
+  if (total > 21) {
+    type = "lose"; text = "Bust"; payoutChips = 0;
+  } else if (playerBJ && !dealerBJ) {
+    type = "win"; text = `Blackjack! +${Math.floor(s.bet * 1.5)}`; payoutChips = s.bet + Math.floor(s.bet * 1.5);
+  } else if (dealerBJ && !playerBJ) {
+    type = "lose"; text = "Dealer Blackjack"; payoutChips = 0;
+  } else if (dealerTotal > 21 || total > dealerTotal) {
+    type = "win"; text = `Win +${s.bet}`; payoutChips = s.bet * 2;
+  } else if (total === dealerTotal) {
+    type = "push"; text = "Push"; payoutChips = s.bet;
+  } else {
+    type = "lose"; text = "Lose"; payoutChips = 0;
+  }
+
+  s.result = { type, text };
+  const netChipsChange = payoutChips - s.bet; 
+  if (netChipsChange !== 0) {
+    adjustUserXp(s.userId, netChipsChange * BJ_XP_PER_CHIP);
+  }
+});
+
+  bjTable.stage = "results";
+  bjBroadcastState();
+
+  bjTable.timers.results = setTimeout(() => {
+    bjTable.seats.forEach(s => { if (s) { s.bet = 0; s.hand = []; s.result = null; } });
+    bjTable.stage = "waiting";
+    bjBroadcastState();
+    bjMaybeStartBettingRound();
+  }, BJ_RESULT_DISPLAY_MS);
+}
+
+function getChipBalance(userId) {
+  const user = allUsers.get(userId);
+  const xp = user?.xp || 0;
+  return Math.floor(xp / BJ_XP_PER_CHIP);
+}
+ 
+function msMultiplierForReveal(safeRevealedCount, mines) {
+  const total = MS_TILE_COUNT;
+  let mult = 1;
+  for (let i = 0; i < safeRevealedCount; i++) {
+    const tilesLeft = total - i;
+    const safeLeft = (total - mines) - i;
+    mult *= tilesLeft / safeLeft;
+  }
+  return mult * 0.97;
+}
+ 
+function msGenerateMines(mineCount) {
+  const indexes = Array.from({ length: MS_TILE_COUNT }, (_, i) => i);
+  const mines = new Set();
+  while (mines.size < mineCount) {
+    const pick = indexes[crypto.randomInt(indexes.length)];
+    mines.add(pick);
+  }
+  return mines;
+}
+ 
+function msEmitState(userId, socket) {
+  const session = msSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("minesweeperState", { balance: getChipBalance(userId), active: false });
+    return;
+  }
+  const balance = session.useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+  socket.emit("minesweeperState", {
+    balance,
+    active: true,
+    account: session.useBonus ? "bonus" : "normal",
+    betChips: session.betChips,
+    mines: session.mineCount,
+    multiplier: msMultiplierForReveal(session.revealed.size, session.mineCount),
+    revealedIndexes: Array.from(session.revealed)
+  });
+}
+ 
+
+ function ensureBonusFields(user) {
+  if (user.bonusXp === undefined) user.bonusXp = 0;
+  if (user.bonusWagerRequired === undefined) user.bonusWagerRequired = 0;
+  if (user.bonusWagered === undefined) user.bonusWagered = 0;
+  return user;
+}
+
+function getBonusBalance(userId) {
+  const user = allUsers.get(userId);
+  if (!user) return 0;
+  ensureBonusFields(user);
+  return Math.floor(user.bonusXp / BJ_XP_PER_CHIP);
+}
+
+function getBonusState(userId) {
+  const user = allUsers.get(userId);
+  if (!user) return { bonusXp: 0, bonusChips: 0, wagered: 0, required: 0, claimable: false };
+  ensureBonusFields(user);
+
+
+  if (user.bonusXp <= 0) {
+    if (user.bonusWagerRequired !== 0 || user.bonusWagered !== 0) {
+      user.bonusXp = 0;
+      user.bonusWagerRequired = 0;
+      user.bonusWagered = 0;
+      allUsers.set(userId, user);
+      saveUsers();
+    }
+    return { bonusXp: 0, bonusChips: 0, wagered: 0, required: 0, claimable: false };
+  }
+
+  const bonusChips = Math.floor(user.bonusXp / BJ_XP_PER_CHIP);
+  const remainingUnwagered = user.bonusWagerRequired - user.bonusWagered;
+  const dustLocked = bonusChips === 0 && remainingUnwagered > 0 && remainingUnwagered < BJ_XP_PER_CHIP;
+
+  return {
+    bonusXp: user.bonusXp,
+    bonusChips,
+    wagered: user.bonusWagered,
+    required: user.bonusWagerRequired,
+   claimable: (user.bonusWagerRequired <= 0 || user.bonusWagered >= user.bonusWagerRequired) || dustLocked
+  };
+}
+
+function addBonusXp(userId, amount) {
+  if (!userId || amount <= 0) return;
+  let user = allUsers.get(userId);
+  if (!user) return;
+  ensureBonusFields(user);
+  user.bonusXp += amount;
+  user.bonusWagerRequired += amount;
+  allUsers.set(userId, user);
+  saveUsers();
+  emitToUser(userId, "bonusUpdate", getBonusState(userId));
+}
+
+function placeBonusBet(userId, chipAmount) {
+  const user = allUsers.get(userId);
+  if (!user) return false;
+  ensureBonusFields(user);
+  const xpAmount = chipAmount * BJ_XP_PER_CHIP;
+  if (user.bonusXp < xpAmount) return false;
+  user.bonusXp -= xpAmount;
+  user.bonusWagered += xpAmount;
+  allUsers.set(userId, user);
+  saveUsers();
+  emitToUser(userId, "bonusUpdate", getBonusState(userId));
+  return true;
+}
+
+function creditBonusWin(userId, chipAmount) {
+  if (chipAmount <= 0) return;
+  const user = allUsers.get(userId);
+  if (!user) return;
+  ensureBonusFields(user);
+  user.bonusXp += chipAmount * BJ_XP_PER_CHIP;
+  allUsers.set(userId, user);
+  saveUsers();
+  emitToUser(userId, "bonusUpdate", getBonusState(userId));
+}
+
+function claimBonus(userId) {
+  const user = allUsers.get(userId);
+  if (!user) return { success: false, msg: "User not found." };
+  ensureBonusFields(user);
+  const state = getBonusState(userId);
+  if (!state.claimable) return { success: false, msg: "You haven't wagered enough of your bonus yet." };
+
+  const amountToClaim = user.bonusXp;
+  user.bonusXp = 0;
+  user.bonusWagerRequired = 0;
+  user.bonusWagered = 0;
+  allUsers.set(userId, user);
+  saveUsers();
+
+  addServerXP(userId, amountToClaim);
+  emitToUser(userId, "bonusUpdate", getBonusState(userId));
+  return { success: true, claimedXp: amountToClaim };
+}
+
+function adjustUserXp(userId, deltaXp) {
+  const user = allUsers.get(userId);
+  if (!user) return;
+ 
+  user.xp = Math.max(0, (user.xp || 0) + deltaXp);
+ 
+  let level = 1;
+  let xpRequired = 0;
+  while (user.xp >= xpRequired + getXpForLevel(level)) {
+    xpRequired += getXpForLevel(level);
+    level++;
+  }
+  user.level = level;
+ 
+  allUsers.set(userId, user);
+  saveUsers();
+ 
+  const online = onlineUsers.get(userId);
+  if (online) {
+    online.xp = user.xp;
+    online.level = user.level;
+  }
+ 
+  io.emit("userData", { id: userId, xp: user.xp, level: user.level });
+}
+
+
+const PEPE_LEADERBOARD_FILE = path.join(__dirname, "./data/pepeLeaderboard.json");
+const PEPE_LEADERBOARD_TOP_N = 10;
+let pepeLeaderboard = new Map(); 
+ 
+function pepeLoadLeaderboard() {
+  if (fs.existsSync(PEPE_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(PEPE_LEADERBOARD_FILE, "utf8"));
+      pepeLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded pepe runner leaderboard (${pepeLeaderboard.size} players)`);
+    } catch (e) {
+      console.error("❌ pepeLeaderboard.json load failed", e);
+    }
+  }
+}
+function pepeSaveLeaderboard() {
+  try {
+    fs.writeFileSync(PEPE_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(pepeLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save pepeLeaderboard.json:", e);
+  }
+}
+pepeLoadLeaderboard();
+ 
+
+function pepeRecordScore(userId, score) {
+  const current = pepeLeaderboard.get(userId) || 0;
+  if (score > current) {
+    pepeLeaderboard.set(userId, score);
+    pepeSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+ 
+function pepeBuildLeaderboardPayload() {
+  const entries = Array.from(pepeLeaderboard.entries())
+    .map(([userId, score]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        score
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, PEPE_LEADERBOARD_TOP_N);
+  return { leaders: entries };
+}
+function pepeBroadcastLeaderboard() {
+  io.emit("pepeLeaderboardState", pepeBuildLeaderboardPayload());
+}
+ 
+
+
+
 let apiHitsToday = 0;
 let hourlyCounts = [];
 let lastHourLogged = -1;
@@ -617,27 +3037,36 @@ if (KICK_ACCESS_TOKEN) {
     const slugChunks = chunkArray(allSlugs, 50);
 
     const list = [];
-    for (const chunk of slugChunks) {
-      const slugsParam = chunk.map(s => `slug=${encodeURIComponent(s)}`).join('&');
-      const url = `https://api.kick.com/public/v1/channels?${slugsParam}`;
+    let anyChunkFailed = false;
 
-      try {
-        const resp = await axios.get(url, {
-          headers: {
-            Authorization: `Bearer ${KICK_ACCESS_TOKEN}`,
-            Accept: 'application/json',
-          },
-          timeout: 10000,
-        });
+for (const chunk of slugChunks) {
+  const slugsParam = chunk.map(s => `slug=${encodeURIComponent(s)}`).join('&');
+  const url = `https://api.kick.com/public/v1/channels?${slugsParam}`;
 
-        const chunkList = Array.isArray(resp.data?.data)
-          ? resp.data.data
-          : (Array.isArray(resp.data) ? resp.data : []);
-        list.push(...chunkList);
-      } catch (err) {
-        console.error(`❌ Kick API error on chunk [${chunk.slice(0, 3).join(',')}...]:`, err.message);
-      }
-    }
+  try {
+    const resp = await axios.get(url, {
+      headers: {
+        Authorization: `Bearer ${KICK_ACCESS_TOKEN}`,
+        Accept: 'application/json',
+      },
+      timeout: 10000,
+    });
+
+    const chunkList = Array.isArray(resp.data?.data)
+      ? resp.data.data
+      : (Array.isArray(resp.data) ? resp.data : []);
+    list.push(...chunkList);
+  } catch (err) {
+    anyChunkFailed = true;
+    console.error(`❌ Kick API error on chunk [${chunk.slice(0, 3).join(',')}...]:`, {
+      message: err.message,
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      data: err.response?.data,
+      code: err.code,
+    });
+  }
+}
 
     const liveChannels = list.filter(c => Boolean(c?.livestream) || c?.stream?.is_live === true);
 
@@ -661,7 +3090,14 @@ if (KICK_ACCESS_TOKEN) {
             userProfiles[u.user_id] = u.profile_picture || null;
           });
         } catch (err) {
-          console.error('❌ Kick users API error on chunk:', err.message);
+          console.error('❌ Kick API error:', {
+            message: err.message,
+            status: err.response?.status,
+            statusText: err.response?.statusText,
+            data: err.response?.data,
+            code: err.code,
+          }, '- skipping offline-pruning for Kick this cycle');
+          kickCheckSucceeded = false;
         }
       }
     }
@@ -680,11 +3116,18 @@ if (KICK_ACCESS_TOKEN) {
       });
     });
 
-    kickCheckSucceeded = true;
+
+    kickCheckSucceeded = !anyChunkFailed;
+
+    if (anyChunkFailed) {
+      console.warn('⚠️ Kick check had partial failures - skipping offline-pruning for Kick this cycle');
+    }
 
   } catch (err) {
     console.error('❌ Kick API error:', err.message, '- skipping offline-pruning for Kick this cycle');
+    kickCheckSucceeded = false; 
   }
+
 } else {
   console.log('⚠️ Kick token not found. Skipping Kick check.');
 }
@@ -1267,8 +3710,7 @@ function walkMusicDir(absDir, relDir, query, results, scannedCounter) {
     if (results.length >= MUSIC_SEARCH_MAX_RESULTS) return;
   }
 
-  for (const d of subDirs) {
-    if (!relDir) continue; 
+for (const d of subDirs) {
     const nextRel = relDir ? `${relDir}/${d.name}` : d.name;
     walkMusicDir(path.join(absDir, d.name), nextRel, query, results, scannedCounter);
     if (results.length >= MUSIC_SEARCH_MAX_RESULTS) return;
@@ -1431,7 +3873,10 @@ async function readFileSlice(fh, start, length) {
   const { bytesRead } = await fh.read(buf, 0, length, start);
   return buf.subarray(0, bytesRead);
 }
-
+function isGameBanned(userId) {
+  const user = allUsers.get(userId);
+  return !!(user && user.weedGameBanned);
+}
 
 async function extractID3ArtNode(absPath) {
   let fh;
@@ -1629,6 +4074,7 @@ function getGroupMembersPayload(group) {
 
 function emitToUser(userId, event, payload) {
   const sockets = userSockets.get(userId);
+  console.log(`[emitToUser] ${event} -> ${userId} | found sockets:`, sockets ? [...sockets] : null);
   if (!sockets) return;
   sockets.forEach(sockId => io.to(sockId).emit(event, payload));
 }
@@ -1957,7 +4403,7 @@ allUsers.forEach((u) => {
 
 socket.on("assignRole", (data) => {
   if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
-  const targetUsername = (data?.username || "").toLowerCase().trim();
+  const targetUsername = stripAtPrefix(data?.username || "").toLowerCase();
   const roleId = data?.roleId;
   const action = data?.action;
 
@@ -2124,6 +4570,26 @@ socket.on("join", (clientData) => {
     return;
   }
 
+  if (!isBot) {
+    const claimedId = clientData?.id;
+    const sessionToken = clientData?.sessionToken;
+    let verifiedId;
+
+    if (claimedId && sessionToken && verifySession(claimedId, sessionToken) && allUsers.has(claimedId)) {
+      verifiedId = claimedId;
+    } else {
+      verifiedId = crypto.randomUUID();
+    }
+
+    if (verifiedId !== claimedId) {
+      const newSessionToken = signSession(verifiedId);
+      socket.emit("sessionIssued", { id: verifiedId, sessionToken: newSessionToken });
+      console.log(`🔐 Rejected unverified id "${claimedId || "(none)"}" - issued fresh identity ${verifiedId}`);
+    }
+
+    clientData = { ...clientData, id: verifiedId };
+  }
+
   let ip = 'unknown';
   try {
     ip = getClientIp(socket);
@@ -2163,11 +4629,16 @@ socket.xpTimer = setInterval(() => {
     const user = onlineUsers.get(socket.userId);
     if (!user) return;
 
+    if (isGameBanned(socket.userId)) {
+      console.log(`🚫 ${user.username || socket.userId} is game-banned - skipping XP award`);
+      return;
+    }
+
     const AFK_THRESHOLD = 4 * 60 * 60 * 1000;
     const timeSinceActive = Date.now() - (user.lastActive || 0);
 
     if (timeSinceActive >= AFK_THRESHOLD) {
-      console.log(`💤 ${socket.userId} is AFK — skipping XP award`);
+      console.log(`💤 ${socket.userId} is AFK - skipping XP award`);
       return;
     }
 
@@ -2184,10 +4655,8 @@ const wasAlreadyOnline = !isBot && userSockets.has(clientData.id) && userSockets
 socket.userId = clientData.id;
 socket.isBot = isBot;
 
-if (!isBot) {
-  if (!userSockets.has(clientData.id)) userSockets.set(clientData.id, new Set());
-  userSockets.get(clientData.id).add(socket.id);
-}
+if (!userSockets.has(clientData.id)) userSockets.set(clientData.id, new Set());
+userSockets.get(clientData.id).add(socket.id);
 
   if (isBot) {
     const botUser = {
@@ -2195,9 +4664,11 @@ if (!isBot) {
       username: clientData.username || "Aira",
       avatar: clientData.avatar || "/avatars/bot.gif",
       status: "online",
+      customStatus:clientData.customStatus,
+      usernameColor: clientData.usernameColor,
       lastActive: Date.now(),
       isBot: true,
-      level: 1337
+      level: clientData.level
     };
     onlineUsers.set(clientData.id, botUser);
     broadcastOnlineUsers();
@@ -2226,13 +4697,12 @@ if (!isBot) {
   }
 
   socket.emit("whisperHistory", { conversations: buildWhisperHistoryFor(clientData.id) });
-
- const isAdmin = dbUser.isAdmin === true;
-const isDeveloper = dbUser.isDeveloper === true;
-const isPromptEngineer = dbUser.isPromptEngineer === true;
-socket.isAdmin = isAdmin || isDeveloper;
-socket.isDeveloper = isDeveloper;
-socket.isPromptEngineer = isPromptEngineer;
+  const isAdmin = dbUser.isAdmin === true;
+  const isDeveloper = dbUser.isDeveloper === true;
+  const isPromptEngineer = dbUser.isPromptEngineer === true;
+  socket.isAdmin = isAdmin || isDeveloper;
+  socket.isDeveloper = isDeveloper;
+  socket.isPromptEngineer = isPromptEngineer;
   const serverUser = {
   id: clientData.id,
   username:      clientData.username      || dbUser.username      || "Anonymous",
@@ -2242,7 +4712,7 @@ socket.isPromptEngineer = isPromptEngineer;
   badge:         clientData.badge         ?? dbUser.badge         ?? null,
   customRoleIds: dbUser.customRoleIds ?? [],
   profileHeader: clientData.profileHeader ?? dbUser.profileHeader ?? "",
-  customStatus:  clientData.customStatus  ?? dbUser.customStatus  ?? "",
+  customStatus:  dbUser.statusLocked ? dbUser.customStatus : (clientData.customStatus ?? dbUser.customStatus ?? ""),
   xp:      dbUser.xp      || 0,
   level:   dbUser.level   || 1,
   isAdmin:          dbUser.isAdmin      || false,
@@ -2254,7 +4724,7 @@ socket.isPromptEngineer = isPromptEngineer;
 };
 
   onlineUsers.set(clientData.id, serverUser);
-
+socket.emit("bonusUpdate", getBonusState(clientData.id));
 socket.emit("userData", {
   id:               serverUser.id,
   xp:               serverUser.xp,
@@ -2293,7 +4763,7 @@ if (!socket.isBot && !isReconnect && !wasAlreadyOnline) {
     });
     if (cleaned.length !== participants.length) {
       voiceRooms.set(roomName, cleaned);
-      console.log(`🧹 Cleaned stale entries from ${roomName}: ${participants.length} → ${cleaned.length}`);
+      console.log(`🧹 Cleaned stale entries from ${roomName}: ${participants.length} -> ${cleaned.length}`);
     }
     socket.emit("voiceRoomUpdate", {
       roomName,
@@ -2334,6 +4804,102 @@ if (!socket.isBot) {
   }
 });
 
+
+socket.on("editMessage", (data) => {
+  if (!data || !data.id) return;
+  const userId = socket.userId;
+  if (!userId) return;
+
+  let message = null;
+  let channel = null;
+  for (const [ch, channelMessages] of messagesByChannel) {
+    const found = channelMessages.find(m => m.id === data.id);
+    if (found) { message = found; channel = ch; break; }
+  }
+  if (!message) message = messages.find(m => m.id === data.id);
+  if (!message) return;
+
+  if (message.userId !== userId) {
+    socket.emit("error", { msg: "❌ You can only edit your own messages." });
+    return;
+  }
+  if (message.encrypted) {
+    socket.emit("error", { msg: "❌ Encrypted messages can't be edited." });
+    return;
+  }
+
+  if (message.type === "text") {
+    const newText = sanitizeString((data.text || "").toString().trim(), 4000);
+    if (!newText) { socket.emit("error", { msg: "❌ Message can't be empty." }); return; }
+    message.text = newText;
+    message.isRoomMention = newText.includes("@room");
+
+  } else if (message.type === "embed" && data.embed && typeof data.embed === "object") {
+    if (!socket.isBot && !socket.isAdmin && !socket.isDeveloper) {
+      socket.emit("error", { msg: "❌ Only bots or admins can edit embeds." });
+      return;
+    }
+  
+    const allowedEmbedFields = ["title", "description", "color", "image", "images", "footer", "fields", "buttons"];
+    const newEmbed = { ...message.embed };
+    allowedEmbedFields.forEach(f => {
+      if (data.embed[f] !== undefined) newEmbed[f] = data.embed[f];
+    });
+    message.embed = newEmbed;
+
+  } else {
+    socket.emit("error", { msg: "❌ This message type can't be edited." });
+    return;
+  }
+
+  message.edited = true;
+  message.editedAt = Date.now();
+  saveMessages();
+
+  io.emit("messageEdited", {
+    id: message.id,
+    channel: message.channel || channel || "general",
+    type: message.type,
+    text: message.text,
+    embed: message.embed,
+    edited: true,
+    editedAt: message.editedAt
+  });
+
+  console.log(`✏️ Message edited: ${data.id} by ${onlineUsers.get(userId)?.username || userId}`);
+});
+
+
+
+
+
+socket.on("embedButtonClick", (data) => {
+  if (!data || !data.messageId || !data.buttonId) return;
+  const userId = socket.userId;
+  if (!userId) return;
+
+  const now = Date.now();
+  const last = embedButtonRateLimit.get(userId) || 0;
+  if (now - last < 500) return;
+  embedButtonRateLimit.set(userId, now);
+
+  const user = onlineUsers.get(userId) || allUsers.get(userId) || {};
+  const message = messages.find(m => m.id === data.messageId);
+  if (!message) return;
+
+  const payload = {
+    messageId: data.messageId,
+    buttonId: data.buttonId,
+    channel: message.channel || "general",
+    userId,
+    username: sanitizeString(user.username || "Anonymous", 32),
+    avatar: user.avatar || "/avatars/default1.png",
+    time: now
+  };
+
+
+  emitToUser(message.userId, "embedButtonClick", payload);
+});
   socket.on("voiceJoin", (data) => {
   const { roomName, userId, username, avatar, usernameColor, level, badge } = data;
   
@@ -2602,6 +5168,24 @@ socket.on("voiceLeave", (data) => {
       const now = Date.now();
 
 
+if (!socket.isBot) {
+      const authoritativeUser = onlineUsers.get(userId) || allUsers.get(userId);
+      if (!authoritativeUser) return;
+
+      data.userId          = userId;
+      data.username         = authoritativeUser.username;
+      data.avatar            = authoritativeUser.avatar;
+      data.usernameColor     = authoritativeUser.usernameColor || "username-cyan";
+      data.badge              = authoritativeUser.badge || null;
+      data.level               = authoritativeUser.level || 1;
+      data.isAdmin              = !!authoritativeUser.isAdmin;
+      data.isDeveloper           = !!authoritativeUser.isDeveloper;
+      data.isPromptEngineer        = !!authoritativeUser.isPromptEngineer;
+      data.prestigeBadge             = authoritativeUser.prestigeBadge || null;
+      data.customRoleIds               = authoritativeUser.customRoleIds || [];
+    }
+
+
 if (data.type === "text" && typeof data.text === "string" && data.text.startsWith("/ree ")) {
   
   if (!socket.isAdmin && !socket.isDeveloper) {
@@ -2616,7 +5200,7 @@ if (data.type === "text" && typeof data.text === "string" && data.text.startsWit
     return;
   }
 
-  const usernamePart = fullText.substring(0, lastSpaceIndex).trim();
+  const usernamePart = stripAtPrefix(fullText.substring(0, lastSpaceIndex));
   const url = fullText.substring(lastSpaceIndex + 1).trim();
 
   console.log(`REE Debug --> Username: "${usernamePart}" | URL: ${url}`);
@@ -2660,7 +5244,7 @@ if (data.type === "text" && typeof data.text === "string" && data.text.startsWit
     type: "success"
   });
 
-  console.log(`🔀 ${onlineUsers.get(socket.userId)?.username || 'Admin'} redirected ${targetUser.username} → ${url}`);
+  console.log(`🔀 ${onlineUsers.get(socket.userId)?.username || 'Admin'} redirected ${targetUser.username} -> ${url}`);
   return;
 }
 
@@ -2677,9 +5261,9 @@ if (data.type === "text" && typeof data.text === "string" && data.text.startsWit
     return;
   }
 
-  const value = parts.pop();
-  const role = parts.pop().toLowerCase();
-  const targetUsername = parts.join(" ").toLowerCase();
+const value = parts.pop();
+const role = parts.pop().toLowerCase();
+const targetUsername = stripAtPrefix(parts.join(" ")).toLowerCase();
 
   if (!["admin", "developer", "promptengineer"].includes(role)) {
     socket.emit("error", { msg: "❌ Valid roles: admin, developer, promptengineer" });
@@ -2779,7 +5363,7 @@ if (data.type === "text" && typeof data.text === "string" && data.text.startsWit
 
 const commandParts = data.text.substring(4).trim().split(" ");
 const youtubeUrl = commandParts.pop();
-const targetUsername = commandParts.join(" ").toLowerCase();
+const targetUsername = stripAtPrefix(commandParts.join(" ")).toLowerCase();
 console.log(`TARGET USERNAME: ${targetUsername}`);
 console.log(`YOUTUBE URL: ${youtubeUrl}`);
     let targetId = null;
@@ -2854,7 +5438,7 @@ io.to(targetSocket).emit('receivePrivateYoutube', {
       type: "success"
     });
 
-    console.log(`🎥 Private YouTube sent: ${onlineUsers.get(userId)?.username} → ${targetUserData.username}`);
+    console.log(`🎥 Private YouTube sent: ${onlineUsers.get(userId)?.username} -> ${targetUserData.username}`);
     return;
   }
   
@@ -3062,12 +5646,14 @@ socket.on("typing", (data) => {
 
 ALLOWED_CLIENT_FIELDS.forEach(field => {
   if (data.user[field] !== undefined) {
+    if (field === "customStatus" && dbUser?.statusLocked) return; 
     if (field === 'username' || field === 'customStatus') {
       currentUser[field] = sanitizeString(data.user[field], field === 'username' ? 32 : 100);
     } else {
       currentUser[field] = data.user[field];
     }
   }
+
 });
 
 
@@ -3093,6 +5679,7 @@ if (data.user.username !== undefined) {
 
 ALLOWED_CLIENT_FIELDS.forEach(field => {
   if (data.user[field] !== undefined) {
+    if (field === "customStatus" && dbUser?.statusLocked) return;
     if (field === 'username' || field === 'customStatus') {
       currentUser[field] = sanitizeString(data.user[field], field === 'username' ? 32 : 100);
     } else {
@@ -3129,10 +5716,10 @@ io.emit("userPropertiesUpdated", {
 });
 
  
-  socket.on("muteUser", (data) => {
-    if (!socket.isAdmin) return;
-    const targetUsername = (data.target || "").toLowerCase().trim();
-    if (!targetUsername) return;
+socket.on("muteUser", (data) => {
+  if (!socket.isAdmin) return;
+  const targetUsername = stripAtPrefix(data.target || "").toLowerCase();
+  if (!targetUsername) return;
 
     let targetId = null;
     onlineUsers.forEach((u, id) => {
@@ -3150,10 +5737,10 @@ io.emit("userPropertiesUpdated", {
     }
   });
 
-  socket.on("unmuteUser", (data) => {
-    if (!socket.isAdmin) return;
-    const targetUsername = (data.target || "").toLowerCase().trim();
-    if (!targetUsername) return;
+socket.on("unmuteUser", (data) => {
+  if (!socket.isAdmin) return;
+  const targetUsername = stripAtPrefix(data.target || "").toLowerCase();
+  if (!targetUsername) return;
 
     let targetId = null;
     onlineUsers.forEach((u, id) => {
@@ -3240,13 +5827,22 @@ socket.on("disconnect", () => {
     clearInterval(socket.xpTimer);
     console.log(`⏹️ XP timer stopped for ${socket.userId}`);
   }
+  pepeRunStarts.delete(socket.userId); 
+  dragonTowerSessions.delete(socket.userId);
+  msSessions.delete(socket.userId);        
+  pongHandleLeave(socket.userId, "disconnect");
 
-  if (socket.isBot) {
-    console.log(`🤖 Bot disconnected: ${socket.userId}`);
-    onlineUsers.delete(socket.userId);
-    broadcastOnlineUsers();
-    return;
+if (socket.isBot) {
+  console.log(`🤖 Bot disconnected: ${socket.userId}`);
+  const sockets = userSockets.get(socket.userId);
+  if (sockets) {
+    sockets.delete(socket.id);
+    if (sockets.size === 0) userSockets.delete(socket.userId);
   }
+  onlineUsers.delete(socket.userId);
+  broadcastOnlineUsers();
+  return;
+}
 
 
   const sockets = userSockets.get(socket.userId);
@@ -3527,6 +6123,1756 @@ socket.on("channelDeleted", (data) => {
   }
   console.log(`🗑️ Channel deleted: #${data.id}`);
 });
+
+
+socket.on("bonusGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  socket.emit("bonusUpdate", getBonusState(socket.userId));
+});
+
+socket.on("bonusClaim", () => {
+  if (!socket.userId || socket.isBot) return;
+  const result = claimBonus(socket.userId);
+  if (!result.success) {
+    socket.emit("bonusClaimError", { msg: result.msg });
+  } else {
+    socket.emit("bonusClaimed", { claimedXp: result.claimedXp, balance: getChipBalance(socket.userId) });
+  }
+});
+
+socket.on("plinkoGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  socket.emit("plinkoState", {
+    balance: getChipBalance(socket.userId),
+    rows: PLINKO_ROWS,
+    multipliers: PLINKO_MULTIPLIERS
+  });
+});
+ 
+socket.on("plinkoDrop", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const useBonus = data?.account === "bonus";
+
+  const amount = Math.floor(Number(data?.amount));
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("plinkoError", { msg: "Invalid bet." });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("plinkoError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+  if (amount > PLINKO_MAX_BET_CHIPS) {
+    socket.emit("plinkoError", { msg: `Max bet is ${PLINKO_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+
+ 
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+  
+  const path = [];
+  let slotIndex = 0;
+  for (let i = 0; i < PLINKO_ROWS; i++) {
+    const bit = crypto.randomInt(2);
+    path.push(bit);
+    slotIndex += bit;
+  }
+
+  const multiplier = PLINKO_MULTIPLIERS[slotIndex];
+  const payoutChips = Math.floor(amount * multiplier);
+
+ 
+socket.emit("plinkoResult", {
+    path,
+    slotIndex,
+    multiplier,
+    betChips: amount,
+    payoutChips,
+    netChips: payoutChips - amount,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  setTimeout(() => {
+    const bettorUser = onlineUsers.get(userId) || allUsers.get(userId) || {};
+    plinkoBroadcastRecentBet({
+      userId,
+      username: bettorUser.username || "Anonymous",
+      avatar: bettorUser.avatar || "/avatars/default1.png",
+      betChips: amount,
+      multiplier,
+      payoutChips,
+      account: useBonus ? "bonus" : "normal",
+      ts: Date.now()
+    });
+  }, PLINKO_ANIMATION_MS);
+
+  
+if (payoutChips > 0) {
+    setTimeout(() => {
+      if (useBonus) {
+        creditBonusWin(userId, payoutChips);
+      } else {
+        adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+        io.emit("userData", {
+          id: userId,
+          xp: allUsers.get(userId)?.xp || 0,
+          level: allUsers.get(userId)?.level || 1
+        });
+      }
+      if (plinkoRecordWin(userId, payoutChips, multiplier)) plinkoBroadcastLeaderboard();
+      socket.emit("plinkoPayoutCredited", {
+        payoutChips,
+        account: useBonus ? "bonus" : "normal",
+        balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+      });
+    }, PLINKO_ANIMATION_MS);
+  }
+
+  console.log(`🎯 Plinko: ${onlineUsers.get(userId)?.username || userId} bet ${amount} -> slot ${slotIndex} (x${multiplier}) -> ${payoutChips}`);
+});
+
+
+socket.on("plinkoLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("plinkoLeaderboardState", plinkoBuildLeaderboardPayload());
+});
+
+
+socket.on("minesweeperGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  msEmitState(socket.userId, socket);
+});
+ 
+socket.on("minesweeperStart", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const useBonus = data?.account === "bonus";
+ 
+  const existing = msSessions.get(userId);
+  if (existing && existing.active) {
+    socket.emit("minesweeperError", { msg: "Round already in progress." });
+    return;
+  }
+ 
+  const amount = Math.floor(Number(data?.amount));
+  const mines = Math.floor(Number(data?.mines));
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+ 
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("minesweeperError", { msg: "Invalid bet." });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("minesweeperError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+  if (amount > MS_MAX_BET_CHIPS) {
+    socket.emit("minesweeperError", { msg: `Max bet is ${MS_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+  if (!MS_ALLOWED_MINE_COUNTS.includes(mines)) {
+    socket.emit("minesweeperError", { msg: "Invalid mine count." });
+    return;
+  }
+ 
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+ 
+  const session = {
+    active: true,
+    betChips: amount,
+    mineCount: mines,
+    mines: msGenerateMines(mines),
+    revealed: new Set(),
+    useBonus
+  };
+  msSessions.set(userId, session);
+ 
+  socket.emit("minesweeperStarted", {
+    betChips: amount,
+    mines,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+ 
+  console.log(`💣 Minesweeper start: ${onlineUsers.get(userId)?.username || userId} bet ${amount}, ${mines} mines`);
+});
+ 
+socket.on("minesweeperReveal", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = msSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("minesweeperError", { msg: "No active round." });
+    return;
+  }
+ 
+  const index = Math.floor(Number(data?.index));
+  if (!Number.isInteger(index) || index < 0 || index >= MS_TILE_COUNT) {
+    socket.emit("minesweeperError", { msg: "Invalid tile." });
+    return;
+  }
+  if (session.revealed.has(index)) return;
+ 
+  if (session.mines.has(index)) {
+    session.active = false;
+    const allMines = Array.from(session.mines);
+    socket.emit("minesweeperTileResult", {
+      index,
+      hitMine: true,
+      allMines,
+      betChips: session.betChips,
+      balance: getChipBalance(userId)
+    });
+    msSessions.delete(userId);
+    console.log(`💥 Minesweeper loss: ${onlineUsers.get(userId)?.username || userId} lost ${session.betChips}`);
+    return;
+  }
+ 
+ session.revealed.add(index);
+  const multiplier = msMultiplierForReveal(session.revealed.size, session.mineCount);
+  const safeTiles = MS_TILE_COUNT - session.mineCount;
+  if (session.revealed.size >= safeTiles) {
+    const payoutChips = Math.floor(session.betChips * multiplier);
+    session.active = false;
+    if (session.useBonus) creditBonusWin(userId, payoutChips);
+    else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+    socket.emit("minesweeperTileResult", {
+      index,
+      hitMine: false,
+      multiplier,
+      betChips: session.betChips
+    });
+    socket.emit("minesweeperCashoutResult", {
+      payoutChips,
+      multiplier,
+      account: session.useBonus ? "bonus" : "normal",
+      balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+    });
+    msSessions.delete(userId);
+    return;
+  }
+ 
+  socket.emit("minesweeperTileResult", {
+    index,
+    hitMine: false,
+    multiplier,
+    betChips: session.betChips
+  });
+});
+ 
+socket.on("minesweeperCashout", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = msSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("minesweeperError", { msg: "No active round." });
+    return;
+  }
+  if (session.revealed.size === 0) {
+    socket.emit("minesweeperError", { msg: "Reveal at least one tile before cashing out." });
+    return;
+  }
+ 
+const multiplier = msMultiplierForReveal(session.revealed.size, session.mineCount);
+  const payoutChips = Math.floor(session.betChips * multiplier);
+  session.active = false;
+ 
+  if (session.useBonus) creditBonusWin(userId, payoutChips);
+  else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+ 
+  socket.emit("minesweeperCashoutResult", {
+    payoutChips,
+    multiplier,
+    account: session.useBonus ? "bonus" : "normal",
+    balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+ 
+  msSessions.delete(userId);
+  console.log(`💰 Minesweeper cashout: ${onlineUsers.get(userId)?.username || userId} won ${payoutChips} at ${multiplier.toFixed(2)}x`);
+});
+
+
+socket.on("wheelGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  socket.emit("wheelState", {
+    spinsLeft: getWheelSpinsLeft(socket.userId),
+    spinsPerDay: WHEEL_SPINS_PER_DAY,
+    segments: WHEEL_SEGMENTS.map(s => ({ label: s.label }))
+  });
+});
+ 
+socket.on("wheelSpin", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  if (isGameBanned(userId)) {
+    socket.emit("wheelError", { msg: "You've been restricted from bonus games by an admin." });
+    return;
+  }
+
+  let user = allUsers.get(userId);
+  if (!user) {
+    socket.emit("wheelError", { msg: "User not found." });
+    return;
+  }
+
+  const today = getUtcDateString();
+  if (user.wheelDate !== today) {
+    user.wheelDate = today;
+    user.wheelSpinsUsed = 0;
+  }
+
+  if ((user.wheelSpinsUsed || 0) >= WHEEL_SPINS_PER_DAY) {
+    socket.emit("wheelError", { msg: "No spins left today. Come back tomorrow!" });
+    return;
+  }
+
+  user.wheelSpinsUsed = (user.wheelSpinsUsed || 0) + 1;
+  allUsers.set(userId, user);
+  saveUsers();
+
+  const segmentIndex = pickWheelSegment();
+  const segment = WHEEL_SEGMENTS[segmentIndex];
+  socket.emit("wheelResult", {
+    segmentIndex,
+    label: segment.label,
+    xpWon: segment.xp,
+    spinsLeft: WHEEL_SPINS_PER_DAY - user.wheelSpinsUsed
+  });
+
+  console.log(`🎡 Wheel spin: ${onlineUsers.get(userId)?.username || userId} landed on ${segment.label} - crediting in ${WHEEL_ANIMATION_MS}ms`);
+
+  setTimeout(() => {
+    if (segment.xp > 0) {
+      addBonusXp(userId, segment.xp);
+    }
+
+    socket.emit("wheelXpAwarded", { xpWon: segment.xp });
+    console.log(`🎡 Wheel XP credited: ${onlineUsers.get(userId)?.username || userId} +${segment.xp} XP`);
+  }, WHEEL_ANIMATION_MS);
+});
+
+
+socket.on("lockUserStatus", (data) => {
+  if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
+  const targetUsername = stripAtPrefix(data?.target || "").toLowerCase();
+  const statusText = sanitizeString((data?.status || "").trim(), 100);
+  if (!targetUsername || !statusText) return;
+
+  let targetId = null;
+  onlineUsers.forEach((u, id) => { if (u.username.toLowerCase() === targetUsername) targetId = id; });
+  if (!targetId) {
+    allUsers.forEach((u, id) => { if (u.username.toLowerCase() === targetUsername) targetId = id; });
+  }
+  if (!targetId) {
+    socket.emit("error", { msg: `❌ User "${data?.target}" not found.` });
+    return;
+  }
+
+  const dbUser = allUsers.get(targetId);
+  dbUser.customStatus = statusText;
+  dbUser.statusLocked = true;
+  allUsers.set(targetId, dbUser);
+  saveUsers();
+
+  const onlineUser = onlineUsers.get(targetId);
+  if (onlineUser) {
+    onlineUser.customStatus = statusText;
+    broadcastOnlineUsers();
+    io.emit("userPropertiesUpdated", { userId: targetId, properties: { customStatus: statusText } });
+  }
+
+  const adminName = onlineUsers.get(socket.userId)?.username || "Admin";
+  socket.emit("systemMessage", { msg: `✅ Locked ${dbUser.username}'s status to "${statusText}".`, type: "success" });
+  console.log(`🔒 Status locked: ${dbUser.username} -> "${statusText}" by ${adminName}`);
+});
+
+socket.on("unlockUserStatus", (data) => {
+  if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
+  const targetUsername = stripAtPrefix(data?.target || "").toLowerCase();
+  if (!targetUsername) return;
+
+  let targetId = null;
+  allUsers.forEach((u, id) => { if (u.username.toLowerCase() === targetUsername) targetId = id; });
+  if (!targetId) {
+    socket.emit("error", { msg: `❌ User "${data?.target}" not found.` });
+    return;
+  }
+
+  const dbUser = allUsers.get(targetId);
+  dbUser.statusLocked = false;
+  allUsers.set(targetId, dbUser);
+  saveUsers();
+
+  const adminName = onlineUsers.get(socket.userId)?.username || "Admin";
+  socket.emit("systemMessage", { msg: `✅ Unlocked ${dbUser.username}'s status.`, type: "success" });
+  console.log(`🔓 Status unlocked: ${dbUser.username} by ${adminName}`);
+});
+
+
+socket.on("diceGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  socket.emit("diceState", {
+    balance: getChipBalance(socket.userId),
+    maxBet: DICE_MAX_BET_CHIPS,
+    minTarget: DICE_MIN_TARGET,
+    maxTarget: DICE_MAX_TARGET
+  });
+});
+ 
+socket.on("diceRoll", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const useBonus = data?.account === "bonus";
+ 
+  const amount = Math.floor(Number(data?.amount));
+  const target = Number(data?.target);
+  const mode = data?.mode === "over" ? "over" : "under";
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+ 
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("diceError", { msg: "Invalid bet." });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("diceError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+  if (amount > DICE_MAX_BET_CHIPS) {
+    socket.emit("diceError", { msg: `Max bet is ${DICE_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+  if (!Number.isFinite(target) || target < DICE_MIN_TARGET || target > DICE_MAX_TARGET) {
+    socket.emit("diceError", { msg: `Target must be between ${DICE_MIN_TARGET} and ${DICE_MAX_TARGET}.` });
+    return;
+  }
+ 
+
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+ 
+  const roll = diceRoll();
+  const winChance = diceWinChance(target, mode);
+  const multiplier = diceMultiplier(winChance);
+  const won = mode === "under" ? roll < target : roll > target;
+  const payoutChips = won ? Math.floor(amount * multiplier) : 0;
+  socket.emit("diceResult", {
+    roll,
+    target,
+    mode,
+    won,
+    multiplier,
+    betChips: amount,
+    payoutChips,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  setTimeout(() => {
+    const rollerUser = onlineUsers.get(userId) || allUsers.get(userId) || {};
+    diceBroadcastRecentBet({
+      userId,
+      username: rollerUser.username || "Anonymous",
+      avatar: rollerUser.avatar || "/avatars/default1.png",
+      betChips: amount,
+      multiplier,
+      payoutChips,
+      won,
+      ts: Date.now()
+    });
+  }, DICE_ANIMATION_MS);
+ 
+  console.log(`🎲 Dice: ${onlineUsers.get(userId)?.username || userId} bet ${amount} on ${mode} ${target} -> rolled ${roll} (${won ? "WIN" : "lose"})`);
+ 
+  if (payoutChips > 0) {
+    setTimeout(() => {
+      if (useBonus) creditBonusWin(userId, payoutChips);
+      else {
+        adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+        io.emit("userData", {
+          id: userId,
+          xp: allUsers.get(userId)?.xp || 0,
+          level: allUsers.get(userId)?.level || 1
+        });
+      }
+      if (diceRecordWin(userId, payoutChips)) diceBroadcastLeaderboard(); 
+      socket.emit("dicePayoutCredited", {
+        payoutChips,
+        account: useBonus ? "bonus" : "normal",
+        balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+      });
+    }, DICE_ANIMATION_MS);
+  } else {
+    setTimeout(() => {
+      socket.emit("dicePayoutCredited", {
+        payoutChips: 0,
+        account: useBonus ? "bonus" : "normal",
+        balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+      });
+    }, DICE_ANIMATION_MS);
+  }
+});
+
+socket.on("pokerGetState", () => {
+  if (socket.isBot) return;
+  socket.emit("pokerState", pokerBuildStateFor(socket.userId || null));
+});
+ 
+socket.on("pokerSit", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  if (pokerFindUserSeatIndex(userId) !== -1) return;
+ 
+  const seatIndex = Math.floor(Number(data?.seatIndex));
+  if (!Number.isInteger(seatIndex) || seatIndex < 0 || seatIndex >= POKER_SEATS) return;
+  if (pokerTable.seats[seatIndex]) { socket.emit("pokerError", { msg: "Seat is taken." }); return; }
+ 
+  const buyIn = Math.floor(Number(data?.buyIn));
+  const balance = getChipBalance(userId);
+  if (!Number.isFinite(buyIn) || buyIn < POKER_MIN_BUYIN) {
+    socket.emit("pokerError", { msg: `Minimum buy-in is ${POKER_MIN_BUYIN} chips.` });
+    return;
+  }
+  if (buyIn > POKER_MAX_BUYIN) {
+    socket.emit("pokerError", { msg: `Maximum buy-in is ${POKER_MAX_BUYIN} chips.` });
+    return;
+  }
+  if (buyIn > balance) {
+    socket.emit("pokerError", { msg: "Insufficient XP for that buy-in." });
+    return;
+  }
+ 
+  adjustUserXp(userId, -buyIn * BJ_XP_PER_CHIP);
+ 
+  const user = onlineUsers.get(userId) || allUsers.get(userId) || {};
+  pokerTable.seats[seatIndex] = {
+    userId,
+    username: user.username || "Anonymous",
+    avatar: user.avatar || "/avatars/default1.png",
+    chips: buyIn,
+    cards: [],
+    folded: false,
+    allIn: false,
+    inHand: false,
+    betThisRound: 0,
+    totalBet: 0,
+    actedThisRound: false,
+    sittingOut: false
+  };
+ 
+  console.log(`♠️ ${user.username} sat at poker seat ${seatIndex} with ${buyIn} chips`);
+ 
+  const occ = pokerOccupiedSeats();
+  if (pokerTable.stage === "waiting" && occ.length >= 2) {
+    pokerStartHand();
+  } else {
+    pokerBroadcastState();
+  }
+});
+ 
+socket.on("pokerLeave", () => {
+  if (!socket.userId || socket.isBot) return;
+  const idx = pokerFindUserSeatIndex(socket.userId);
+  if (idx === -1) return;
+  const seat = pokerTable.seats[idx];
+
+  if (seat.inHand && pokerTable.stage !== "waiting" && pokerTable.stage !== "showdown") {
+    seat.folded = true;
+    seat.sittingOut = true;
+    if (idx === pokerTable.currentTurnIndex) pokerAfterAction(idx);
+  }
+
+  if (seat.chips > 0) adjustUserXp(socket.userId, seat.chips * BJ_XP_PER_CHIP);
+  pokerTable.seats[idx] = null;
+  console.log(`♠️ ${seat.username} left the poker table with ${seat.chips} chips`);
+  pokerBroadcastState();
+  socket.emit("pokerState", pokerBuildStateFor(socket.userId));
+});
+ 
+socket.on("pokerAction", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const action = data?.action;
+  if (action === "fold") pokerHandleFold(socket.userId);
+  else if (action === "check") pokerHandleCheck(socket.userId);
+  else if (action === "call") pokerHandleCall(socket.userId);
+  else if (action === "raise") pokerHandleBetRaise(socket.userId, data?.amount);
+});
+
+socket.on("bjGetState", () => {
+  if (socket.isBot) return;
+  socket.emit("bjState", bjBuildStateFor(socket.userId || null));
+});
+
+socket.on("bjSit", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  if (bjFindUserSeatIndex(userId) !== -1) return;
+
+  const seatIndex = Math.floor(Number(data?.seatIndex));
+  if (!Number.isInteger(seatIndex) || seatIndex < 0 || seatIndex >= BJ_SEATS) return;
+  if (bjTable.seats[seatIndex]) { socket.emit("bjError", { msg: "Seat is taken." }); return; }
+
+  const user = onlineUsers.get(userId) || allUsers.get(userId) || {};
+  bjTable.seats[seatIndex] = {
+    userId,
+    username: user.username || "Anonymous",
+    avatar: user.avatar || "/avatars/default1.png",
+    chips: 0, 
+    bet: 0,
+    hand: [],
+    done: false,
+    busted: false,
+    doubled: false,
+    sittingOut: false,
+    result: null
+  };
+
+  console.log(`🃏 ${user.username} sat at blackjack seat ${seatIndex}`);
+  bjBroadcastState();
+  bjMaybeStartBettingRound();
+});
+
+socket.on("bjLeave", () => {
+  if (!socket.userId || socket.isBot) return;
+  const idx = bjFindUserSeatIndex(socket.userId);
+  if (idx === -1) return;
+  const s = bjTable.seats[idx];
+
+  if (bjTable.stage === "playing" && s.bet > 0 && !s.done) {
+    s.done = true;
+    s.result = { type: "lose", text: "Left table" };
+    if (idx === bjTable.currentTurnIndex) bjAdvanceTurn(idx);
+  }
+
+  bjTable.seats[idx] = null;
+  console.log(`🃏 ${s.username} left the blackjack table`);
+  bjBroadcastState();
+  socket.emit("bjState", bjBuildStateFor(socket.userId));
+});
+
+socket.on("bjPlaceBet", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const idx = bjFindUserSeatIndex(socket.userId);
+  if (idx === -1) { socket.emit("bjError", { msg: "Sit down first." }); return; }
+  if (bjTable.stage !== "betting" && bjTable.stage !== "waiting") {
+    socket.emit("bjError", { msg: "Betting is closed for this hand." });
+    return;
+  }
+
+  const s = bjTable.seats[idx];
+  const amount = Math.floor(Number(data?.amount));
+  const balance = getChipBalance(socket.userId); 
+
+  if (!Number.isFinite(amount) || amount < BJ_MIN_BET) {
+    socket.emit("bjError", { msg: `Minimum bet is ${BJ_MIN_BET} chip.` });
+    return;
+  }
+  if (amount > BJ_MAX_BET_CHIPS) {
+    socket.emit("bjError", { msg: `Max bet is ${BJ_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("bjError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+
+  
+  s.bet = amount;
+
+  if (bjTable.stage === "waiting") {
+    bjBroadcastState();
+    bjMaybeStartBettingRound();
+  } else {
+    bjBroadcastState();
+  }
+});
+
+function bjRequireTurn(socket) {
+  if (!socket.userId || socket.isBot) return null;
+  const idx = bjFindUserSeatIndex(socket.userId);
+  if (idx === -1 || idx !== bjTable.currentTurnIndex || bjTable.stage !== "playing") return null;
+  return idx;
+}
+
+socket.on("bjHit", () => {
+  const idx = bjRequireTurn(socket);
+  if (idx === null) return;
+  const s = bjTable.seats[idx];
+  s.hand.push(bjTable.deck.pop());
+  if (bjHandTotal(s.hand) >= 21) {
+    s.done = true;
+    if (bjHandTotal(s.hand) > 21) s.busted = true;
+    bjAdvanceTurn(idx);
+  } else {
+    bjBroadcastState();
+  }
+});
+
+socket.on("bjStand", () => {
+  const idx = bjRequireTurn(socket);
+  if (idx === null) return;
+  bjTable.seats[idx].done = true;
+  bjAdvanceTurn(idx);
+});
+
+socket.on("bjDouble", () => {
+  const idx = bjRequireTurn(socket);
+  if (idx === null) return;
+  const s = bjTable.seats[idx];
+  if (s.hand.length !== 2) return;
+  const balance = getChipBalance(socket.userId);
+  if (balance < s.bet) { socket.emit("bjError", { msg: "Insufficient XP to double." }); return; }
+
+  
+  s.bet *= 2;
+  s.doubled = true;
+  s.hand.push(bjTable.deck.pop());
+  if (bjHandTotal(s.hand) > 21) s.busted = true;
+  s.done = true;
+  bjAdvanceTurn(idx);
+});
+
+socket.on("pepeGetHighscore", () => {
+  socket.emit("pepeHighscoreState", pepeHighscore);
+});
+
+socket.on("pepeRunStart", () => {
+  if (!socket.userId || socket.isBot) return;
+  pepeRunStarts.set(socket.userId, Date.now());
+});
+
+socket.on("pepeSubmitScore", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  const startedAt = pepeRunStarts.get(userId);
+  pepeRunStarts.delete(userId); 
+
+  if (!startedAt) return; 
+
+  const score = Math.floor(Number(data?.score));
+  if (!Number.isFinite(score) || score < 0) return;
+
+  const elapsedSeconds = (Date.now() - startedAt) / 1000;
+  const maxPlausible = elapsedSeconds * PEPE_SCORE_RATE_CAP * PEPE_RATE_BUFFER;
+
+  if (score > maxPlausible) {
+    console.log(`🚩 Rejected implausible Pepe Runner score: ${score} from ${onlineUsers.get(userId)?.username} (elapsed ${elapsedSeconds.toFixed(1)}s, cap ${maxPlausible.toFixed(0)})`);
+    return; 
+  }
+
+  if (score > pepeHighscore.score) {
+    const user = onlineUsers.get(userId) || allUsers.get(userId) || {};
+    pepeHighscore = {
+      username: user.username || "Anonymous",
+      userId,
+      score,
+      ts: Date.now()
+    };
+
+     const improvedLeaderboard = pepeRecordScore(userId, score);
+     if (improvedLeaderboard) pepeBroadcastLeaderboard();
+   
+    savePepeHighscore();
+    io.emit("pepeHighscoreState", pepeHighscore);
+    console.log(`🐸 New Pepe Runner high score: ${pepeHighscore.username} - ${score}`);
+  }
+});
+
+socket.on("pepeLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("pepeLeaderboardState", pepeBuildLeaderboardPayload());
+});
+
+socket.on("pongJoinQueue", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+ 
+  if (pongUserRoom.has(userId)) {
+    const room = pongRooms.get(pongUserRoom.get(userId));
+    if (room) { socket.emit("pongState", pongBuildState(room)); return; }
+  }
+  if (pongQueue.includes(userId)) return;
+ 
+  pongQueue.push(userId);
+  socket.emit("pongQueued");
+ 
+  if (pongQueue.length >= 2) {
+    const a = pongQueue.shift();
+    const b = pongQueue.shift();
+    if (a === b) { pongQueue.push(a); return; }
+    pongCreateRoom(a, b);
+  }
+});
+ 
+socket.on("pongLeaveQueue", () => {
+  if (!socket.userId) return;
+  pongQueue = pongQueue.filter(id => id !== socket.userId);
+});
+ 
+socket.on("pongInput", (data) => {
+  if (!socket.userId) return;
+  const roomId = pongUserRoom.get(socket.userId);
+  if (!roomId) return;
+  const room = pongRooms.get(roomId);
+  if (!room || room.status !== "playing") return;
+  const player = room.players.find(p => p.userId === socket.userId);
+  if (!player) return;
+  if (typeof data?.y === "number") {
+    player.y = Math.max(0, Math.min(PONG_HEIGHT - PONG_PADDLE_HEIGHT, data.y - PONG_PADDLE_HEIGHT / 2));
+  }
+  if (typeof data?.up === "boolean") player.keys.up = data.up;
+  if (typeof data?.down === "boolean") player.keys.down = data.down;
+});
+ 
+socket.on("pongServe", () => {
+  if (!socket.userId) return;
+  const roomId = pongUserRoom.get(socket.userId);
+  if (!roomId) return;
+  const room = pongRooms.get(roomId);
+  if (!room || room.status !== "serving") return;
+ 
+  const served = pongServeBall(room, socket.userId);
+  if (!served) {
+    socket.emit("pongError", { msg: "It's not your serve." });
+    return;
+  }
+  pongBroadcastState(room);
+});
+ 
+socket.on("pongLeaveGame", () => {
+  if (!socket.userId) return;
+  pongHandleLeave(socket.userId, "left");
+});
+
+socket.on("weedGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  wgBroadcastState(socket.userId);
+});
+ 
+socket.on("weedPlant", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  if (isGameBanned(userId)) {
+    const username = onlineUsers.get(userId)?.username || allUsers.get(userId)?.username;
+    console.log(`🚫 Blocked weed-grow action from banned user: ${username}`);
+    emitToUser(userId, "weedError", { msg: "You've been restricted from Weed Grow by an admin." });
+    return;
+  }
+
+  const potIndex = Math.floor(Number(data?.potIndex));
+  if (!Number.isInteger(potIndex) || potIndex < 0 || potIndex >= WG_POT_COUNT) return;
+
+  const garden = wgGetGarden(userId);
+  if (garden[potIndex].stage !== "empty") {
+    emitToUser(userId, "weedError", { msg: "That pot is already in use." });
+    return;
+  }
+
+  const now = Date.now();
+  const pot = {
+    stage: "alive",
+    plantedAt: now,
+    wateredAt: now,
+    nextWaterDueAt: now + wgRandomWaterInterval(),
+    wilted: false,
+    wiltedAt: null,
+    growAccumMs: 0,
+    growSince: now,
+    timer: null
+  };
+  garden[potIndex] = pot;
+  wgScheduleNext(userId, potIndex, pot);
+
+  emitToUser(userId, "weedPlanted", { potIndex, pot: wgSerializePot(pot) });
+  console.log(`🌱 ${onlineUsers.get(userId)?.username || userId} planted pot ${potIndex}`);
+});
+
+socket.on("weedWater", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  if (isGameBanned(userId)) {
+    emitToUser(userId, "weedError", { msg: "You've been restricted from Weed Grow by an admin." });
+    return;
+  }
+
+  const potIndex = Math.floor(Number(data?.potIndex));
+  if (!Number.isInteger(potIndex) || potIndex < 0 || potIndex >= WG_POT_COUNT) return;
+
+  const garden = wgGetGarden(userId);
+  const pot = garden[potIndex];
+  if (!pot || pot.stage === "empty") {
+    emitToUser(userId, "weedError", { msg: "Nothing planted in that pot." });
+    return;
+  }
+
+  const now = Date.now();
+  if (!pot.wilted && wgProgress(pot, now) >= 1) {
+    emitToUser(userId, "weedError", { msg: "That plant is already fully grown." });
+    return;
+  }
+
+const needsWater = pot.wilted || (pot.nextWaterDueAt !== null && now >= pot.nextWaterDueAt);
+if (!needsWater) {
+  const name = onlineUsers.get(userId)?.username || userId;
+  console.warn(`🚫 [weedgrow] ${name} tried to water pot ${potIndex} but it doesn't need water`);
+  return;
+}
+
+  if (pot.wilted) {
+    pot.wilted = false;
+    pot.wiltedAt = null;
+    pot.growSince = now;
+  }
+  pot.wateredAt = now;
+  pot.nextWaterDueAt = now + wgRandomWaterInterval();
+
+  wgScheduleNext(userId, potIndex, pot);
+  emitToUser(userId, "weedWatered", { potIndex, pot: wgSerializePot(pot) });
+});
+
+socket.on("weedHarvest", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  if (isGameBanned(userId)) {
+    const username = onlineUsers.get(userId)?.username || allUsers.get(userId)?.username;
+    console.log(`🚫 Blocked weed-grow action from banned user: ${username}`);
+    emitToUser(userId, "weedError", { msg: "You've been restricted from Weed Grow by an admin." });
+    return;
+  }
+
+  const potIndex = Math.floor(Number(data?.potIndex));
+  if (!Number.isInteger(potIndex) || potIndex < 0 || potIndex >= WG_POT_COUNT) return;
+
+  const garden = wgGetGarden(userId);
+  const pot = garden[potIndex];
+  if (!pot || pot.stage === "empty") {
+    emitToUser(userId, "weedError", { msg: "Nothing to harvest." });
+    return;
+  }
+  if (wgProgress(pot, Date.now()) < 1) {
+    emitToUser(userId, "weedError", { msg: "That plant isn't ready yet." });
+    return;
+  }
+
+  wgClearTimer(pot);
+  garden[potIndex] = wgEmptyPot();
+
+  addBonusXp(userId, WG_HARVEST_XP);
+  wgRecordHarvest(userId);
+  wgBroadcastLeaderboard();
+
+  emitToUser(userId, "weedHarvested", { potIndex, pot: wgSerializePot(garden[potIndex]), xpAwarded: WG_HARVEST_XP });
+  console.log(`🌳 ${onlineUsers.get(userId)?.username || userId} harvested pot ${potIndex} (+${WG_HARVEST_XP} XP)`);
+});
+ 
+socket.on("weedLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("weedLeaderboardState", wgBuildLeaderboardPayload());
+});
+
+socket.on("slotsGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  socket.emit("slotsState", {
+    balance: getChipBalance(socket.userId),
+    maxBet: SLOTS_MAX_BET_CHIPS,
+    symbols: SLOTS_SYMBOLS.map((s) => s.id),
+    payouts: SLOTS_PAYOUTS,
+    freeSpins: slotsFreeSpinsState(socket.userId)
+  });
+});
+ 
+socket.on("slotsSpin", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  const freeSession = slotsFreeSpinSessions.get(userId);
+  const isFreeSpin = !!freeSession && freeSession.remaining > 0;
+
+  const useBonus = isFreeSpin ? freeSession.account === "bonus" : data?.account === "bonus";
+  const amount = isFreeSpin ? SLOTS_FREE_SPIN_BET : Math.floor(Number(data?.amount));
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+
+  if (!isFreeSpin) {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      socket.emit("slotsError", { msg: "Invalid bet." });
+      return;
+    }
+    if (amount > balance) {
+      socket.emit("slotsError", { msg: "Insufficient XP for that bet." });
+      return;
+    }
+    if (amount > SLOTS_MAX_BET_CHIPS) {
+      socket.emit("slotsError", { msg: `Max bet is ${SLOTS_MAX_BET_CHIPS} chips.` });
+      return;
+    }
+    if (useBonus) placeBonusBet(userId, amount);
+    else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+  } else {
+    freeSession.remaining--;
+    if (freeSession.remaining <= 0) slotsFreeSpinSessions.delete(userId);
+  }
+
+  const reels = slotsSpinReels();
+  const { multiplier, payoutChips } = slotsEvaluate(reels, amount);
+
+  socket.emit("slotsResult", {
+    reels,
+    multiplier,
+    betChips: amount,
+    payoutChips,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId),
+    freeSpin: isFreeSpin,
+    freeSpinsRemaining: isFreeSpin ? (freeSession ? freeSession.remaining : 0) : 0
+  });
+
+  if (payoutChips > 0) {
+    setTimeout(() => {
+      if (useBonus) {
+        creditBonusWin(userId, payoutChips);
+      } else {
+        adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+        io.emit("userData", {
+          id: userId,
+          xp: allUsers.get(userId)?.xp || 0,
+          level: allUsers.get(userId)?.level || 1,
+        });
+      }
+      socket.emit("slotsPayoutCredited", {
+        payoutChips,
+        account: useBonus ? "bonus" : "normal",
+        balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId),
+      });
+    }, SLOTS_ANIMATION_MS);
+  } else {
+    setTimeout(() => {
+      socket.emit("slotsPayoutCredited", {
+        payoutChips: 0,
+        account: useBonus ? "bonus" : "normal",
+        balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId),
+      });
+    }, SLOTS_ANIMATION_MS);
+  }
+
+  console.log(
+    `🎰 Slots: ${onlineUsers.get(userId)?.username || userId} ${isFreeSpin ? "(FREE SPIN)" : `bet ${amount}`} → [${reels.join(", ")}] (x${multiplier}) → ${payoutChips}`
+  );
+});
+
+
+socket.on("airstrikeGetState", () => {
+  if (socket.isBot) return;
+  socket.emit("airstrikeState", asBuildStateFor(socket.userId));
+});
+ 
+socket.on("airstrikeLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("airstrikeLeaderboardState", asBuildLeaderboardPayload());
+});
+ 
+socket.on("airstrikeBet", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+ 
+  if (airstrikeRound.state !== "waiting") {
+    socket.emit("airstrikeError", { msg: "Betting is closed for this round." });
+    return;
+  }
+  if (airstrikeRound.bets.has(userId)) {
+    socket.emit("airstrikeError", { msg: "You already placed a bet this round." });
+    return;
+  }
+ 
+  const amount = Math.floor(Number(data?.amount));
+  const useBonus = data?.account === "bonus";
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+ 
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("airstrikeError", { msg: "Invalid bet." });
+    return;
+  }
+  if (amount > AS_MAX_BET_CHIPS) {
+    socket.emit("airstrikeError", { msg: `Max bet is ${AS_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("airstrikeError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+ 
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+ 
+  const user = onlineUsers.get(userId) || allUsers.get(userId) || {};
+  airstrikeRound.bets.set(userId, {
+    amount,
+    useBonus,
+    cashedOutAt: null,
+    username: user.username || "Anonymous",
+    avatar: user.avatar || "/avatars/default1.png"
+  });
+ 
+  asBroadcastState();
+  console.log(`✈️ Airstrike bet: ${user.username} bet ${amount} chips (round #${airstrikeRound.roundId + 1})`);
+});
+ 
+socket.on("airstrikeCashout", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+ 
+  if (airstrikeRound.state !== "flying") return;
+  const bet = airstrikeRound.bets.get(userId);
+  if (!bet || bet.cashedOutAt) return;
+ 
+  const multiplier = asCurrentMultiplier();
+  bet.cashedOutAt = multiplier;
+  const payoutChips = Math.floor(bet.amount * multiplier);
+ 
+  if (bet.useBonus) creditBonusWin(userId, payoutChips);
+  else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+ 
+  socket.emit("airstrikeCashoutResult", {
+    multiplier,
+    payoutChips,
+    account: bet.useBonus ? "bonus" : "normal",
+    balance: bet.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+ 
+  asBroadcastState();
+  console.log(`💰 Airstrike cashout: ${bet.username} at ${multiplier.toFixed(2)}x -> ${payoutChips} chips`);
+});
+
+socket.on("aviaGetLeaderboard", () => {
+  if (socket.isBot) return;
+  socket.emit("aviaLeaderboard", aviaBuildLeaderboardPayload());
+});
+
+
+socket.on("aviaGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  const session = aviaSessions.get(socket.userId);
+  if (!session || !session.active) {
+    socket.emit("aviaState", { active: false, balance: getChipBalance(socket.userId) });
+    return;
+  }
+  socket.emit("aviaState", {
+    active: true,
+    betChips: session.betChips,
+    speedKey: session.speedKey,
+    unitsPerSec: AVIA_SPEEDS[session.speedKey].unitsPerSec,
+    trackLength: AVIA_TRACK_LENGTH,
+    stars: session.stars,
+    startedAt: session.startedAt,
+    account: session.useBonus ? "bonus" : "normal"
+  });
+});
+ 
+socket.on("aviaStart", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+ 
+  const existing = aviaSessions.get(userId);
+  if (existing && existing.active) {
+    socket.emit("aviaError", { msg: "A flight is already in progress." });
+    return;
+  }
+ 
+  const amount = Math.floor(Number(data?.amount));
+  const speedKey = typeof data?.speed === "string" ? data.speed : "";
+  const useBonus = data?.account === "bonus";
+  const speed = AVIA_SPEEDS[speedKey];
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+ 
+  if (!speed) {
+    socket.emit("aviaError", { msg: "Invalid speed." });
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("aviaError", { msg: "Invalid bet." });
+    return;
+  }
+  if (amount > AVIA_MAX_BET_CHIPS) {
+    socket.emit("aviaError", { msg: `Max bet is ${AVIA_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("aviaError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+ 
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+ 
+  const stars = aviaGenerateStars(AVIA_TRACK_LENGTH);
+  const crashDistance = aviaGenerateCrashDistance(speed.lambda);
+  const endDistance = Math.min(crashDistance, AVIA_TRACK_LENGTH);
+  const endMs = (endDistance / speed.unitsPerSec) * 1000;
+  
+ 
+  const session = {
+    active: true,
+    betChips: amount,
+    useBonus,
+    speedKey,
+    startedAt: Date.now(),
+    crashDistance,
+    stars,
+    timer: null
+  };
+  session.timer = setTimeout(() => aviaResolveEnd(userId), endMs);
+  aviaSessions.set(userId, session);
+ 
+  socket.emit("aviaStarted", {
+    betChips: amount,
+    speedKey,
+    unitsPerSec: speed.unitsPerSec,
+    trackLength: AVIA_TRACK_LENGTH,
+    stars,
+    startedAt: session.startedAt,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+ 
+  console.log(`🛫 Avia start: ${onlineUsers.get(userId)?.username || userId} bet ${amount} on ${speed.label}`);
+});
+ 
+socket.on("aviaCashout", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = aviaSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("aviaError", { msg: "No active flight." });
+    return;
+  }
+ 
+  const speed = AVIA_SPEEDS[session.speedKey];
+  const elapsedSec = (Date.now() - session.startedAt) / 1000;
+  const distanceNow = elapsedSec * speed.unitsPerSec;
+  if (distanceNow >= session.crashDistance) {
+    socket.emit("aviaError", { msg: "Too late - the plane already went down." });
+    return;
+  }
+ 
+  const cappedDistance = Math.min(distanceNow, AVIA_TRACK_LENGTH);
+  const multiplier = aviaMultiplierAt(session.stars, cappedDistance);
+  const payoutChips = Math.floor(session.betChips * multiplier);
+ 
+  aviaClearTimer(session);
+  session.active = false;
+  aviaSessions.delete(userId);
+ 
+  if (session.useBonus) creditBonusWin(userId, payoutChips);
+  else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+ 
+ socket.emit("aviaCashoutResult", {
+    distance: cappedDistance,
+    multiplier,
+    payoutChips,
+    account: session.useBonus ? "bonus" : "normal",
+    balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  if (aviaRecordResult(userId, multiplier, payoutChips)) aviaBroadcastLeaderboard();
+
+
+ 
+  console.log(`💰 Avia cashout: ${onlineUsers.get(userId)?.username || userId} bailed at ${multiplier.toFixed(2)}x -> ${payoutChips}`);
+});
+
+
+
+socket.on("dragonTowerGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  dtEmitState(socket.userId, socket);
+});
+
+socket.on("dragonTowerLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("dragonTowerLeaderboard", dtBuildLeaderboardPayload());
+});
+
+
+
+socket.on("dragonTowerStart", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  const existing = dragonTowerSessions.get(userId);
+  if (existing && existing.active) {
+    socket.emit("dragonTowerError", { msg: "A climb is already in progress." });
+    return;
+  }
+
+  const amount = Math.floor(Number(data?.amount));
+  const difficulty = typeof data?.difficulty === "string" ? data.difficulty : "";
+  const useBonus = data?.account === "bonus";
+  const cfg = DT_DIFFICULTIES[difficulty];
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+
+  if (!cfg) {
+    socket.emit("dragonTowerError", { msg: "Invalid difficulty." });
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("dragonTowerError", { msg: "Invalid bet." });
+    return;
+  }
+  if (amount > DT_MAX_BET_CHIPS) {
+    socket.emit("dragonTowerError", { msg: `Max bet is ${DT_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("dragonTowerError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+  const rowMines = [];
+  for (let i = 0; i < DT_ROWS; i++) rowMines.push(dtGenerateRowMines(cfg));
+
+  const session = {
+    active: true,
+    betChips: amount,
+    useBonus,
+    difficulty,
+    currentLevel: 0,       
+    rowMines,
+    revealedRows: []
+  };
+  dragonTowerSessions.set(userId, session);
+
+  socket.emit("dragonTowerStarted", {
+    difficulty,
+    tiles: cfg.tiles,
+    rows: DT_ROWS,
+    betChips: amount,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  console.log(`🐉 Dragon Tower start: ${onlineUsers.get(userId)?.username || userId} bet ${amount} on ${difficulty}`);
+});
+
+socket.on("dragonTowerPick", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = dragonTowerSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("dragonTowerError", { msg: "No active climb." });
+    return;
+  }
+
+  const cfg = DT_DIFFICULTIES[session.difficulty];
+  const tileIndex = Math.floor(Number(data?.tileIndex));
+  if (!Number.isInteger(tileIndex) || tileIndex < 0 || tileIndex >= cfg.tiles) {
+    socket.emit("dragonTowerError", { msg: "Invalid tile." });
+    return;
+  }
+  if (session.currentLevel >= DT_ROWS) {
+    socket.emit("dragonTowerError", { msg: "Tower already complete." });
+    return;
+  }
+
+  const rowIdx = session.currentLevel;
+  const mines = session.rowMines[rowIdx];
+  const hitMine = mines.has(tileIndex);
+
+  if (hitMine) {
+    session.active = false;
+    const fullRow = mines;
+    socket.emit("dragonTowerDied", {
+      level: rowIdx,
+      pickedIndex: tileIndex,
+      mineIndices: Array.from(fullRow),
+      betChips: session.betChips,
+      account: session.useBonus ? "bonus" : "normal",
+      balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+    });
+    dragonTowerSessions.delete(userId);
+    console.log(`💀 Dragon Tower loss: ${onlineUsers.get(userId)?.username || userId} died on level ${rowIdx + 1}`);
+    return;
+  }
+
+  session.currentLevel++;
+  session.revealedRows.push({ level: rowIdx, pickedIndex: tileIndex });
+  const multiplier = dtMultiplierForLevel(cfg, session.currentLevel);
+
+  const towerComplete = session.currentLevel >= DT_ROWS;
+
+  if (towerComplete) {
+    const payoutChips = Math.floor(session.betChips * multiplier);
+    session.active = false;
+
+    if (session.useBonus) creditBonusWin(userId, payoutChips);
+    else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+
+    if (dtRecordResult(userId, multiplier, payoutChips)) dtBroadcastLeaderboard();
+
+    socket.emit("dragonTowerTileResult", {
+      level: rowIdx,
+      pickedIndex: tileIndex,
+      hitMine: false,
+      multiplier,
+      towerComplete: true
+    });
+    socket.emit("dragonTowerFullClear", {
+      multiplier,
+      payoutChips,
+      account: session.useBonus ? "bonus" : "normal",
+      balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+    });
+
+    dragonTowerSessions.delete(userId);
+    console.log(`🏆 Dragon Tower full clear: ${onlineUsers.get(userId)?.username || userId} -> ${multiplier.toFixed(2)}x -> ${payoutChips}`);
+    return;
+  }
+
+  socket.emit("dragonTowerTileResult", {
+    level: rowIdx,
+    pickedIndex: tileIndex,
+    hitMine: false,
+    multiplier,
+    towerComplete: false
+  });
+});
+
+socket.on("weedGameBan", (data) => {
+  if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
+  const targetUsername = stripAtPrefix(data?.target || "").toLowerCase();
+  if (!targetUsername) return;
+
+  let targetId = null;
+  let targetUser = null;
+  onlineUsers.forEach((u, id) => {
+    if (u.username.toLowerCase() === targetUsername) { targetId = id; targetUser = u; }
+  });
+
+  if (!targetId) {
+    let dbTargetId = null;
+    allUsers.forEach((u, id) => { if (u.username.toLowerCase() === targetUsername) dbTargetId = id; });
+    if (!dbTargetId) {
+      socket.emit("error", { msg: `❌ User "${data?.target}" not found.` });
+      return;
+    }
+    const dbUser = allUsers.get(dbTargetId);
+    dbUser.weedGameBanned = true;
+    allUsers.set(dbTargetId, dbUser);
+    saveUsers();
+    socket.emit("systemMessage", { msg: `✅ ${dbUser.username} restricted from Weed Grow (offline).`, type: "success" });
+    console.log(`🚫 Weed Grow ban (offline user): ${dbUser.username} by ${onlineUsers.get(socket.userId)?.username}`);
+    return;
+  }
+
+  const dbUser = allUsers.get(targetId);
+  if (dbUser) {
+    dbUser.weedGameBanned = true;
+    allUsers.set(targetId, dbUser);
+    saveUsers();
+  }
+
+  emitToUser(targetId, "weedError", { msg: "You've been restricted from Weed Grow by an admin." });
+  socket.emit("systemMessage", { msg: `✅ ${targetUser.username} restricted from Weed Grow.`, type: "success" });
+  console.log(`🚫 Weed Grow ban: ${targetUser.username} by ${onlineUsers.get(socket.userId)?.username}`);
+});
+
+socket.on("weedGameUnban", (data) => {
+  if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
+  const targetUsername = stripAtPrefix(data?.target || "").toLowerCase();
+  if (!targetUsername) return;
+
+  let targetId = null;
+  allUsers.forEach((u, id) => { if (u.username.toLowerCase() === targetUsername) targetId = id; });
+
+  if (!targetId) {
+    socket.emit("error", { msg: `❌ User "${data?.target}" not found.` });
+    return;
+  }
+
+  const dbUser = allUsers.get(targetId);
+  dbUser.weedGameBanned = false;
+  allUsers.set(targetId, dbUser);
+  saveUsers();
+
+  emitToUser(targetId, "systemMessage", { msg: "Your Weed Grow access has been restored.", type: "success" });
+  socket.emit("systemMessage", { msg: `✅ ${dbUser.username} restored to Weed Grow.`, type: "success" });
+  console.log(`✅ Weed Grow unban: ${dbUser.username} by ${onlineUsers.get(socket.userId)?.username}`);
+});
+
+socket.on("dragonTowerCashout", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = dragonTowerSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("dragonTowerError", { msg: "No active climb." });
+    return;
+  }
+  if (session.currentLevel === 0) {
+    socket.emit("dragonTowerError", { msg: "Clear at least one level before cashing out." });
+    return;
+  }
+
+  const cfg = DT_DIFFICULTIES[session.difficulty];
+  const multiplier = dtMultiplierForLevel(cfg, session.currentLevel);
+  const payoutChips = Math.floor(session.betChips * multiplier);
+  session.active = false;
+
+  if (session.useBonus) creditBonusWin(userId, payoutChips);
+  else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+
+  if (dtRecordResult(userId, multiplier, payoutChips)) dtBroadcastLeaderboard();
+
+  socket.emit("dragonTowerCashoutResult", {
+    multiplier,
+    payoutChips,
+    level: session.currentLevel,
+    account: session.useBonus ? "bonus" : "normal",
+    balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  dragonTowerSessions.delete(userId);
+  console.log(`💰 Dragon Tower cashout: ${onlineUsers.get(userId)?.username || userId} at level ${session.currentLevel} (${multiplier.toFixed(2)}x) -> ${payoutChips}`);
+});
+
+socket.on("dartsGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  socket.emit("dartsState", {
+    balance: getChipBalance(socket.userId),
+    bonusBalance: getBonusBalance(socket.userId),
+    maxBet: DARTS_MAX_BET_CHIPS,
+    rings: DARTS_RINGS.map(r => ({ id: r.id, label: r.label, multiplier: r.multiplier }))
+  });
+});
+
+socket.on("dartsLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("dartsLeaderboardState", dartsBuildLeaderboardPayload());
+});
+
+socket.on("dartsThrow", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const useBonus = data?.account === "bonus";
+
+  const amount = Math.floor(Number(data?.amount));
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("dartsError", { msg: "Invalid bet." });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("dartsError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+  if (amount > DARTS_MAX_BET_CHIPS) {
+    socket.emit("dartsError", { msg: `Max bet is ${DARTS_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+
+  const ringIndex = dartsPickRing();
+  const { multiplier, payoutChips, ring } = dartsEvaluate(ringIndex, amount);
+  const angleDeg = crypto.randomInt(0, 3600) / 10;
+
+  socket.emit("dartsResult", {
+    ringIndex,
+    ringId: ring.id,
+    ringLabel: ring.label,
+    angleDeg,
+    multiplier,
+    betChips: amount,
+    payoutChips,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  if (payoutChips > 0) {
+    setTimeout(() => {
+      if (useBonus) {
+        creditBonusWin(userId, payoutChips);
+      } else {
+        adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+        io.emit("userData", {
+          id: userId,
+          xp: allUsers.get(userId)?.xp || 0,
+          level: allUsers.get(userId)?.level || 1
+        });
+      }
+      if (dartsRecordWin(userId, payoutChips)) dartsBroadcastLeaderboard();
+      socket.emit("dartsPayoutCredited", {
+        payoutChips,
+        account: useBonus ? "bonus" : "normal",
+        balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+      });
+    }, DARTS_ANIMATION_MS);
+  } else {
+    setTimeout(() => {
+      socket.emit("dartsPayoutCredited", {
+        payoutChips: 0,
+        account: useBonus ? "bonus" : "normal",
+        balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+      });
+    }, DARTS_ANIMATION_MS);
+  }
+
+  console.log(`🎯 Darts: ${onlineUsers.get(userId)?.username || userId} bet ${amount} -> ${ring.label} (x${multiplier}) -> ${payoutChips}`);
+});
+
+socket.on("slotsBuyFreeSpins", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  const existing = slotsFreeSpinSessions.get(userId);
+  if (existing && existing.remaining > 0) {
+    socket.emit("slotsError", { msg: "You already have free spins remaining." });
+    return;
+  }
+
+  const useBonus = data?.account === "bonus";
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+
+  if (SLOTS_FREE_SPINS_COST > balance) {
+    socket.emit("slotsError", { msg: "Insufficient XP to buy free spins." });
+    return;
+  }
+
+  if (useBonus) placeBonusBet(userId, SLOTS_FREE_SPINS_COST);
+  else adjustUserXp(userId, -SLOTS_FREE_SPINS_COST * BJ_XP_PER_CHIP);
+
+  slotsFreeSpinSessions.set(userId, { remaining: SLOTS_FREE_SPINS_COUNT, account: useBonus ? "bonus" : "normal" });
+
+  socket.emit("slotsFreeSpinsBought", {
+    remaining: SLOTS_FREE_SPINS_COUNT,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  console.log(`🎰 Free spins bought: ${onlineUsers.get(userId)?.username || userId} paid ${SLOTS_FREE_SPINS_COST} for ${SLOTS_FREE_SPINS_COUNT} spins`);
+});
+
+socket.on("weedButtonClick", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const potIndex = Number(data?.potIndex);
+  const action = ["plant", "water", "harvest"].includes(data?.action) ? data.action : "unknown";
+  const serverTs = Date.now();
+
+  console.log(`🖱️ [weedgrow] ${onlineUsers.get(userId)?.username || userId} ${socket.handshake.headers['user-agent'] || 'Unknown'} clicked ${action} (pot ${potIndex}) @ ${serverTs}`);
+
+  if (!wgClickHistory.has(userId)) wgClickHistory.set(userId, []);
+  const history = wgClickHistory.get(userId);
+  history.push({ action, potIndex, ts: serverTs });
+  if (history.length > WG_CLICK_HISTORY_MAX) history.shift();
+
+  if (history.length >= 8) {
+    const intervals = [];
+    for (let i = 1; i < history.length; i++) {
+      intervals.push(history[i].ts - history[i - 1].ts);
+    }
+    const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const variance = intervals.reduce((a, b) => a + (b - mean) ** 2, 0) / intervals.length;
+    const stddev = Math.sqrt(variance);
+
+    if (mean < WG_AUTOCLICK_INTERVAL_THRESHOLD_MS && stddev < WG_AUTOCLICK_VARIANCE_THRESHOLD) {
+      console.warn(`🚨 [weedgrow] Possible autoclicker: ${onlineUsers.get(userId)?.username || userId} - mean interval ${mean.toFixed(1)}ms, stddev ${stddev.toFixed(1)}ms`);
+  
+    }
+  }
+});
+
+
+socket.on("rouletteGetState", () => {
+  if (socket.isBot) return;
+  socket.emit("rouletteState", rouletteBuildStateFor(socket.userId || null));
+});
+
+socket.on("rouletteLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("rouletteLeaderboardState", rouletteBuildLeaderboardPayload());
+});
+
+socket.on("roulettePlaceBet", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+
+  if (rouletteRound.state !== "betting") {
+    socket.emit("rouletteError", { msg: "Betting is closed for this round." });
+    return;
+  }
+
+  const type = String(data?.type || "");
+  const validTypes = Object.keys(ROULETTE_PAYOUTS);
+  if (!validTypes.includes(type)) {
+    socket.emit("rouletteError", { msg: "Invalid bet type." });
+    return;
+  }
+
+  let number = null;
+  if (type === "straight") {
+    number = Math.floor(Number(data?.number));
+    if (!Number.isInteger(number) || number < 0 || number > 36) {
+      socket.emit("rouletteError", { msg: "Invalid number." });
+      return;
+    }
+  }
+
+  const amount = Math.floor(Number(data?.amount));
+  const useBonus = data?.account === "bonus";
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("rouletteError", { msg: "Invalid bet amount." });
+    return;
+  }
+  if (amount > ROULETTE_MAX_BET_CHIPS) {
+    socket.emit("rouletteError", { msg: `Max bet is ${ROULETTE_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("rouletteError", { msg: "Insufficient balance for that bet." });
+    return;
+  }
+
+  const existing = rouletteRound.bets.get(userId) || [];
+  if (existing.length > 0 && existing[0].useBonus !== useBonus) {
+    socket.emit("rouletteError", { msg: "You can't mix normal and bonus chips in the same round." });
+    return;
+  }
+
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+
+  existing.push({ type, number, amount, useBonus });
+  rouletteRound.bets.set(userId, existing);
+
+  socket.emit("rouletteBetPlaced", {
+    type, number, amount,
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+  rouletteBroadcastState();
+
+  const user = onlineUsers.get(userId) || {};
+  console.log(`🎡 Roulette bet: ${user.username || userId} bet ${amount} on ${type}${number !== null ? " #" + number : ""}`);
+});
+
+socket.on("diceLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("diceLeaderboardState", diceBuildLeaderboardPayload());
+});
 });
 
 
@@ -3777,10 +8123,36 @@ function buildWhisperHistoryFor(userId) {
 }
 
 
-
+function isEmoteUrlServer(url) {
+  return typeof url === "string" && /\/avatars\/[^/]+\.(png|jpe?g|gif|webp)$/i.test(url);
+}
 
 
 server.listen(5350, '127.0.0.1', () => {
   console.log("🚀 Node.js server running on http://127.0.0.1:5350");
   console.log("📡 Socket.IO enabled with auto-reconnection");
 });
+
+
+/*
+bot bttons
+{
+  id: crypto.randomUUID(),
+  userId: botUserId,
+  username: "Aira",
+  type: "embed",
+  channel: "general",
+  time: Date.now(),
+  embed: {
+    title: "Server Poll",
+    description: "Vote below",
+    color: "#5865F2",
+    buttons: [
+      { id: "vote_yes", label: "Yes", style: "success" },
+      { id: "vote_no", label: "No", style: "danger" },
+      { label: "Docs", style: "link", url: "https://example.com" }
+    ]
+  }
+}
+
+*/

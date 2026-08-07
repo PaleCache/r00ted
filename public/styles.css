@@ -6197,3 +6197,44 @@ div#usersList .username-wrapper .user-badge  {
   box-shadow: 0 0 14px rgba(255,255,255,0.5);
 }
 
+
+#input:empty:before {
+  content: attr(data-placeholder);
+  color: #72767d;
+  pointer-events: none;
+}
+#input img.inline-emote {
+  height: 22px;
+  vertical-align: middle;
+  object-fit: contain;
+  margin: 0 1px;
+  pointer-events: none;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#input {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+#input:empty:before {
+  content: attr(data-placeholder);
+  color: #72767d;
+  pointer-events: none;
+}
+
+#input img.inline-emote {
+  height: 22px;
+  vertical-align: middle;
+  object-fit: contain;
+  margin: 0 1px;
+  pointer-events: none;
+}
