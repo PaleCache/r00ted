@@ -43,7 +43,7 @@ No ads. No tracking. No centralized servers.
 - Node.js
 - Nginx (or another reverse proxy)
 - A working Jitsi Meet installation (used for voice chat and screen sharing)
-- A domain or subdomain (DuckDNS works fine). Technically optional, but you'll need one for HTTPS.
+- A domain or sub domain is technically optional with some changes, but you'll need one to get HTTPS working properly. (You should use one, it's easy are free if you use something like duckdns etc)
 
 ## Installation
 
