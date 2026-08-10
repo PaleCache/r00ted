@@ -48,17 +48,48 @@
             -webkit-appearance: none;
             margin: 0;
             }
-#diceOuterBox {
-        background: rgba(0, 0, 0, 0.875); border: 1px solid #40444b; border-radius: 16px;
-        display: flex; flex-direction: row; overflow: hidden;
+         #diceOuterBox {
+          background: rgba(0, 0, 0, 0.875);
+          border: 1px solid #40444b;
+          border-radius: 16px;
+          display: flex;
+          flex-direction: row;
+          overflow: hidden;
+          position: fixed;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          min-width: 380px;
+          min-height: 300px;
+          width: 580px;
+          height: 520px;
+          box-sizing: border-box;
+        }
+        #diceDragHandle {
+          cursor: grab;
+          padding: 4px 0 10px;
+          margin: -4px 0 4px;
+        }
+        #diceDragHandle:active {
+          cursor: grabbing;
+        }
+        #diceResizeHandle {
+          position: absolute;
+          bottom: 0; right: 0;
+          width: 18px; height: 18px;
+          background: linear-gradient(135deg, transparent 50%, rgba(73,73,73,1) 50%);
+          cursor: nwse-resize;
+          z-index: 100;
+          border-radius: 0 0 16px 0;
+        }
+       #diceModalBox {
+        padding: 28px 32px; flex: 1; min-width: 0; text-align: center; position: relative;
+        overflow-y: auto; box-sizing: border-box;
       }
-      #diceModalBox {
-        padding: 28px 32px; width: 380px; text-align: center; position: relative;
-      }
-      #diceSidebar {
-        width: 200px; flex-shrink: 0; border-left: 1px solid #3a3c42;
-        display: flex; flex-direction: column; background: rgba(0,0,0,0.35);
-      }
+    #diceSidebar {
+      width: 200px; flex-shrink: 0; border-left: 1px solid #3a3c42;
+      display: flex; flex-direction: column; background: rgba(0,0,0,0.35);
+      box-sizing: border-box;
+    }
       #diceSidebar h4 {
         margin:0; padding:14px 16px 10px; color:#fff; font-size:13px;
         text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #3a3c42;
@@ -297,10 +328,13 @@
     modalEl.id = "diceModalOverlay";
     modalEl.innerHTML = `
       <div id="diceOuterBox">
+      <div id="diceResizeHandle"></div>
       <div id="diceModalBox">
         <div id="diceBetToastWrap"></div>
-        <h3>🎲 Dice</h3>
-        <p class="dice-sub">Pick a target, bet, and roll - 0.00 to 99.99.</p>
+        <div id="diceDragHandle">
+          <h3>🎲 Dice</h3>
+          <p class="dice-sub">Pick a target, bet, and roll - 0.00 to 99.99.</p>
+        </div>
         <div id="diceBalanceRow">
           <span id="diceBalance">Loading...</span>
           <span id="diceAccountBadge">Normal</span>
@@ -342,7 +376,7 @@
       </div>
     `;
     document.body.appendChild(modalEl);
-
+    setupDiceDragResize();
     modalEl.querySelector("#diceCloseBtn").onclick = () => {
       modalEl.remove();
       window.openGamesMenu();
@@ -372,6 +406,63 @@
 
     refreshDisplayedBalance();
   };
+
+
+  function setupDiceDragResize() {
+    const box = modalEl.querySelector("#diceOuterBox");
+    const header = modalEl.querySelector("#diceDragHandle");
+    const resizeHandle = modalEl.querySelector("#diceResizeHandle");
+    if (!box || !header || !resizeHandle) return;
+
+    let isDragging = false, isResizing = false;
+    let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+    header.addEventListener("mousedown", (e) => {
+      if (e.target.closest("button")) return;
+      isDragging = true;
+      const rect = box.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      startLeft = rect.left; startTop = rect.top;
+      box.style.left = rect.left + "px";
+      box.style.top = rect.top + "px";
+      box.style.transform = "none";
+      e.preventDefault();
+    });
+
+    resizeHandle.addEventListener("mousedown", (e) => {
+      isResizing = true;
+      const rect = box.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      startWidth = rect.width; startHeight = rect.height;
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (isDragging) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        let left = startLeft + dx;
+        let top = startTop + dy;
+        left = Math.max(0, Math.min(left, window.innerWidth - box.offsetWidth));
+        top = Math.max(0, Math.min(top, window.innerHeight - box.offsetHeight));
+        box.style.left = left + "px";
+        box.style.top = top + "px";
+      }
+    if (isResizing) {
+      const rect = box.getBoundingClientRect();
+      const maxWidth = Math.max(500, window.innerWidth - rect.left);
+      const maxHeight = Math.max(360, window.innerHeight - rect.top);
+      box.style.width = Math.max(500, Math.min(startWidth + (e.clientX - startX), maxWidth)) + "px";
+      box.style.height = Math.max(360, Math.min(startHeight + (e.clientY - startY), maxHeight)) + "px";
+    }
+    });
+
+    document.addEventListener("mouseup", () => {
+      isDragging = false;
+      isResizing = false;
+    });
+  }
 
   function rollDice() {
     if (rolling) return;

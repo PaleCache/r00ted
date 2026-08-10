@@ -2,7 +2,7 @@
 let whisperConversations = new Map();
 let activeWhisperKey = null;
 let whispersModalOpen = false;
-
+let whisperTypingUsers = new Map();
 function convoKeyForDM(userId) { return userId; }
 function convoKeyForGroup(groupId) { return `g:${groupId}`; }
 
@@ -87,7 +87,7 @@ function updateWhisperInputVisibility() {
 
 let whispersModal = null;
 let whispersBox = null;
-
+let whisperTypingTimeout;
 function buildWhispersModal() {
   if (whispersModal) return;
 
@@ -164,14 +164,24 @@ newGroupBtn.onmouseout = () => { newGroupBtn.style.background = 'rgba(0, 0, 0, 0
     border-top: 1px solid #3a3c42;
   `;
   threadHeader.textContent = 'Select a conversation';
+ const threadInputWrap = document.createElement('div');
+  threadInputWrap.style.cssText = 'padding:8px 10px; flex-shrink:0; display:flex; flex-direction:column; gap:6px;';
 
   const threadMessages = document.createElement('div');
   threadMessages.id = 'whisperThreadMessages';
   threadMessages.style.cssText = 'flex:1; overflow-y:auto; padding:10px 14px; display:flex; flex-direction:column; gap:8px;';
-
-  const threadInputWrap = document.createElement('div');
-  threadInputWrap.style.cssText = 'padding:8px 10px; flex-shrink:0; display:flex; flex-direction:column; gap:6px;';
-
+if (!document.getElementById("whisperTypingBounceStyle")) {
+  const style = document.createElement("style");
+  style.id = "whisperTypingBounceStyle";
+  style.textContent = `
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+ 
 
 const toolbar = document.createElement('div');
 toolbar.id = 'whisperToolbar';
@@ -218,6 +228,25 @@ threadInput.style.cssText = `
   flex:1; box-sizing:border-box; padding:8px 10px; background:#1e1f22;
   border:1px solid #3a3c42; border-radius:6px; color:#fff; font-size:13px; outline:none;
 `;
+
+
+threadInput.addEventListener('input', () => {
+  if (!socket.connected || !activeWhisperKey) return;
+  const convo = whisperConversations.get(activeWhisperKey);
+  if (!convo) return;
+
+  socket.emit('whisperTyping', convo.isGroup
+  ? { groupId: convo.groupId, username: user.username, avatar: user.avatar, usernameColor: user.usernameColor }
+  : { to: convo.userId, username: user.username, avatar: user.avatar, usernameColor: user.usernameColor });
+
+  clearTimeout(whisperTypingTimeout);
+  whisperTypingTimeout = setTimeout(() => {
+    socket.emit('whisperStopTyping', convo.isGroup
+      ? { groupId: convo.groupId }
+      : { to: convo.userId });
+  }, 3000);
+});
+
 threadInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && threadInput.value.trim() && activeWhisperKey) {
     sendWhisper(activeWhisperKey, threadInput.value.trim());
@@ -251,6 +280,14 @@ threadInputWrap.appendChild(inputRow);
   threadPane.appendChild(threadHeader);
   threadPane.appendChild(threadMessages);
   threadPane.appendChild(threadInputWrap);
+  const whisperTypingIndicator = document.createElement('div');
+  whisperTypingIndicator.id = 'whisperTypingIndicator';
+  whisperTypingIndicator.style.cssText = `
+    padding: 4px 14px; min-height: 20px; display:flex; align-items:center; gap:6px;
+    flex-shrink:0; opacity:0; transform: translateY(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  `;
+  threadPane.insertBefore(whisperTypingIndicator, threadInputWrap);
 
   body.appendChild(listPane);
   body.appendChild(threadPane);
@@ -294,6 +331,119 @@ function markWhisperConvoRead(key) {
   if (last) setLastReadTime(key, last.time);
   convo.unread = 0;
 }
+
+function updateWhisperTypingIndicator(key) {
+  const el = document.getElementById('whisperTypingIndicator');
+  if (!el) return;
+  el.innerHTML = '';
+
+  if (key !== activeWhisperKey) {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(4px)';
+    return;
+  }
+
+  const usersMap = whisperTypingUsers.get(key);
+  const users = usersMap ? [...usersMap.values()] : [];
+
+  if (users.length === 0) {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(4px)';
+    return;
+  }
+
+  el.style.opacity = '1';
+  el.style.transform = 'translateY(0)';
+  if (users.length <= 3) {
+    const avatarStack = document.createElement('div');
+    avatarStack.style.cssText = 'display:flex; align-items:center; margin-right:2px;';
+    users.forEach((u, i) => {
+      const img = document.createElement('img');
+      img.src = sanitizeAvatar(u.avatar);
+      img.style.cssText = `
+        width: 16px; height: 16px; border-radius: 50%;
+        border: 2px solid #111214;
+        margin-left: ${i === 0 ? '0' : '-6px'};
+        z-index: ${users.length - i};
+        position: relative;
+        object-fit: cover;
+      `;
+      avatarStack.appendChild(img);
+    });
+    el.appendChild(avatarStack);
+  }
+
+ 
+  const dots = document.createElement('div');
+  dots.style.cssText = 'display:flex; align-items:center; gap:3px; margin-right:5px;';
+  [0, 1, 2].forEach(i => {
+    const dot = document.createElement('span');
+    dot.style.cssText = `
+      width: 4px; height: 4px; border-radius: 50%;
+      background: #b9bbbe;
+      display: inline-block;
+      animation: typingBounce 1.2s ease-in-out infinite;
+      animation-delay: ${i * 0.18}s;
+    `;
+    dots.appendChild(dot);
+  });
+  el.appendChild(dots);
+
+  const text = document.createElement('span');
+  text.style.cssText = 'font-size:11px; color:#b9bbbe; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+
+  if (users.length === 1) {
+    const nameSpan = document.createElement('span');
+    nameSpan.className = `username-wrapper ${users[0].usernameColor || 'username-cyan'}`;
+    nameSpan.textContent = users[0].username;
+    nameSpan.style.cssText = 'font-size:11px; font-weight:700; font-style:normal;';
+    text.appendChild(nameSpan);
+    text.appendChild(document.createTextNode(' is typing...'));
+  } else if (users.length === 2) {
+    const n1 = document.createElement('span');
+    n1.className = `username-wrapper ${users[0].usernameColor || 'username-cyan'}`;
+    n1.textContent = users[0].username;
+    n1.style.cssText = 'font-size:11px; font-weight:700; font-style:normal;';
+    const n2 = document.createElement('span');
+    n2.className = `username-wrapper ${users[1].usernameColor || 'username-cyan'}`;
+    n2.textContent = users[1].username;
+    n2.style.cssText = 'font-size:11px; font-weight:700; font-style:normal;';
+    text.appendChild(n1);
+    text.appendChild(document.createTextNode(' and '));
+    text.appendChild(n2);
+    text.appendChild(document.createTextNode(' are typing...'));
+  } else {
+    text.textContent = `${users.length} people are typing...`;
+  }
+  el.appendChild(text);
+}
+
+socket.on('whisperTyping', (data) => {
+  const key = data.groupId ? convoKeyForGroup(data.groupId) : data.from;
+  if (!key || data.from === user.id) return;
+  if (!whisperTypingUsers.has(key)) whisperTypingUsers.set(key, new Map());
+  const map = whisperTypingUsers.get(key);
+  clearTimeout(map.get(data.from)?.timeout);
+  map.set(data.from, {
+    username: data.username || 'Someone',
+    timeout: setTimeout(() => {
+      map.delete(data.from);
+      updateWhisperTypingIndicator(key);
+    }, 4000)
+  });
+  updateWhisperTypingIndicator(key);
+});
+
+socket.on('whisperStopTyping', (data) => {
+  const key = data.groupId ? convoKeyForGroup(data.groupId) : data.from;
+  if (!key) return;
+  const map = whisperTypingUsers.get(key);
+  if (map && map.has(data.from)) {
+    clearTimeout(map.get(data.from).timeout);
+    map.delete(data.from);
+    updateWhisperTypingIndicator(key);
+  }
+});
 
 function toggleWhispersModal() {
   buildWhispersModal();
@@ -367,6 +517,9 @@ async function sendWhisper(key, text) {
   if (!socket || !socket.connected || !text) return;
   const convo = whisperConversations.get(key);
   if (!convo) return;
+
+  clearTimeout(whisperTypingTimeout);
+  socket.emit('whisperStopTyping', convo.isGroup ? { groupId: convo.groupId } : { to: convo.userId });
 
   let messageText = text;
   let isEncrypted = false;
@@ -730,7 +883,7 @@ socket.on('whisperMessage', (data) => {
       }
 
       if (notifSettings?.sound) {
-        const audio = new Audio('/avatars/message-new-email.oga');
+        const audio = new Audio('/sounds/message-new-email.oga');
         audio.volume = 0.5;
         audio.play().catch(() => {});
       }
@@ -750,7 +903,9 @@ socket.on('whisperMessage', (data) => {
 });
 
 
-socket.on('whisperHistory', (data) => {
+window.pendingWhisperHistory = null;
+
+function applyWhisperHistory(data) {
   (data?.conversations || []).forEach(c => {
     const isGroup = c.type === 'group';
     const key = isGroup ? convoKeyForGroup(c.groupId) : c.userId;
@@ -765,6 +920,22 @@ socket.on('whisperHistory', (data) => {
   });
   updateWhispersLauncherBadge();
   if (whispersModalOpen) renderWhisperConvoList();
+}
+
+window.flushPendingWhisperHistory = function () {
+  if (window.pendingWhisperHistory) {
+    applyWhisperHistory(window.pendingWhisperHistory);
+    window.pendingWhisperHistory = null;
+  }
+};
+
+socket.on('whisperHistory', (data) => {
+   console.log('[DEBUG] whisperHistory received,', data?.conversations?.length, 'convos, user =', typeof user, 'user.id =', user?.id, 'at', Date.now());
+  if (!user || !user.id) {
+    window.pendingWhisperHistory = data;
+    return;
+  }
+  applyWhisperHistory(data);
 });
 
 
@@ -1165,24 +1336,34 @@ messagesWrap.style.cssText = 'flex:1; overflow-y:auto; padding:10px 14px; displa
   }
 
   messagesWrap.innerHTML = '';
-  convo.messages.forEach(m => {
-    const row = document.createElement('div');
-    row.style.cssText = `display:flex; flex-direction:column; align-items:${m.outgoing ? 'flex-end' : 'flex-start'};`;
+convo.messages.forEach(m => {
+  const row = document.createElement('div');
+  row.style.cssText = `display:flex; flex-direction:${m.outgoing ? 'row-reverse' : 'row'}; align-items:flex-end; gap:8px;`;
+  const avatarSrc = m.outgoing
+    ? user.avatar
+    : (convo.isGroup ? (m.fromAvatar || '/avatars/default1.png') : convo.avatar);
+  const avatarImg = document.createElement('img');
+  avatarImg.src = sanitizeAvatar(avatarSrc);
+  avatarImg.style.cssText = 'width:28px; height:28px; border-radius:50%; flex-shrink:0; object-fit:cover;';
+  row.appendChild(avatarImg);
 
-    if (m.outgoing) {
-      const youLabel = document.createElement('span');
-      youLabel.style.cssText = 'font-size:11px; font-weight:700; color:#72767d; margin-bottom:2px;';
-      youLabel.textContent = 'You';
-      row.appendChild(youLabel);
-    } else if (convo.isGroup) {
-      const senderLabel = document.createElement('span');
-      senderLabel.style.cssText = `font-size:11px; font-weight:700; color:${colorClassToHex?.[m.fromUsernameColor] || '#00f2ff'}; margin-bottom:2px;`;
-      senderLabel.textContent = m.fromUsername;
-      row.appendChild(senderLabel);
-    }
+  const bubbleCol = document.createElement('div');
+  bubbleCol.style.cssText = `display:flex; flex-direction:column; align-items:${m.outgoing ? 'flex-end' : 'flex-start'}; max-width:75%;`;
 
-    const bubble = document.createElement('div');
-    bubble.style.cssText = `
+  if (m.outgoing) {
+    const youLabel = document.createElement('span');
+    youLabel.style.cssText = 'font-size:11px; font-weight:700; color:#72767d; margin-bottom:2px;';
+    youLabel.textContent = 'You';
+    bubbleCol.appendChild(youLabel);
+  } else if (convo.isGroup) {
+    const senderLabel = document.createElement('span');
+    senderLabel.style.cssText = `font-size:11px; font-weight:700; color:${colorClassToHex?.[m.fromUsernameColor] || '#00f2ff'}; margin-bottom:2px;`;
+    senderLabel.textContent = m.fromUsername;
+    bubbleCol.appendChild(senderLabel);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.style.cssText = `
       max-width:75%; padding:7px 10px; border-radius:10px; font-size:13px; line-height:1.4;
       background: rgba(0, 0, 0, 0.6);
       color: #fff; word-break: break-word;
@@ -1243,11 +1424,11 @@ function showWhisperNotificationBanner(data, key, convo) {
   const topOffset = typeof getStackOffset === 'function' ? getStackOffset() : 20;
 
   banner.style.cssText = `
-    position: fixed; top: ${topOffset}px; right: 20px;
+    position: fixed; top: ${topOffset}px; left: 50%; transform: translateX(-50%);
     background: #111214; border: 1px solid #3a3c42; border-left: 4px solid #FF0000;
     color: white; padding: 14px 16px; border-radius: 10px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.7); z-index: 10001; cursor: pointer; width: 320px;
-    animation: bannerSlideIn 0.3s ease-out;
+    animation: bannerDropIn 0.3s ease-out;
     display: flex; flex-direction: column; gap: 10px; overflow: hidden;
   `;
 
@@ -1316,13 +1497,13 @@ function showWhisperNotificationBanner(data, key, convo) {
   document.body.appendChild(banner);
 
   setTimeout(() => {
-    if (banner.parentNode) {
-      banner.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-      banner.style.opacity = '0';
-      banner.style.transform = 'translateX(20px)';
-      setTimeout(() => banner.remove(), 400);
-    }
-  }, 5000);
+      if (banner.parentNode) {
+        banner.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        banner.style.opacity = '0';
+        banner.style.transform = 'translate(-50%, -100%)';
+        setTimeout(() => banner.remove(), 400);
+      }
+    }, 5000);
 }
 
 

@@ -43,10 +43,29 @@
         width: 480px; max-width: 92vw; background: rgba(0, 0, 0, 0.875);;
         border: 1px solid #3a3c42; border-radius: 14px;
         display: flex; flex-direction: column; overflow: hidden;
+        position: fixed;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 380px;
+        min-height: 300px;
+        box-sizing: border-box;
         }
         #msHeader {
         display:flex; align-items:center; justify-content:space-between;
         padding: 14px 18px;
+        cursor: grab;
+        }
+        #msHeader:active {
+        cursor: grabbing;
+        }
+        #msResizeHandle {
+        position: absolute;
+        bottom: 0; right: 0;
+        width: 18px; height: 18px;
+        background: linear-gradient(135deg, transparent 50%, rgba(73,73,73,1) 50%);
+        cursor: nwse-resize;
+        z-index: 100;
+        border-radius: 0 0 14px 0;
         }
         #msHeader h3 { margin:0; color:#fff; font-size:16px; }
         #msCloseBtn {
@@ -67,9 +86,12 @@
         }
         #msAccountBadge.bonus { color:#fff; background:#FF0000;; }
         #msAccountBadge.locked { cursor:default; opacity:.7; }
-        #msBoardWrap {
+         #msBoardWrap {
             padding: 18px;
             background: radial-gradient(ellipse at center, #f50000 0%, #1a0e0e 100%);
+            flex: 1;
+            overflow-y: auto;
+            box-sizing: border-box;
         }
         #msBoard {
         display:grid; grid-template-columns: repeat(5, 1fr); gap:6px;
@@ -144,6 +166,7 @@
         modal.id = "msModal";
         modal.innerHTML = `
         <div id="msBox">
+        <div id="msResizeHandle"></div>
         <div id="msHeader">
         <h3>💣 Minesweeper</h3>
         <button id="msCloseBtn">✕</button>
@@ -262,6 +285,63 @@
 
         buildBoard();
         renderBet();
+        setupMinesweeperDragResize();
+    }
+
+    function setupMinesweeperDragResize() {
+        const box = document.getElementById("msBox");
+        const header = document.getElementById("msHeader");
+        const resizeHandle = document.getElementById("msResizeHandle");
+        if (!box || !header || !resizeHandle) return;
+
+        let isDragging = false, isResizing = false;
+        let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+        header.addEventListener("mousedown", (e) => {
+            if (e.target.closest("button")) return;
+            isDragging = true;
+            const rect = box.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startLeft = rect.left; startTop = rect.top;
+            box.style.left = rect.left + "px";
+            box.style.top = rect.top + "px";
+            box.style.transform = "none";
+            e.preventDefault();
+        });
+
+        resizeHandle.addEventListener("mousedown", (e) => {
+            isResizing = true;
+            const rect = box.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startWidth = rect.width; startHeight = rect.height;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (isDragging) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                let left = startLeft + dx;
+                let top = startTop + dy;
+                left = Math.max(0, Math.min(left, window.innerWidth - box.offsetWidth));
+                top = Math.max(0, Math.min(top, window.innerHeight - box.offsetHeight));
+                box.style.left = left + "px";
+                box.style.top = top + "px";
+            }
+            if (isResizing) {
+                const rect = box.getBoundingClientRect();
+                const maxWidth = Math.max(380, window.innerWidth - rect.left);
+                const maxHeight = Math.max(300, window.innerHeight - rect.top);
+                box.style.width = Math.max(380, Math.min(startWidth + (e.clientX - startX), maxWidth)) + "px";
+                box.style.height = Math.max(300, Math.min(startHeight + (e.clientY - startY), maxHeight)) + "px";
+            }
+        });
+
+        document.addEventListener("mouseup", () => {
+            isDragging = false;
+            isResizing = false;
+        });
     }
 
     function buildBoard() {

@@ -53,10 +53,30 @@
         width: 760px; max-width: 96vw; background: rgba(0, 0, 0, 0.9);
         border: 1px solid #3a3c42; border-radius: 14px;
         overflow: hidden; max-height: 92vh; display:flex; flex-direction:column;
+        position: fixed;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 480px;
+        min-height: 400px;
+        box-sizing: border-box;
         }
         #avHeader {
         display:flex; align-items:center; justify-content:space-between;
         padding: 12px 16px; background:#rgba(0, 0, 0, 0.9);
+        cursor: grab;
+        }
+        #avHeader:active {
+        cursor: grabbing;
+        }
+
+        #avResizeHandle {
+        position: absolute;
+        bottom: 0; right: 0;
+        width: 18px; height: 18px;
+        background: linear-gradient(135deg, transparent 50%, rgba(73,73,73,1) 50%);
+        cursor: nwse-resize;
+        z-index: 100;
+        border-radius: 0 0 14px 0;
         }
         #avHeader h3 { margin:0; color:#fff; font-size:15px; letter-spacing:.5px; }
         #avHeaderBtns { display:flex; align-items:center; gap:10px; }
@@ -73,7 +93,7 @@
         }
         #avCloseBtn:hover { color:#fff; }
         #avBoard {
-        position: relative; width: 100%; height: 340px;
+        position: relative; width: 100%; flex: 1; min-height: 180px;
         background: linear-gradient(180deg, #1b3a6b 0%, #2f5f95 45%, #6fa8d8 75%, #bcdcf2 100%);
         overflow: hidden;
         }
@@ -184,6 +204,63 @@
 
     let els = {};
 
+    function setupAviaDragResize() {
+        const box = document.getElementById("avBox");
+        const header = document.getElementById("avHeader");
+        const resizeHandle = document.getElementById("avResizeHandle");
+        if (!box || !header || !resizeHandle) return;
+
+        let isDragging = false, isResizing = false;
+        let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+        header.addEventListener("mousedown", (e) => {
+            if (e.target.closest("button")) return;
+            isDragging = true;
+            const rect = box.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startLeft = rect.left; startTop = rect.top;
+            box.style.left = rect.left + "px";
+            box.style.top = rect.top + "px";
+            box.style.transform = "none";
+            e.preventDefault();
+        });
+
+        resizeHandle.addEventListener("mousedown", (e) => {
+            isResizing = true;
+            const rect = box.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startWidth = rect.width; startHeight = rect.height;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (isDragging) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                let left = startLeft + dx;
+                let top = startTop + dy;
+                left = Math.max(0, Math.min(left, window.innerWidth - box.offsetWidth));
+                top = Math.max(0, Math.min(top, window.innerHeight - box.offsetHeight));
+                box.style.left = left + "px";
+                box.style.top = top + "px";
+            }
+            if (isResizing) {
+                const rect = box.getBoundingClientRect();
+                const maxWidth = Math.max(480, window.innerWidth - rect.left);
+                const maxHeight = Math.max(400, window.innerHeight - rect.top);
+                box.style.width = Math.max(480, Math.min(startWidth + (e.clientX - startX), maxWidth)) + "px";
+                box.style.height = Math.max(400, Math.min(startHeight + (e.clientY - startY), maxHeight)) + "px";
+                resizeCanvas();
+            }
+        });
+
+        document.addEventListener("mouseup", () => {
+            isDragging = false;
+            isResizing = false;
+        });
+    }
+
     function buildModal() {
         if (document.getElementById("avModal")) return;
 
@@ -191,6 +268,7 @@
         modal.id = "avModal";
         modal.innerHTML = `
         <div id="avBox">
+          <div id="avResizeHandle"></div>
           <div id="avHeader">
             <h3>✈️ SKY RUNNER</h3>
             <div id="avHeaderBtns">
@@ -333,6 +411,7 @@
         resizeCanvas();
         renderBet();
         updateActionButton();
+        setupAviaDragResize();
     }
 
     function resizeCanvas() {

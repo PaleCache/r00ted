@@ -38,10 +38,30 @@
         width: 760px; max-width: 95vw; background: rgba(0,0,0,0.875);
         border: 1px solid #3a3c42; border-radius: 14px; overflow: hidden;
         display:flex; flex-direction:column;
+        position: fixed;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 480px;
+        min-height: 400px;
+        box-sizing: border-box;
         }
         #pongHeader {
         display:flex; align-items:center; justify-content:space-between;
         padding: 14px 18px; border-bottom: 1px solid #3a3c42;
+        cursor: grab;
+        }
+        #pongHeader:active {
+        cursor: grabbing;
+        }
+
+        #pongResizeHandle {
+        position: absolute;
+        bottom: 0; right: 0;
+        width: 18px; height: 18px;
+        background: linear-gradient(135deg, transparent 50%, rgba(73,73,73,1) 50%);
+        cursor: nwse-resize;
+        z-index: 100;
+        border-radius: 0 0 14px 0;
         }
         #pongHeader h3 { margin:0; color:#fff; font-size:16px; }
         #pongCloseBtn { background:none; border:none; color:#72767d; font-size:20px; cursor:pointer; }
@@ -54,8 +74,15 @@
         #pongScoreRow .pong-player { display:flex; align-items:center; gap:8px; }
         #pongScoreRow img { width:26px; height:26px; border-radius:50%; }
         #pongScoreRow b { font-size: 22px; color: #ffd700; }
-        #pongCanvasWrap { padding: 16px; display:flex; justify-content:center; background: radial-gradient(ellipse at center, #240000 0%, #050505 100%); }
-        #pongCanvas { background:#000; border-radius:6px; touch-action: none; }
+        #pongCanvasWrap {
+        padding: 16px; display:flex; justify-content:center; align-items:center;
+        background: radial-gradient(ellipse at center, #240000 0%, #050505 100%);
+        flex: 1; min-height: 0; overflow: hidden;
+        }
+        #pongCanvas {
+        background:#000; border-radius:6px; touch-action: none;
+        max-width: 100%; max-height: 100%; width: auto; height: auto;
+        }
         #pongFooter { padding: 12px 18px; text-align:center; color:#b9bbbe; font-size:13px; min-height: 44px; display:flex; flex-direction:column; align-items:center; gap:8px; }
         #pongFindBtn {
         background:#FF0000; border:none; color:#fff; padding:12px 24px; border-radius:8px;
@@ -81,12 +108,69 @@
         document.head.appendChild(style);
     }
 
+    function setupPongDragResize() {
+        const box = document.getElementById("pongBox");
+        const header = document.getElementById("pongHeader");
+        const resizeHandle = document.getElementById("pongResizeHandle");
+        if (!box || !header || !resizeHandle) return;
+
+        let isDragging = false, isResizing = false;
+        let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+        header.addEventListener("mousedown", (e) => {
+            if (e.target.closest("button")) return;
+            isDragging = true;
+            const rect = box.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startLeft = rect.left; startTop = rect.top;
+            box.style.left = rect.left + "px";
+            box.style.top = rect.top + "px";
+            box.style.transform = "none";
+            e.preventDefault();
+        });
+
+        resizeHandle.addEventListener("mousedown", (e) => {
+            isResizing = true;
+            const rect = box.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startWidth = rect.width; startHeight = rect.height;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (isDragging) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                let left = startLeft + dx;
+                let top = startTop + dy;
+                left = Math.max(0, Math.min(left, window.innerWidth - box.offsetWidth));
+                top = Math.max(0, Math.min(top, window.innerHeight - box.offsetHeight));
+                box.style.left = left + "px";
+                box.style.top = top + "px";
+            }
+            if (isResizing) {
+                const rect = box.getBoundingClientRect();
+                const maxWidth = Math.max(480, window.innerWidth - rect.left);
+                const maxHeight = Math.max(400, window.innerHeight - rect.top);
+                box.style.width = Math.max(480, Math.min(startWidth + (e.clientX - startX), maxWidth)) + "px";
+                box.style.height = Math.max(400, Math.min(startHeight + (e.clientY - startY), maxHeight)) + "px";
+            }
+        });
+
+        document.addEventListener("mouseup", () => {
+            isDragging = false;
+            isResizing = false;
+        });
+    }
+
     function buildModal() {
         if (document.getElementById("pongModal")) return;
         const modal = document.createElement("div");
         modal.id = "pongModal";
         modal.innerHTML = `
         <div id="pongBox">
+          <div id="pongResizeHandle"></div>
           <div id="pongHeader">
             <h3>🏓 Pong</h3>
             <button id="pongCloseBtn">✕</button>
@@ -183,6 +267,7 @@
         });
 
         drawIdle();
+        setupPongDragResize();
     }
 
     function sendKeyState() {

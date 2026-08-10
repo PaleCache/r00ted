@@ -31,7 +31,6 @@
     padding: 10px;
     height: 100vh;
     background: #000000f2;
-    border-left: 7px solid #000000b0;
 }
 
     .sidebar-pfp {
@@ -173,15 +172,7 @@
   background: #0000;
 }
 
-.input-wrapper {
-    display: flex;
-    align-items: center;
-    background: #000000ad;
-    padding: 8px 11px;
-    gap: 8px;
-    margin-left: -1px;
-    margin-right: -1px;
-}
+
 
 .input-wrapper input {
   flex: 1;
@@ -270,8 +261,8 @@ div#usersList {
 .status-offline { background: #747f8d !important; } 
 
 .sidebar {
-  width: 80px;
-  min-width: 60px; 
+  width: 58px;
+  min-width: 58px; 
 }
 
 .channels {
@@ -432,7 +423,6 @@ div#usersList {
 .message .content img[src^="/avatars/"][src$=".png"] {
   max-width: 66px !important;
   max-height: 66px;
-  margin-top: 4px;
 }
 
 
@@ -535,19 +525,27 @@ div#usersList {
 }
 
 #imageModal .modal-close {
-  position: absolute;
+  position: fixed;
   top: 20px;
-  right: 30px;
-  color: white;
-  font-size: 40px;
+  right: 20px;
+  background: rgba(0,0,0,0.7);
+  border: none;
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   cursor: pointer;
-  opacity: 0.7;
-  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  z-index: 100000;
+  transition: background 0.15s;
 }
 
 #imageModal .modal-close:hover {
-  opacity: 1;
-  transform: scale(1.1);
+  background: rgba(255,0,0,0.85);
 }
 
 #imageModal img {
@@ -1410,7 +1408,6 @@ width: 100%;
     width: 40px;
     height: 40px;
     font-size: 6px;
-    right: -4px;
 }
 
 .circular-level .level-center {
@@ -1462,7 +1459,7 @@ div#popupLevel {
     gap: 4px;
     padding: 6px 8px;
     border-radius: 4px;
-    background-color: #181818;
+    background-color: rgba(255,255,255,0.06);
       width: 271px;
     margin-left: -6px;
 }
@@ -1519,7 +1516,7 @@ div#popupLevel {
 }
 
 .voice-participant:hover {
-  background-color: #181818;
+  background-color: rgba(255,255,255,0.06);
   margin-left: 0;
   width: auto;
 }
@@ -1538,6 +1535,7 @@ div#popupLevel {
 }
 .sidebar2-bottom {
   flex-shrink: 0;
+  background-color: #0000008a;
 }
 
 #pingDisplay {
@@ -1691,32 +1689,31 @@ span#voiceStatusLabel {
 
 .voice-channel {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    padding: 8px 12px;
-    background-color: #00000000;
-    height: 22px;
-    border-radius: 9px !important;
+    gap: 8px;
+    padding: 6px 10px;
+    background-color: transparent;
+    height: auto;
+    border-radius: 4px !important;
     cursor: pointer;
-    margin-top: 6px;
-    transition: all 0.2s ease;
-    font-weight: 900;
-    font-size: 16px;
-}
-
-.voice-channel:hover {
-    background-color: #1f2020d1;
+    margin: 1px 6px;
+    font-weight: 500;
+    font-size: 14px;
+    color: #949ba4;
 }
 
 .voice-channel.active {
-    background-color: #181818 !important;
-    border-left: 4px solid #FF0000;
-    color: white;
-    font-weight: 500;
+    background-color: rgba(255,255,255,0.06) !important;
+    color: #f2f3f5;
 }
 
 .voice-channel.active:hover {
-    background-color: #FF0000 !important;   
+    background-color: rgba(255,255,255,0.06) !important;
+}
+
+.voice-channel:hover {
+    background-color: rgba(255,255,255,0.04) !important;
 }
 
 .vc-count {
@@ -1728,7 +1725,7 @@ span#voiceStatusLabel {
 }
 
 .sidebar2 {
-  width: 328px;
+  width: 317px;
   background-color: #000000f0;
   border-left: 2px solid #000000b0;
   border-right: 2px solid #000000b0;
@@ -2301,30 +2298,30 @@ div#usersList img {
 .sidebar-pfp {
   -webkit-user-drag: none;
 }
-.channel-item:hover {
-  background: rgba(24, 24, 24, 0.692) !important;
-}
-
 .channel-item {
-  padding: 8px 12px;
-  border-radius: 9px !important;
-  cursor: pointer;
-  color: #b9bbbe;
-  font-size: 14px;
-  width: 284px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  position: relative;
-  border-left: 4px solid transparent;
-  font-weight: 900;
-  font-size: 16px;
+    padding: 6px 10px;
+    border-radius: 4px !important;
+    cursor: pointer;
+    color: #949ba4;
+    font-size: 14px;
+    width: auto;
+    height: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    border-left: none;
+    font-weight: 500;
+    margin: 1px 6px;
 }
 
 .channel-item.active {
-  background: rgb(24, 24, 24) !important;
-  border-left: 4px solid #FF0000 !important;
-  color: white;
+    background: rgba(255,255,255,0.06) !important;
+    color: #f2f3f5;
+}
+
+.channel-item:hover {
+    background: rgba(255,255,255,0.04) !important;
 }
 
 .channel-badge {
@@ -6107,7 +6104,6 @@ div#usersList .username-wrapper .user-badge  {
 #channelsList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   position: relative;
   max-height: calc(6 * 36px);
   overflow-y: auto;
@@ -6212,9 +6208,11 @@ div#usersList .username-wrapper .user-badge  {
 }
 
 .input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+    display: flex;
+    align-items: center;
+    background: #0000008a;
+    padding: 8px 24px;
+    border-radius: 12px;
 }
 
 #input {
@@ -6237,4 +6235,32 @@ div#usersList .username-wrapper .user-badge  {
   object-fit: contain;
   margin: 0 1px;
   pointer-events: none;
+}
+
+
+
+button#hangupBtn {
+    background-color: #ff0000;
+}
+
+
+audio.chat-audio {
+  width: 100%;
+  height: 32px;
+  border-radius: 6px;
+  color-scheme: dark;
+}
+
+audio.chat-audio::-webkit-media-controls-panel {
+  background-color: #2b2d31;
+}
+
+audio.chat-audio::-webkit-media-controls-play-button,
+audio.chat-audio::-webkit-media-controls-mute-button {
+  filter: invert(1);
+}
+
+audio.chat-audio::-webkit-media-controls-current-time-display,
+audio.chat-audio::-webkit-media-controls-time-remaining-display {
+  color: #dcddde;
 }

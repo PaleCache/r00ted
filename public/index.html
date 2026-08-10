@@ -248,9 +248,26 @@
  
 </div>
   </div>
-    <div class="sidebar-bottom">
-      <button id="settingsBtn" title="Settings">⚙</button>
+<div class="sidebar-bottom">
+  <div id="levelContainer" title="0 / 100 XP" style="display:flex; flex-direction:column; align-items:center; margin-bottom:6px;">
+    <div class="circular-level">
+      <svg width="40" height="40" viewBox="0 0 42 42">
+        <circle cx="21" cy="21" r="15" fill="none" stroke="#40444b" stroke-width="6"></circle>
+        <circle id="xpCircle" cx="21" cy="21" r="15" fill="none" 
+                stroke="#FF0000" stroke-width="6" 
+                stroke-dasharray="94.2" 
+                stroke-dashoffset="94.2"
+                stroke-linecap="round"
+                transform="rotate(-90 21 21)"></circle>
+      </svg>
+      <div class="level-center">
+        <div id="levelText" class="level-number">1</div>
+      </div>
     </div>
+    <div id="version" style="text-align:center; font-size:10px; color:#b9bbbe; margin-top:2px; opacity:0.85;"></div>
+  </div>
+  <button id="settingsBtn" title="Settings">⚙</button>
+</div>
   </div>
 
 
@@ -330,7 +347,6 @@
 
   <div id="channelsList" style="display: flex;
         flex-direction: column;
-        gap: 4px;
         position: relative;
         max-height: calc(6 * 36px);
         overflow-y: scroll;
@@ -340,9 +356,9 @@
 
 </div>
 </div>
-<div style="padding: 12px;">
+<div style="padding: 7px;">
 
-  <div id="voiceChannelsList" style="display: flex; flex-direction: column; gap: 4px;"></div>
+  <div id="voiceChannelsList" style="display: flex; flex-direction: column;"></div>
 </div>
     <div id="voicePanel">
     <div class="voice-header">
@@ -354,7 +370,7 @@
 </div>
 </div>
 
-<div id="voiceParticipantsDropdown" class="voice-participants-dropdown" style="display:none; position:absolute; background:#121314; border-left: 4px solid #FF0000 !important; border:1px solid #40444b; border-radius:8px; padding:8px; width:267px; max-height:300px; overflow-y:auto; z-index:1000; box-shadow:0 8px 24px rgba(0,0,0,0.6);"></div>
+<div id="voiceParticipantsDropdown" class="voice-participants-dropdown" style="display:none; position:absolute; background:#121314; border:1px solid #40444b; border-radius:8px; padding:8px; width:267px; max-height:300px; overflow-y:auto; z-index:1000; box-shadow:0 8px 24px rgba(0,0,0,0.6);"></div>
   <div class="sidebar2-bottom">
 
     <div id="voiceControls" class="voice-controls" style="display:none; height:auto; flex-direction:column; padding:12px; gap:8px;">
@@ -387,18 +403,20 @@
  
   <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
     <button class="voice-btn" id="muteBtn" onclick="toggleMute()">
-      <img src="/avatars/svgs/mic-on.svg" alt="Mute" style="width:16px; height:16px;">
+      <img src="/svgs/mic-on.svg" alt="Mute" style="width:16px; height:16px;">
     </button>
 
     <button class="voice-btn" id="deafenBtn" onclick="toggleDeafen()">
-      <img src="/avatars/svgs/def.svg" style="width:16px; height:16px;">
+      <img src="/svgs/def.svg" style="width:16px; height:16px;">
     </button>
 
     <button class="voice-btn" id="screenBtn" onclick="toggleScreenShare()">
-      <img src="/avatars/svgs/sharescreen.svg" style="width:16px; height:16px;">
+      <img src="/svgs/sharescreen.svg" style="width:16px; height:16px;">
     </button>
 
-    <button class="voice-btn" style="background:#ed4245;" onclick="leaveVoice()">📞</button>
+      <button class="voice-btn" id="hangupBtn" onclick="leaveVoice()">
+      <img src="/svgs/hangup.svg" style="width:25px; height:25px;">
+    </button>
   </div>
 </div>
 
@@ -469,27 +487,7 @@
 </div>
 
 <div class="input">
-  <div id="levelContainer" style="position: absolute; bottom: 65px; left: 28px; z-index: 10;">
-    <div class="circular-level">
-      <svg width="40" height="40" viewBox="0 0 42 42">
-        <circle cx="21" cy="21" r="15" fill="none" stroke="#40444b" stroke-width="6"></circle>
-        <circle id="xpCircle" cx="21" cy="21" r="15" fill="none" 
-                stroke="#FF0000" stroke-width="6" 
-                stroke-dasharray="94.2" 
-                stroke-dashoffset="94.2"
-                stroke-linecap="round"
-                transform="rotate(-90 21 21)"></circle>
-      </svg>
-      <div class="level-center">
-        <div id="levelText" class="level-number">1</div>
-      </div>
-    </div>
-    
-  <div id="levelContainer" title="0 / 100 XP" style="position: absolute; bottom: 65px; left: 28px; z-index: 10;">
-    </div>
 
-    <div id="version" style="text-align:center; font-size:11px; color:#b9bbbe; margin-top:4px; opacity:0.85;">
-    </div>
   </div>
   
 
@@ -502,7 +500,7 @@
     <button id="gifBtn" title="GIF Search" class="input-icon-btn" style="font-size: 21px; background: transparent; border: none; cursor: pointer; padding: 0 8px;">〠</button>
     <input type="file" id="imageInput" accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime" style="display:none">
   </div>
-</div>
+
 
 </div>
 <div class="users" id="usersList"></div>

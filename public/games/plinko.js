@@ -121,7 +121,29 @@
         #pkDropBtn:hover { filter:brightness(1.15); }
         #pkDropBtn:disabled { opacity:.35; cursor:not-allowed; filter:none; }
 
-        #pkBox { display: flex; flex-direction: row; }
+        #pkBox {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            min-width: 640px;
+            min-height: 420px;
+            box-sizing: border-box;
+            }
+            #pkHeader {
+            cursor: grab;
+            }
+            #pkHeader:active {
+            cursor: grabbing;
+            }
+            #pkResizeHandle {
+            position: absolute;
+            bottom: 0; right: 0;
+            width: 18px; height: 18px;
+            background: linear-gradient(135deg, transparent 50%, rgba(73,73,73,1) 50%);
+            cursor: nwse-resize;
+            z-index: 100;
+            border-radius: 0 0 14px 0;
+            }
         #pkMain { display: flex; flex-direction: column; flex: 1; min-width: 0; }
         #pkSidebar {
           width: 200px; flex-shrink: 0; border-left: 1px solid #3a3c42;
@@ -199,6 +221,63 @@
     }
 
 
+    function setupPlinkoDragResize() {
+        const box = document.getElementById("pkBox");
+        const header = document.getElementById("pkHeader");
+        const resizeHandle = document.getElementById("pkResizeHandle");
+        if (!box || box.dataset.dragSetup) return;
+        box.dataset.dragSetup = "true";
+
+        let isDragging = false, isResizing = false;
+        let startX, startY, startLeft, startTop, startWidth, startHeight;
+
+        header.addEventListener("mousedown", (e) => {
+            if (e.target.closest("button")) return;
+            isDragging = true;
+            const rect = box.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startLeft = rect.left; startTop = rect.top;
+            box.style.left = rect.left + "px";
+            box.style.top = rect.top + "px";
+            box.style.transform = "none";
+            e.preventDefault();
+        });
+
+        resizeHandle.addEventListener("mousedown", (e) => {
+            isResizing = true;
+            const rect = box.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startWidth = rect.width; startHeight = rect.height;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (isDragging) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                let left = startLeft + dx;
+                let top = startTop + dy;
+                left = Math.max(0, Math.min(left, window.innerWidth - box.offsetWidth));
+                top = Math.max(0, Math.min(top, window.innerHeight - box.offsetHeight));
+                box.style.left = left + "px";
+                box.style.top = top + "px";
+            }
+            if (isResizing) {
+                const rect = box.getBoundingClientRect();
+                const maxWidth = Math.max(640, window.innerWidth - rect.left);
+                const maxHeight = Math.max(420, window.innerHeight - rect.top);
+                box.style.width = Math.max(640, Math.min(startWidth + (e.clientX - startX), maxWidth)) + "px";
+                box.style.height = Math.max(420, Math.min(startHeight + (e.clientY - startY), maxHeight)) + "px";
+            }
+        });
+
+        document.addEventListener("mouseup", () => {
+            isDragging = false;
+            isResizing = false;
+        });
+    }
+
     let els = {};
     const slotTimeouts = {}; 
 
@@ -207,8 +286,9 @@
 
         const modal = document.createElement("div");
         modal.id = "pkModal";
-       modal.innerHTML = `
+        modal.innerHTML = `
         <div id="pkBox">
+          <div id="pkResizeHandle"></div>
           <div id="pkMain">
             <div id="pkHeader">
               <h3>🎯 Plinko</h3>
@@ -314,6 +394,7 @@
         buildPegs();
         buildSlots();
         renderBet();
+        setupPlinkoDragResize();
     }
 
     function buildPegs() {

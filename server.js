@@ -1,4 +1,4 @@
-var debugmode = true;
+var debugmode = false;
 const express = require("express");
 const http = require("http");
 const socketIO = require("socket.io");
@@ -24,6 +24,28 @@ const USERS_FILE = "./data/users.json";
 const voiceUserStates = new Map();
 const userSockets = new Map();
 const embedButtonRateLimit = new Map();
+
+const ALLOWED_UPLOAD_EXT = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
+  "video/ogg": ".ogv",
+  "video/quicktime": ".mov",
+  "audio/mpeg": ".mp3",
+  "audio/mp3": ".mp3",     
+  "audio/wav": ".wav",
+  "audio/ogg": ".oga",
+  "audio/webm": ".weba",
+  "text/plain": ".txt",
+  "text/markdown": ".md",
+  "text/csv": ".csv",
+  "application/json": ".json"
+};
+
 
 
 const SESSION_SECRET_FILE = path.join(__dirname, "./data/session-secret.txt");
@@ -306,9 +328,11 @@ console.log("✅ Configuration loaded successfully. Starting server...");
 
 function stripAtPrefix(str) {
   if (typeof str !== "string") return "";
-  return str.trim().replace(/^@+/, "");
+  let s = str.trim();
+  const bracketMatch = s.match(/^@?\[([^\]]+)\]$/);
+  if (bracketMatch) return bracketMatch[1];
+  return s.replace(/^@+/, "");
 }
-
 
 function loadUsers() {
   if (fs.existsSync(USERS_FILE)) {
@@ -362,7 +386,12 @@ app.get('/ping', (req, res) => {
   res.status(200).send('OK');
 });
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
+  setHeaders: (res, filePath) => {
+    res.setHeader("Content-Disposition", "attachment");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+  }
+}));
 app.use("/avatars", express.static(path.join(__dirname, "public/avatars")));
 app.use(express.static("public"));
 
@@ -4184,16 +4213,14 @@ const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, "uploads/"),
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
+      const ext = ALLOWED_UPLOAD_EXT[file.mimetype];
+      if (!ext) return cb(new Error("Unsupported file type"), false);
       cb(null, `${crypto.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp",
-      "video/mp4", "video/webm", "video/ogg", "video/quicktime"
-    ];
-    if (!allowedMimes.includes(file.mimetype)) return cb(new Error("Invalid file type"), false);
+    if (!ALLOWED_UPLOAD_EXT[file.mimetype]) return cb(new Error("Invalid file type"), false);
     cb(null, true);
   }
 });
@@ -4206,41 +4233,51 @@ app.post("/upload-avatar", requireAuth, avatarUpload.single("avatar"), (req, res
 app.post("/upload-image", requireAuth, upload.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-  const ext = path.extname(req.file.originalname).toLowerCase();
   const isVideo = req.file.mimetype.startsWith("video/");
+  const isAudio = req.file.mimetype.startsWith("audio/");
+  const isText = req.file.mimetype.startsWith("text/") || req.file.mimetype === "application/json";
 
   if (isVideo) {
+    return res.json({ url: `/uploads/${req.file.filename}`, type: "video" });
+  }
+
+  if (isAudio) {
+    const safeDisplayName = path.basename(req.file.originalname || "audio")
+      .replace(/[\/\\]/g, "")
+      .slice(0, 100);
     return res.json({
       url: `/uploads/${req.file.filename}`,
-      type: "video"
+      type: "audio",
+      filename: safeDisplayName,
+      size: req.file.size
     });
   }
 
-  if (ext === ".svg") {
-    fs.unlink(req.file.path, () => {});
-    return res.status(400).json({ error: "SVG not allowed" });
+  if (isText) {
+    const safeDisplayName = path.basename(req.file.originalname || "file")
+      .replace(/[\/\\]/g, "")
+      .slice(0, 100);
+
+    return res.json({
+      url: `/uploads/${req.file.filename}`,
+      type: "file",
+      filename: safeDisplayName,
+      size: req.file.size
+    });
   }
 
+  const ext = path.extname(req.file.filename).toLowerCase(); 
   const gifAllowed = ext === ".gif";
 
   try {
     if (!gifAllowed) {
-  const tempPath = req.file.path + "_tmp";
-
-await sharp(req.file.path, {
-  limitInputPixels: 25000000
-})
-  .resize({
-    width: 2000,
-    fit: 'inside',           
-    withoutEnlargement: true 
-  })
-  .toFile(tempPath);
-
-  await fs.promises.unlink(req.file.path);
-  await fs.promises.rename(tempPath, req.file.path);
-}
-
+      const tempPath = req.file.path + "_tmp";
+      await sharp(req.file.path, { limitInputPixels: 25000000 })
+        .resize({ width: 2000, fit: 'inside', withoutEnlargement: true })
+        .toFile(tempPath);
+      await fs.promises.unlink(req.file.path);
+      await fs.promises.rename(tempPath, req.file.path);
+    }
     res.json({ url: `/uploads/${req.file.filename}` });
   } catch (err) {
     fs.unlink(req.file.path, () => {});
@@ -4534,6 +4571,24 @@ socket.on("createChannel", (data) => {
   io.emit("channelCreated", channel);
 });
 
+
+socket.on("resetAccountCreation", () => {
+  if (!socket.isAdmin) {
+    socket.emit("error", { msg: "❌ Admin only." });
+    return;
+  }
+
+  const count = accountCreationAttempts.size;
+  accountCreationAttempts.clear();
+
+  socket.emit("systemMessage", {
+    msg: `✅ Cleared account creation limits for ${count} IP${count === 1 ? "" : "s"}.`,
+    type: "success"
+  });
+
+  console.log(`🧹 Account creation limits reset by ${onlineUsers.get(socket.userId)?.username || "Admin"} (cleared ${count} tracked IPs)`);
+});
+
 socket.on("deleteChannel", (data) => {
     if (!socket.isAdmin) {
     socket.emit("channelError", { msg: "❌ Admin only." });
@@ -4597,8 +4652,8 @@ socket.on("join", (clientData) => {
     console.error("Failed to get client IP:", e);
   }
 
-      const isNewUser = !allUsers.has(clientData.id);
-    if (isNewUser) {
+const isNewUser = !allUsers.has(clientData.id);
+    if (isNewUser && !isBot) {
       const now = Date.now();
       let attempts = accountCreationAttempts.get(ip) || { count: 0, resetTime: now + ACCOUNT_CREATION_WINDOW };
       if (now > attempts.resetTime) {
@@ -4622,8 +4677,8 @@ socket.on("join", (clientData) => {
   if (!clientData?.id) return;
 
 
-if (!isBot) {
-socket.xpTimer = setInterval(() => {
+   if (!isBot) {
+  socket.xpTimer = setInterval(() => {
     if (!socket.userId) return;
 
     const user = onlineUsers.get(socket.userId);
@@ -4643,7 +4698,7 @@ socket.xpTimer = setInterval(() => {
     }
 
     const xpAmount = 10.0;
-    const xpResult = addServerXP(socket.userId, xpAmount);
+    addBonusXp(socket.userId, xpAmount);
   }, 10 * 60 * 1000);
 }
 
@@ -4658,7 +4713,7 @@ socket.isBot = isBot;
 if (!userSockets.has(clientData.id)) userSockets.set(clientData.id, new Set());
 userSockets.get(clientData.id).add(socket.id);
 
-  if (isBot) {
+    if (isBot) {
     const botUser = {
       id: clientData.id,
       username: clientData.username || "Aira",
@@ -4668,7 +4723,8 @@ userSockets.get(clientData.id).add(socket.id);
       usernameColor: clientData.usernameColor,
       lastActive: Date.now(),
       isBot: true,
-      level: clientData.level
+      level: clientData.level,
+      userAgent: clientData.userAgent || socket.handshake.headers['user-agent'] || 'Unknown'
     };
     onlineUsers.set(clientData.id, botUser);
     broadcastOnlineUsers();
@@ -4696,7 +4752,7 @@ userSockets.get(clientData.id).add(socket.id);
     saveUsers();
   }
 
-  socket.emit("whisperHistory", { conversations: buildWhisperHistoryFor(clientData.id) });
+ 
   const isAdmin = dbUser.isAdmin === true;
   const isDeveloper = dbUser.isDeveloper === true;
   const isPromptEngineer = dbUser.isPromptEngineer === true;
@@ -4737,6 +4793,8 @@ socket.emit("userData", {
   isPromptEngineer: isPromptEngineer,
   unlockedPrestigeBadges: dbUser.unlockedPrestigeBadges || []
 });
+
+ socket.emit("whisperHistory", { conversations: buildWhisperHistoryFor(clientData.id) });
   if (isAdmin) {
     console.log(`👑 ADMIN CONNECTED: ${serverUser.username}`);
     io.emit("adminOnline", { userId: serverUser.id, username: serverUser.username });
@@ -4871,7 +4929,62 @@ socket.on("editMessage", (data) => {
 
 
 
+socket.on("whisperTyping", (data) => {
+  if (socket.isBot) return;
+  const fromId = socket.userId;
+  if (!fromId) return;
 
+  const senderInfo = onlineUsers.get(fromId) || allUsers.get(fromId) || {};
+  const username = senderInfo.username || "Anonymous";
+
+  if (data?.groupId) {
+    const group = whisperGroups.find(g => g.id === data.groupId);
+    if (!group || !group.memberIds.includes(fromId)) return;
+
+    const payload = {
+  from: fromId,
+  username: senderInfo.username || "Anonymous",
+  avatar: senderInfo.avatar || "/avatars/default1.png",
+  usernameColor: senderInfo.usernameColor || "username-cyan"
+};
+    group.memberIds.forEach(uid => {
+      if (uid !== fromId) emitToUser(uid, "whisperTyping", payload);
+    });
+    return;
+  }
+
+  const toId = data?.to;
+  if (!toId || toId === fromId) return;
+
+  emitToUser(toId, "whisperTyping", { from: fromId, username });
+});
+
+socket.on("getWhisperHistory", () => {
+  if (socket.isBot || !socket.userId) return;
+  socket.emit("whisperHistory", { conversations: buildWhisperHistoryFor(socket.userId) });
+});
+
+socket.on("whisperStopTyping", (data) => {
+  if (socket.isBot) return;
+  const fromId = socket.userId;
+  if (!fromId) return;
+
+  if (data?.groupId) {
+    const group = whisperGroups.find(g => g.id === data.groupId);
+    if (!group || !group.memberIds.includes(fromId)) return;
+
+    const payload = { from: fromId, groupId: group.id };
+    group.memberIds.forEach(uid => {
+      if (uid !== fromId) emitToUser(uid, "whisperStopTyping", payload);
+    });
+    return;
+  }
+
+  const toId = data?.to;
+  if (!toId || toId === fromId) return;
+
+  emitToUser(toId, "whisperStopTyping", { from: fromId });
+});
 
 socket.on("embedButtonClick", (data) => {
   if (!data || !data.messageId || !data.buttonId) return;
@@ -5443,9 +5556,21 @@ io.to(targetSocket).emit('receivePrivateYoutube', {
   }
   
       const channel = data.channel || "general";
-    if (mutedUsers.has(userId)) {
-      socket.emit("error", { msg: "❌ You are muted and cannot send messages." });
-      return;
+      if (mutedUsers.has(userId)) {
+        socket.emit("error", { msg: "❌ You are muted and cannot send messages." });
+        return;
+      }
+
+    if ((data.type === "video" || data.type === "file" || data.type === "audio") && typeof data.text === "string") {
+      const safeUploadPattern = /^\/uploads\/[a-f0-9-]{36}\.(mp4|webm|ogv|mov|mp3|wav|oga|weba|txt|md|csv|json)$/i;
+      if (!safeUploadPattern.test(data.text)) {
+        socket.emit("error", { msg: "❌ Invalid file reference." });
+        return;
+      }
+    }
+
+    if (data.fileName !== undefined) {
+      data.fileName = sanitizeString(String(data.fileName), 100);
     }
 
   
@@ -5504,6 +5629,36 @@ io.to(targetSocket).emit('receivePrivateYoutube', {
   });
 
   io.emit("voiceStateUpdate", data);
+});
+
+
+socket.on("botUpdateStatus", (data) => {
+  if (!socket.isBot || !socket.userId) return;
+
+  const botUser = onlineUsers.get(socket.userId);
+  if (!botUser) return;
+
+  const ALLOWED_BOT_FIELDS = ["customStatus", "status", "avatar", "username", "usernameColor"];
+  let changed = false;
+
+  ALLOWED_BOT_FIELDS.forEach(field => {
+    if (data[field] !== undefined) {
+      if (field === "customStatus" || field === "username") {
+        botUser[field] = sanitizeString(String(data[field]), field === "username" ? 32 : 100);
+      } else {
+        botUser[field] = data[field];
+      }
+      changed = true;
+    }
+  });
+
+  if (!changed) return;
+
+  botUser.lastActive = Date.now();
+  onlineUsers.set(socket.userId, botUser);
+  broadcastOnlineUsers();
+
+  console.log(`🤖 Bot "${botUser.username}" updated status: ${botUser.customStatus || botUser.status || ""}`);
 });
 
 
@@ -8133,26 +8288,3 @@ server.listen(5350, '127.0.0.1', () => {
   console.log("📡 Socket.IO enabled with auto-reconnection");
 });
 
-
-/*
-bot bttons
-{
-  id: crypto.randomUUID(),
-  userId: botUserId,
-  username: "Aira",
-  type: "embed",
-  channel: "general",
-  time: Date.now(),
-  embed: {
-    title: "Server Poll",
-    description: "Vote below",
-    color: "#5865F2",
-    buttons: [
-      { id: "vote_yes", label: "Yes", style: "success" },
-      { id: "vote_no", label: "No", style: "danger" },
-      { label: "Docs", style: "link", url: "https://example.com" }
-    ]
-  }
-}
-
-*/
