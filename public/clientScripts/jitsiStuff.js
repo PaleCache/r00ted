@@ -1,3 +1,5 @@
+const userJoinAudio = new Audio('/sounds/power-plug.oga');
+const userLeaveAudio = new Audio('/sounds/power-unplug.oga');
 function loadJitsiLibrary() {
   return new Promise((resolve, reject) => {
     if (window.JitsiMeetJS) {
@@ -1274,4 +1276,17 @@ function applySavedVolumesToUser(participantId) {
     savedVolume = stored ? parseFloat(stored) : 1;
   }
   applyVolumeToUser(participantId, savedVolume);
+}
+
+
+
+
+function userjoinSound() {
+  userJoinAudio.currentTime = 0;
+  userJoinAudio.play().catch(e => console.warn("Join sound blocked:", e));
+}
+
+function userleaveSound() {
+  userLeaveAudio.currentTime = 0;
+  userLeaveAudio.play().catch(e => console.warn("Leave sound blocked:", e));
 }
