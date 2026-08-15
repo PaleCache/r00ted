@@ -42,7 +42,7 @@ No ads. No tracking. No centralized servers.
 - Linux (recommended)
 - Node.js
 - Nginx (or another reverse proxy)
-- A working Jitsi Meet installation (used for voice chat and screen sharing)
+- A working Jitsi Meet installation - can be your own or a public one that has email login disabled (used for voice chat and screen sharing)
 - A domain or sub domain is technically optional with some changes, but you'll need one to get HTTPS working properly. (You should use one, it's easy are free if you use something like duckdns etc)
 
 ## Installation
