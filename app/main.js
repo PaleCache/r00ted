@@ -4,11 +4,11 @@ const fs = require('fs');
 const os = require('os');
 let lastMusicData = null;
 const { execSync } = require('child_process');
-if (process.platform === 'linux') {
-  app.commandLine.appendSwitch('ozone-platform', 'x11');
-}
-app.commandLine.appendSwitch('ozone-platform', 'x11');
-app.commandLine.appendSwitch('disable-features', 'VaapiVideoDecoder,VaapiVideoEncoder');
+//if (process.platform === 'linux') {
+  //app.commandLine.appendSwitch('ozone-platform', 'x11');
+//}
+//app.commandLine.appendSwitch('ozone-platform', 'x11');
+//app.commandLine.appendSwitch('disable-features', 'VaapiVideoDecoder,VaapiVideoEncoder');
 let mainWindow;
 let tray;
 const trayIcons = new Map();
@@ -230,7 +230,7 @@ ipcMain.on('overlay-music-update', (event, musicData) => {
   if (!overlayWindow || !overlaySettings.enabled) return;
   if (!overlayReady) return;
   overlayWindow.webContents.send('music-update', musicData);
-});;
+});
 
 ipcMain.on('show-notification', async (event, { title, body, icon, url, tag, silent, requireInteraction }) => {
   if (!Notification.isSupported()) return;

@@ -2,6 +2,13 @@
   "pepeList": [
     "omegalul.png"
   ],
+
+  "profileEffects": [
+    {
+      "name": "test",
+      "url": "/effects/heart-love.gif"
+    }
+  ],
   "prestigeBadges": [
     {
       "level": 10,

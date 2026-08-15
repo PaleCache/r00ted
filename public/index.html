@@ -580,14 +580,8 @@
   <input type="file" id="bannerUpload" accept="image/*" style="display:none">
 </div>
 
-<div class="setting-item">
-  <label style="color: #fff; font-weight: 600; margin-bottom: 8px; display: block;">Profile Image Bottom</label>
-  <div class="banner-preview" id="profileHeaderPreview" style="width: 100%; height: 140px; background-size: cover; background-position: center; border-radius: 8px; margin: 10px 0; border: 2px solid #40444b;"></div>
-  <button onclick="document.getElementById('profileHeaderUpload').click()" style="background: #FF0000; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-top: 10px;">Upload Header Image</button>
-  <input type="file" id="profileHeaderUpload" style="display: none;" accept="image/*">
-  <button onclick="removeProfileHeader()" style="background: #ed4245; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">Remove Header</button>
-  <input type="file" id="profileHeaderUpload" style="display: none;" accept="image/*">
-</div>
+
+
 
 
 <div class="setting-item">
@@ -622,6 +616,17 @@
   
   <div id="gradientButtons" style="display: flex; gap: 10px; flex-wrap: wrap;">
   </div>
+</div>
+
+<div class="setting-item">
+  <label>Profile Card Gradient</label>
+  <div id="profileGradientButtons" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+</div>
+
+
+<div class="setting-item">
+  <label>Profile Effect</label>
+  <div id="profileEffectButtons" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
 </div>
 
 <div class="setting-item">
@@ -1101,27 +1106,33 @@
 </div>
 <input type="file" id="pfpUpload" accept="image/*" style="display: none;">
 
-<script src="/games/bonusAccount.js"></script>
- <script src="script.js"></script>
- <script src="music-player.js"></script>
- <script src="whispers.js" defer></script>
- <script src="/games/blackjack.js"></script>
- <script src="/games/plinko.js"></script>
- <script src="/games/minesweeper.js"></script>
- <script src="/games/wheel.js"></script>
- <script src="/games/dice.js"></script>
- <script src="/games/poker.js"></script>
- <script src="/games/peperunner.js"></script>
- <script src="/games/pong.js"></script>
- <script src="/games/games-menu.js"></script>
- <script src="/games/weedgrow.js"></script>
- <script src="/games/slots.js"></script>
- <script src="/games/airstrike.js"></script>
- <script src="/games/skyrunner.js"></script>
- <script src="/games/towerclimb.js"></script>
- <script src="/games/darts.js"></script>
- <script src="/games/roulette.js"></script>
-
-
+<script src="/games/bonusAccount.js" defer></script>
+<script src="/clientScripts/animations.js" defer></script>
+<script src="/clientScripts/script.js" defer></script>
+<script src="/clientScripts/music-player.js" defer></script>
+<script src="/clientScripts/whispers.js" defer></script>
+<script src="/games/blackjack.js" defer></script>
+<script src="/games/plinko.js" defer></script>
+<script src="/games/minesweeper.js" defer></script>
+<script src="/games/wheel.js" defer></script>
+<script src="/games/dice.js" defer></script>
+<script src="/games/poker.js" defer></script>
+<script src="/games/peperunner.js" defer></script>
+<script src="/games/pong.js" defer></script>
+<script src="/games/games-menu.js" defer></script>
+<script src="/games/weedgrow.js" defer></script>
+<script src="/games/slots.js" defer></script>
+<script src="/games/airstrike.js" defer></script>
+<script src="/games/skyrunner.js" defer></script>
+<script src="/games/towerclimb.js" defer></script>
+<script src="/games/darts.js" defer></script>
+<script src="/games/roulette.js" defer></script>
+<script src="/clientScripts/profilePopup.js" defer></script>
+<script src="/clientScripts/audioEmbed.js" defer></script>
+<script src="/clientScripts/streamStuff.js" defer></script>
+<script src="/clientScripts/embeds.js" defer></script>
+<script src="/clientScripts/socket.js" defer></script>
+<script src="/clientScripts/notifications.js" defer></script>
+<script src="/clientScripts/jitsiStuff.js" defer></script>
 </body>
 </html>

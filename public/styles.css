@@ -753,20 +753,19 @@ div#usersList {
   position: fixed;
   background: #36393f;
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
   width: 337px;
   z-index: 10003;
   visibility: hidden;
   opacity: 0;
   overflow: hidden;
-  border: 1px solid #202225;
+  border: 3px solid #202225;
   max-height: 90vh;
   overflow-y: auto;
   transition: opacity 0.2s;
 }
 
 .popup-banner {
-    height: 142px;
+    height: 113px;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -784,10 +783,10 @@ div#usersList {
 
 .popup-avatar {
   position: absolute;
-  bottom: -35px;
+  bottom: -49px;
   left: 20px;
-  width: 98px;
-  height: 98px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   border: 6px solid #36393f;
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
@@ -814,7 +813,6 @@ width: 100%;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6); 
   z-index: -1; 
   pointer-events: none; 
 }
@@ -856,6 +854,7 @@ width: 100%;
   font-weight: 500;
   cursor: pointer;
   width: fit-content;
+  border: 1px solid #292929e0;
 }
 
 .popup-btn:hover { background: #ff0000; }
@@ -990,6 +989,364 @@ width: 100%;
 .username-red        { background: linear-gradient(90deg, #ff3333, #aa0000); }
 .username-blue-silver{ background: linear-gradient(90deg, #3399ff, #c0d4ff); }
 
+
+
+
+
+
+.username-wrapper[class*="ug-"] {
+  display: inline-block;
+
+ 
+  background-clip: text;
+  -webkit-background-clip: text;
+
+ 
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+
+
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+}
+
+
+
+
+.username-wrapper.ug-gold {
+  background-image: linear-gradient(90deg, #ffd700, #ff8800);
+}
+
+.username-wrapper.ug-pink {
+  background-image: linear-gradient(90deg, #ff2d95, #c800ff);
+}
+
+.username-wrapper.ug-purple {
+  background-image: linear-gradient(90deg, #9d4eff, #4b00ff);
+}
+
+.username-wrapper.ug-cyan {
+  background-image: linear-gradient(90deg, #00f2ff, #0066ff);
+}
+
+.username-wrapper.ug-green {
+  background-image: linear-gradient(90deg, #39ff6e, #008f2e);
+}
+
+.username-wrapper.ug-red {
+  background-image: linear-gradient(90deg, #ff3333, #aa0000);
+}
+
+.username-wrapper.ug-blue-silver {
+  background-image: linear-gradient(90deg, #3399ff, #c0d4ff);
+}
+
+
+
+
+.username-wrapper.ug-sunset {
+  background-image: linear-gradient(90deg, #ff416c, #ff4b2b);
+}
+
+.username-wrapper.ug-sunrise {
+  background-image: linear-gradient(90deg, #ff512f, #f09819, #ffe259);
+}
+
+.username-wrapper.ug-peach {
+  background-image: linear-gradient(90deg, #ff9a9e, #fad0c4, #ffd1ff);
+}
+
+.username-wrapper.ug-flamingo {
+  background-image: linear-gradient(90deg, #f43f5e, #ec4899, #d946ef);
+}
+
+.username-wrapper.ug-electric {
+  background-image: linear-gradient(90deg, #ff00cc, #3333ff, #00d4ff);
+}
+
+.username-wrapper.ug-tropical {
+  background-image: linear-gradient(90deg, #00f5a0, #00d9f5, #7c3aed);
+}
+
+
+
+
+.username-wrapper.ug-galaxy {
+  background-image: linear-gradient(90deg, #0f0c29, #302b63, #7b2cbf);
+}
+
+.username-wrapper.ug-nebula {
+  background-image: linear-gradient(90deg, #05001a, #4c1d95, #db2777, #fb7185);
+}
+
+.username-wrapper.ug-cosmos {
+  background-image: linear-gradient(90deg, #020617, #172554, #4f46e5, #c026d3);
+}
+
+.username-wrapper.ug-starlight {
+  background-image: linear-gradient(90deg, #0f172a, #312e81, #818cf8, #e0e7ff);
+}
+
+.username-wrapper.ug-supernova {
+  background-image: linear-gradient(90deg, #1e1b4b, #7e22ce, #e11d48, #fbbf24);
+}
+
+.username-wrapper.ug-event-horizon {
+  background-image: linear-gradient(90deg, #000000, #111827, #4c1d95, #c026d3);
+}
+
+
+
+
+.username-wrapper.ug-amethyst {
+  background-image: linear-gradient(90deg, #3b0764, #7e22ce, #c084fc);
+}
+
+.username-wrapper.ug-royal {
+  background-image: linear-gradient(90deg, #1e1b4b, #4338ca, #8b5cf6);
+}
+
+.username-wrapper.ug-violet {
+  background-image: linear-gradient(90deg, #4c1d95, #9333ea, #e879f9);
+}
+
+.username-wrapper.ug-magenta {
+  background-image: linear-gradient(90deg, #f72585, #b5179e, #7209b7);
+}
+
+.username-wrapper.ug-cotton-candy {
+  background-image: linear-gradient(90deg, #a78bfa, #f472b6, #fda4af);
+}
+
+.username-wrapper.ug-bubblegum {
+  background-image: linear-gradient(90deg, #ec4899, #f472b6, #f9a8d4);
+}
+
+
+
+
+.username-wrapper.ug-inferno {
+  background-image: linear-gradient(90deg, #7f1d1d, #ea580c, #facc15);
+}
+
+.username-wrapper.ug-ember {
+  background-image: linear-gradient(90deg, #450a0a, #b91c1c, #f97316);
+}
+
+.username-wrapper.ug-volcanic {
+  background-image: linear-gradient(90deg, #09090b, #450a0a, #dc2626, #fb923c);
+}
+
+.username-wrapper.ug-molten {
+  background-image: linear-gradient(90deg, #1c1917, #991b1b, #f97316, #fde047);
+}
+
+.username-wrapper.ug-firestorm {
+  background-image: linear-gradient(90deg, #450a0a, #dc2626, #f97316, #fef08a);
+}
+
+
+
+
+.username-wrapper.ug-ocean {
+  background-image: linear-gradient(90deg, #023e8a, #0077b6, #48cae4);
+}
+
+.username-wrapper.ug-deep-sea {
+  background-image: linear-gradient(90deg, #020617, #0c4a6e, #0891b2);
+}
+
+.username-wrapper.ug-abyss {
+  background-image: linear-gradient(90deg, #020617, #082f49, #164e63);
+}
+
+.username-wrapper.ug-arctic {
+  background-image: linear-gradient(90deg, #0c4a6e, #06b6d4, #bae6fd);
+}
+
+.username-wrapper.ug-iceberg {
+  background-image: linear-gradient(90deg, #172554, #2563eb, #67e8f9);
+}
+
+.username-wrapper.ug-electric-blue {
+  background-image: linear-gradient(90deg, #172554, #2563eb, #22d3ee);
+}
+
+.username-wrapper.ug-cyber-blue {
+  background-image: linear-gradient(90deg, #020617, #1d4ed8, #06b6d4);
+}
+
+
+
+
+.username-wrapper.ug-forest {
+  background-image: linear-gradient(90deg, #064e3b, #059669, #34d399);
+}
+
+.username-wrapper.ug-emerald {
+  background-image: linear-gradient(90deg, #022c22, #059669, #6ee7b7);
+}
+
+.username-wrapper.ug-jade {
+  background-image: linear-gradient(90deg, #064e3b, #10b981, #2dd4bf);
+}
+
+.username-wrapper.ug-toxic {
+  background-image: linear-gradient(90deg, #052e16, #16a34a, #a3e635);
+}
+
+.username-wrapper.ug-radioactive {
+  background-image: linear-gradient(90deg, #17210b, #65a30d, #d9f99d);
+}
+
+.username-wrapper.ug-aurora {
+  background-image: linear-gradient(
+    90deg,
+    #020617,
+    #1e1b4b,
+    #7c3aed,
+    #06b6d4,
+    #34d399
+  );
+}
+
+
+
+
+.username-wrapper.ug-midnight {
+  background-image: linear-gradient(90deg, #020617, #1e293b, #475569);
+}
+
+.username-wrapper.ug-void {
+  background-image: linear-gradient(90deg, #000000, #111827, #312e81);
+}
+
+.username-wrapper.ug-obsidian {
+  background-image: linear-gradient(90deg, #09090b, #18181b, #3f3f46);
+}
+
+.username-wrapper.ug-phantom {
+  background-image: linear-gradient(90deg, #09090b, #1e1b4b, #312e81);
+}
+
+.username-wrapper.ug-noir {
+  background-image: linear-gradient(90deg, #030712, #111827, #1f2937);
+}
+
+.username-wrapper.ug-carbon {
+  background-image: linear-gradient(90deg, #18181b, #27272a, #52525b);
+}
+
+.username-wrapper.ug-black-ice {
+  background-image: linear-gradient(90deg, #020617, #172554, #334155);
+}
+
+
+
+
+.username-wrapper.ug-champagne {
+  background-image: linear-gradient(90deg, #78350f, #d4a574, #fef3c7);
+}
+
+.username-wrapper.ug-rose-gold {
+  background-image: linear-gradient(90deg, #7c2d12, #e8797e, #fbcfe8);
+}
+
+.username-wrapper.ug-platinum {
+  background-image: linear-gradient(90deg, #1f2937, #94a3b8, #f1f5f9);
+}
+
+.username-wrapper.ug-silver {
+  background-image: linear-gradient(90deg, #334155, #cbd5e1, #ffffff);
+}
+
+
+
+
+.username-wrapper.ug-neon {
+  background-image: linear-gradient(90deg, #ff00ff, #00ffff, #39ff14);
+}
+
+.username-wrapper.ug-cyberpunk {
+  background-image: linear-gradient(90deg, #ff0080, #7928ca, #00ffff);
+}
+
+.username-wrapper.ug-synthwave {
+  background-image: linear-gradient(90deg, #12001f, #7b2cbf, #f72585, #ff9f1c);
+}
+
+.username-wrapper.ug-laser {
+  background-image: linear-gradient(90deg, #00111a, #00e5ff, #ff00aa);
+}
+
+.username-wrapper.ug-matrix {
+  background-image: linear-gradient(90deg, #001a0a, #00a63c, #39ff88);
+}
+
+.username-wrapper.ug-plasma {
+  background-image: linear-gradient(90deg, #4c0519, #e11d48, #9333ea, #22d3ee);
+}
+
+
+
+
+.username-wrapper.ug-prism {
+  background-image: linear-gradient(
+    90deg,
+    #ff0080,
+    #ff8c00,
+    #ffe600,
+    #00ff85,
+    #00c6ff
+  );
+}
+
+.username-wrapper.ug-rainbow {
+  background-image: linear-gradient(
+    90deg,
+    #ef4444,
+    #f59e0b,
+    #22c55e,
+    #06b6d4,
+    #8b5cf6
+  );
+}
+
+.username-wrapper.ug-dreamscape {
+  background-image: linear-gradient(90deg, #312e81, #7c3aed, #ec4899, #f9a8d4);
+}
+
+.username-wrapper.ug-twilight {
+  background-image: linear-gradient(90deg, #0f172a, #3730a3, #c026d3, #fb7185);
+}
+
+.username-wrapper.ug-mystic {
+  background-image: linear-gradient(90deg, #172554, #581c87, #be185d);
+}
+
+.username-wrapper.ug-enchanted {
+  background-image: linear-gradient(90deg, #022c22, #115e59, #7e22ce, #c026d3);
+}
+
+.username-wrapper.ug-dream {
+  background-image: linear-gradient(90deg, #1e3a8a, #7c3aed, #f472b6);
+}
+
+.username-wrapper.ug-holographic {
+  background-image: linear-gradient(
+    90deg,
+    #22d3ee,
+    #818cf8,
+    #e879f9,
+    #fb7185,
+    #fde68a
+  );
+}
+
+
+
+
 #popupUsername .username-wrapper {
   font-size: 22px;
   font-weight: 700;
@@ -1006,7 +1363,6 @@ width: 100%;
   object-fit: cover;
   margin-left: 4px;
   vertical-align: middle;
-  box-shadow: 0 0 4px rgba(0,0,0,0.6);
 }
 
 
@@ -1025,7 +1381,6 @@ width: 100%;
   height: 23px !important;
   margin-left: 8px;
   vertical-align: middle;
-  box-shadow: 0 0 6px rgba(0,0,0,0.6);
 }
 
 
@@ -1445,7 +1800,7 @@ div#popupLevel {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 10px;
+    font-size: 10px !important;
     color: #b9bbbe;
     bottom: 15px;
     left: 2px;
@@ -6264,3 +6619,27 @@ audio.chat-audio::-webkit-media-controls-current-time-display,
 audio.chat-audio::-webkit-media-controls-time-remaining-display {
   color: #dcddde;
 }
+
+@keyframes profileEffectPlay {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    opacity: 0.9;
+    transform: scale(1.08) rotate(2deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.12) rotate(0deg);
+  }
+  75% {
+    opacity: 0.9;
+    transform: scale(1.08) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+

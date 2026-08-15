@@ -90,148 +90,7 @@ html, body { margin:0; background:transparent; overflow:hidden; font-family: Ari
 @keyframes toxicAnim { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
 @keyframes chaosAnim { 0% { transform: translate(0,0) rotate(0deg); } 25% { transform: translate(1px,-1px) rotate(-1deg); } 50% { transform: translate(-1px,1px) rotate(1deg); } 75% { transform: translate(1px,1px) rotate(-1deg); } 100% { transform: translate(0,0) rotate(0deg); } }
 @keyframes singularityAnim { 0%, 100% { background-position: 0% 50%; transform: scale(1); } 50% { background-position: 100% 50%; transform: scale(1.05); } }
-@keyframes avatarRainbowGlow {
-  0% { border-color: #ff0000; }
-  14% { border-color: #ff8800; }
-  28% { border-color: #ffff00; }
-  42% { border-color: #00ff00; }
-  57% { border-color: #00ffff; }
-  71% { border-color: #0066ff; }
-  85% { border-color: #cc00ff; }
-  100% { border-color: #ff0000; }
-}
 
-@keyframes avatarNeonGlow {
-  from { border-color: #00ffea; }
-  to { border-color: #ff00c8; }
-}
-
-@keyframes avatarShimmerGlow {
-  0%, 100% { border-color: #aaffff; }
-  50% { border-color: #ffffff; }
-}
-
-@keyframes avatarGlitchGlow {
-  0%, 100% { border-color: #00ffcc; }
-  33% { border-color: #ff00ff; }
-  66% { border-color: #00ffff; }
-}
-
-@keyframes avatarElectricGlow {
-  0% { border-color: #00ddff; }
-  100% { border-color: #ffffff; }
-}
-
-@keyframes avatarMatrixGlow {
-  0%, 100% { border-color: #00ff41; }
-  50% { border-color: #008f1e; }
-}
-
-@keyframes avatarGhostGlow {
-  0%, 100% { border-color: #bbbbff; }
-  50% { border-color: #ffffff; }
-}
-
-@keyframes avatarHellfireGlow {
-  0% { border-color: #ff2200; }
-  50% { border-color: #ffff00; }
-  100% { border-color: #ff2200; }
-}
-
-@keyframes avatarFireGlow {
-  0%, 100% { border-color: #ff4400; }
-  50% { border-color: #ffaa00; }
-}
-
-@keyframes avatarMatrixCodeGlow {
-  0%, 100% { border-color: #00ff41; }
-  50% { border-color: #008f1e; }
-}
-
-@keyframes avatarGoldPulse {
-  0%, 100% { }
-  50% { }
-}
-
-@keyframes avatarPinkPulse {
-  0%, 100% { }
-  50% { }
-}
-
-@keyframes avatarPurplePulse {
-  0%, 100% { }
-  50% { }
-}
-
-@keyframes avatarCyanPulse {
-  0%, 100% { }
-  50% { }
-}
-
-@keyframes avatarGreenPulse {
-  0%, 100% { }
-  50% { }
-}
-
-@keyframes avatarRedPulse {
-  0%, 100% { }
-  50% { }
-}
-
-@keyframes avatarBlueSilverPulse {
-  0%, 100% { }
-  50% { }
-}
-
-@keyframes avatarCyberpunkGlow {
-  0%,100% { border-color:#ff006e; }
-  50% { border-color:#00f5ff; }
-}
-
-@keyframes avatarCosmicGlow {
-  0%,100% { border-color:#a78bfa; }
-  50% { border-color:#60a5fa; }
-}
-
-@keyframes avatarPlasmaGlow {
-  0%,100% { border-color:#ff1493; }
-  50% { border-color:#ffb6c1; }
-}
-
-@keyframes avatarAuroraGlow {
-  0%,100% { border-color:#00ff88; }
-  50% { border-color:#00ffff; }
-}
-
-@keyframes avatarInfernoGlow {
-  0%,100% { border-color:#ff0000; }
-  50% { border-color:#ffff00; }
-}
-
-@keyframes avatarVoidGlow {
-  0%,100% { border-color:#00ffff; }
-  50% { border-color:#0066ff; }
-}
-
-@keyframes avatarCandyGlow {
-  0%,100% { border-color:#ff69b4; }
-  50% { border-color:#ffc0cb; }
-}
-
-@keyframes avatarQuantumGlow {
-  0%,100% { border-color:#00d9ff; }
-  50% { border-color:#6600ff; }
-}
-
-@keyframes avatarTwilightGlow {
-  0%,100% { border-color:#7c3aed; }
-  50% { border-color:#ec4899; }
-}
-
-@keyframes avatarCorruptedGlow {
-  0%,100% { border-color:#ff0080; }
-  50% { border-color:#7928ca; }
-}
 
 @keyframes corruptedGlitch {
   0%, 100% { background-position: 0% 50%; }
@@ -707,6 +566,74 @@ const COLOR_META = {
   'username-toxic':       { bg: 'linear-gradient(90deg,#39ff14,#00ff00,#ffff00,#39ff14)', bgSize: '300% 100%', anim: 'toxicAnim 1s linear infinite' },
   'username-chaos':       { bg: 'linear-gradient(90deg,#ff0080,#ff8c00,#40e0d0,#ff0080)', bgSize: '300% 100%', anim: 'chaosAnim 0.3s ease-in-out infinite' },
   'username-singularity': { bg: 'radial-gradient(circle at center,#ffffff,#ff00ff,#000000)', bgSize: '200% 200%', anim: 'singularityAnim 2s ease-in-out infinite' },
+    'ug-gold': { bg: 'linear-gradient(90deg,#ffd700,#ff8800)' },
+  'ug-pink': { bg: 'linear-gradient(90deg,#ff2d95,#c800ff)' },
+  'ug-purple': { bg: 'linear-gradient(90deg,#9d4eff,#4b00ff)' },
+  'ug-cyan': { bg: 'linear-gradient(90deg,#00f2ff,#0066ff)' },
+  'ug-green': { bg: 'linear-gradient(90deg,#39ff6e,#008f2e)' },
+  'ug-red': { bg: 'linear-gradient(90deg,#ff3333,#aa0000)' },
+  'ug-blue-silver': { bg: 'linear-gradient(90deg,#3399ff,#c0d4ff)' },
+  'ug-sunset': { bg: 'linear-gradient(90deg,#ff416c,#ff4b2b)' },
+  'ug-sunrise': { bg: 'linear-gradient(90deg,#ff512f,#f09819,#ffe259)' },
+  'ug-peach': { bg: 'linear-gradient(90deg,#ff9a9e,#fad0c4,#ffd1ff)' },
+  'ug-flamingo': { bg: 'linear-gradient(90deg,#f43f5e,#ec4899,#d946ef)' },
+  'ug-electric': { bg: 'linear-gradient(90deg,#ff00cc,#3333ff,#00d4ff)' },
+  'ug-tropical': { bg: 'linear-gradient(90deg,#00f5a0,#00d9f5,#7c3aed)' },
+  'ug-galaxy': { bg: 'linear-gradient(90deg,#0f0c29,#302b63,#7b2cbf)' },
+  'ug-nebula': { bg: 'linear-gradient(90deg,#05001a,#4c1d95,#db2777,#fb7185)' },
+  'ug-cosmos': { bg: 'linear-gradient(90deg,#020617,#172554,#4f46e5,#c026d3)' },
+  'ug-starlight': { bg: 'linear-gradient(90deg,#0f172a,#312e81,#818cf8,#e0e7ff)' },
+  'ug-supernova': { bg: 'linear-gradient(90deg,#1e1b4b,#7e22ce,#e11d48,#fbbf24)' },
+  'ug-event-horizon': { bg: 'linear-gradient(90deg,#000000,#111827,#4c1d95,#c026d3)' },
+  'ug-amethyst': { bg: 'linear-gradient(90deg,#3b0764,#7e22ce,#c084fc)' },
+  'ug-royal': { bg: 'linear-gradient(90deg,#1e1b4b,#4338ca,#8b5cf6)' },
+  'ug-violet': { bg: 'linear-gradient(90deg,#4c1d95,#9333ea,#e879f9)' },
+  'ug-magenta': { bg: 'linear-gradient(90deg,#f72585,#b5179e,#7209b7)' },
+  'ug-cotton-candy': { bg: 'linear-gradient(90deg,#a78bfa,#f472b6,#fda4af)' },
+  'ug-bubblegum': { bg: 'linear-gradient(90deg,#ec4899,#f472b6,#f9a8d4)' },
+  'ug-inferno': { bg: 'linear-gradient(90deg,#7f1d1d,#ea580c,#facc15)' },
+  'ug-ember': { bg: 'linear-gradient(90deg,#450a0a,#b91c1c,#f97316)' },
+  'ug-volcanic': { bg: 'linear-gradient(90deg,#09090b,#450a0a,#dc2626,#fb923c)' },
+  'ug-molten': { bg: 'linear-gradient(90deg,#1c1917,#991b1b,#f97316,#fde047)' },
+  'ug-firestorm': { bg: 'linear-gradient(90deg,#450a0a,#dc2626,#f97316,#fef08a)' },
+  'ug-ocean': { bg: 'linear-gradient(90deg,#023e8a,#0077b6,#48cae4)' },
+  'ug-deep-sea': { bg: 'linear-gradient(90deg,#020617,#0c4a6e,#0891b2)' },
+  'ug-abyss': { bg: 'linear-gradient(90deg,#020617,#082f49,#164e63)' },
+  'ug-arctic': { bg: 'linear-gradient(90deg,#0c4a6e,#06b6d4,#bae6fd)' },
+  'ug-iceberg': { bg: 'linear-gradient(90deg,#172554,#2563eb,#67e8f9)' },
+  'ug-electric-blue': { bg: 'linear-gradient(90deg,#172554,#2563eb,#22d3ee)' },
+  'ug-cyber-blue': { bg: 'linear-gradient(90deg,#020617,#1d4ed8,#06b6d4)' },
+  'ug-forest': { bg: 'linear-gradient(90deg,#064e3b,#059669,#34d399)' },
+  'ug-emerald': { bg: 'linear-gradient(90deg,#022c22,#059669,#6ee7b7)' },
+  'ug-jade': { bg: 'linear-gradient(90deg,#064e3b,#10b981,#2dd4bf)' },
+  'ug-toxic': { bg: 'linear-gradient(90deg,#052e16,#16a34a,#a3e635)' },
+  'ug-radioactive': { bg: 'linear-gradient(90deg,#17210b,#65a30d,#d9f99d)' },
+  'ug-aurora': { bg: 'linear-gradient(90deg,#020617,#1e1b4b,#7c3aed,#06b6d4,#34d399)' },
+  'ug-midnight': { bg: 'linear-gradient(90deg,#020617,#1e293b,#475569)' },
+  'ug-void': { bg: 'linear-gradient(90deg,#000000,#111827,#312e81)' },
+  'ug-obsidian': { bg: 'linear-gradient(90deg,#09090b,#18181b,#3f3f46)' },
+  'ug-phantom': { bg: 'linear-gradient(90deg,#09090b,#1e1b4b,#312e81)' },
+  'ug-noir': { bg: 'linear-gradient(90deg,#030712,#111827,#1f2937)' },
+  'ug-carbon': { bg: 'linear-gradient(90deg,#18181b,#27272a,#52525b)' },
+  'ug-black-ice': { bg: 'linear-gradient(90deg,#020617,#172554,#334155)' },
+  'ug-champagne': { bg: 'linear-gradient(90deg,#78350f,#d4a574,#fef3c7)' },
+  'ug-rose-gold': { bg: 'linear-gradient(90deg,#7c2d12,#e8797e,#fbcfe8)' },
+  'ug-platinum': { bg: 'linear-gradient(90deg,#1f2937,#94a3b8,#f1f5f9)' },
+  'ug-silver': { bg: 'linear-gradient(90deg,#334155,#cbd5e1,#ffffff)' },
+  'ug-neon': { bg: 'linear-gradient(90deg,#ff00ff,#00ffff,#39ff14)' },
+  'ug-cyberpunk': { bg: 'linear-gradient(90deg,#ff0080,#7928ca,#00ffff)' },
+  'ug-synthwave': { bg: 'linear-gradient(90deg,#12001f,#7b2cbf,#f72585,#ff9f1c)' },
+  'ug-laser': { bg: 'linear-gradient(90deg,#00111a,#00e5ff,#ff00aa)' },
+  'ug-matrix': { bg: 'linear-gradient(90deg,#001a0a,#00a63c,#39ff88)' },
+  'ug-plasma': { bg: 'linear-gradient(90deg,#4c0519,#e11d48,#9333ea,#22d3ee)' },
+  'ug-prism': { bg: 'linear-gradient(90deg,#ff0080,#ff8c00,#ffe600,#00ff85,#00c6ff)' },
+  'ug-rainbow': { bg: 'linear-gradient(90deg,#ef4444,#f59e0b,#22c55e,#06b6d4,#8b5cf6)' },
+  'ug-dreamscape': { bg: 'linear-gradient(90deg,#312e81,#7c3aed,#ec4899,#f9a8d4)' },
+  'ug-twilight': { bg: 'linear-gradient(90deg,#0f172a,#3730a3,#c026d3,#fb7185)' },
+  'ug-mystic': { bg: 'linear-gradient(90deg,#172554,#581c87,#be185d)' },
+  'ug-enchanted': { bg: 'linear-gradient(90deg,#022c22,#115e59,#7e22ce,#c026d3)' },
+  'ug-dream': { bg: 'linear-gradient(90deg,#1e3a8a,#7c3aed,#f472b6)' },
+  'ug-holographic': { bg: 'linear-gradient(90deg,#22d3ee,#818cf8,#e879f9,#fb7185,#fde68a)' }
 };
 const colorClassToHex = {
   'username-matrix-code': '#00ff41', 'username-gold': '#ffd700', 'username-pink': '#ff2d95',
@@ -722,49 +649,95 @@ const colorClassToHex = {
   'username-hyperdrive': '#00ffff', 'username-supernova': '#ffff00',
   'username-quantum-entangle': '#00d9ff', 'username-dimensional': '#ff00ff',
   'username-toxic': '#39ff14', 'username-chaos': '#ff0080', 'username-singularity': '#ffffff',
-  'username-default': '#616161'
+  'username-default': '#616161',
+  'ug-gold': '#ffd700',
+  'ug-pink': '#ff2d95',
+  'ug-purple': '#9d4eff',
+  'ug-cyan': '#00f2ff',
+  'ug-green': '#39ff6e',
+  'ug-red': '#ff3333',
+  'ug-blue-silver': '#3399ff',
+  'ug-sunset': '#ff416c',
+  'ug-sunrise': '#ff512f',
+  'ug-peach': '#ff9a9e',
+  'ug-flamingo': '#f43f5e',
+  'ug-electric': '#ff00cc',
+  'ug-tropical': '#00f5a0',
+  'ug-galaxy': '#0f0c29',
+  'ug-nebula': '#05001a',
+  'ug-cosmos': '#020617',
+  'ug-starlight': '#0f172a',
+  'ug-supernova': '#1e1b4b',
+  'ug-event-horizon': '#000000',
+  'ug-amethyst': '#3b0764',
+  'ug-royal': '#1e1b4b',
+  'ug-violet': '#4c1d95',
+  'ug-magenta': '#f72585',
+  'ug-cotton-candy': '#a78bfa',
+  'ug-bubblegum': '#ec4899',
+  'ug-inferno': '#7f1d1d',
+  'ug-ember': '#450a0a',
+  'ug-volcanic': '#09090b',
+  'ug-molten': '#1c1917',
+  'ug-firestorm': '#450a0a',
+  'ug-ocean': '#023e8a',
+  'ug-deep-sea': '#020617',
+  'ug-abyss': '#020617',
+  'ug-arctic': '#0c4a6e',
+  'ug-iceberg': '#172554',
+  'ug-electric-blue': '#172554',
+  'ug-cyber-blue': '#020617',
+  'ug-forest': '#064e3b',
+  'ug-emerald': '#022c22',
+  'ug-jade': '#064e3b',
+  'ug-toxic': '#052e16',
+  'ug-radioactive': '#17210b',
+  'ug-aurora': '#020617',
+  'ug-midnight': '#020617',
+  'ug-void': '#000000',
+  'ug-obsidian': '#09090b',
+  'ug-phantom': '#09090b',
+  'ug-noir': '#030712',
+  'ug-carbon': '#18181b',
+  'ug-black-ice': '#020617',
+  'ug-champagne': '#78350f',
+  'ug-rose-gold': '#7c2d12',
+  'ug-platinum': '#1f2937',
+  'ug-silver': '#334155',
+  'ug-neon': '#ff00ff',
+  'ug-cyberpunk': '#ff0080',
+  'ug-synthwave': '#12001f',
+  'ug-laser': '#00111a',
+  'ug-matrix': '#001a0a',
+  'ug-plasma': '#4c0519',
+  'ug-prism': '#ff0080',
+  'ug-rainbow': '#ef4444',
+  'ug-dreamscape': '#312e81',
+  'ug-twilight': '#0f172a',
+  'ug-mystic': '#172554',
+  'ug-enchanted': '#022c22',
+  'ug-dream': '#1e3a8a',
+  'ug-holographic': '#22d3ee',
 };
 
-const AVATAR_ANIM = {
-  'username-rainbow': 'avatarRainbowGlow 2s linear infinite',
-  'username-fire': 'avatarFireGlow 1s linear infinite',
-  'username-neon': 'avatarNeonGlow 1.4s ease-in-out infinite',
-  'username-shimmer': 'avatarShimmerGlow 2.5s linear infinite',
-  'username-glitch': 'avatarGlitchGlow 0.8s linear infinite',
-  'username-electric': 'avatarElectricGlow 0.15s linear infinite',
-  'username-matrix': 'avatarMatrixGlow 4s linear infinite',
-  'username-ghost': 'avatarGhostGlow 3s ease-in-out infinite',
-  'username-hellfire': 'avatarHellfireGlow 1.2s linear infinite',
-  'username-matrix-code': 'avatarMatrixCodeGlow 2s linear infinite',
-  'username-cyberpunk': 'avatarCyberpunkGlow 1.5s linear infinite',
-  'username-cosmic': 'avatarCosmicGlow 2.5s ease-in-out infinite',
-  'username-plasma': 'avatarPlasmaGlow 1.2s linear infinite',
-  'username-aurora': 'avatarAuroraGlow 3s ease-in-out infinite',
-  'username-inferno': 'avatarInfernoGlow 0.8s linear infinite',
-  'username-void': 'avatarVoidGlow 2s ease-in-out infinite',
-  'username-candy': 'avatarCandyGlow 1.5s ease-in-out infinite',
-  'username-quantum': 'avatarQuantumGlow 1.3s linear infinite',
-  'username-twilight': 'avatarTwilightGlow 2s ease-in-out infinite',
-  'username-corrupted': 'avatarCorruptedGlow 0.4s linear infinite',
-  'username-void-pulse': 'avatarVoidPulseGlow 1.5s ease-in-out infinite',
-  'username-acid': 'avatarAcidGlow 0.6s linear infinite',
-  'username-fractal': 'avatarFractalGlow 2s ease-in-out infinite',
-  'username-hyperdrive': 'avatarHyperdriveGlow 0.5s linear infinite',
-  'username-supernova': 'avatarSupernovaGlow 0.8s ease-out infinite',
-  'username-quantum-entangle': 'avatarQuantumEntangleGlow 1.2s ease-in-out infinite',
-  'username-dimensional': 'avatarDimensionalGlow 1.5s ease-in-out infinite',
-  'username-toxic': 'avatarToxicGlow 1s linear infinite',
-  'username-chaos': 'avatarChaosGlow 0.3s ease-in-out infinite',
-  'username-singularity': 'avatarSingularityGlow 2s ease-in-out infinite',
-  'username-gold': 'avatarGoldPulse 2s ease-in-out infinite',
-  'username-pink': 'avatarPinkPulse 2s ease-in-out infinite',
-  'username-purple': 'avatarPurplePulse 2s ease-in-out infinite',
-  'username-cyan': 'avatarCyanPulse 2s ease-in-out infinite',
-  'username-green': 'avatarGreenPulse 2s ease-in-out infinite',
-  'username-red': 'avatarRedPulse 2s ease-in-out infinite',
-  'username-blue-silver': 'avatarBlueSilverPulse 2s ease-in-out infinite',
-};
 
+
+
+const colors = Object.entries(COLOR_META).map(([cls, meta]) => ({
+  cls,
+  grad: meta.bg
+}));
+
+function getAvatarGlowColor(colorClass) {
+  const gradEntry = colors.find(c => c.cls === colorClass);
+  if (gradEntry) {
+    const match = gradEntry.grad.match(/#([0-9a-fA-F]{3,8})/);
+    if (match) return '#' + match[1];
+  }
+  if (!colorClassToHex[colorClass]) {
+  }
+  return colorClassToHex[colorClass] || '#00f2ff';
+}
 
 const widgetStack = document.getElementById('widgetStack');
 
@@ -940,7 +913,8 @@ function applySpeakingState(el, p) {
   const avatarEl = el.querySelector('.avatar');
   const meta = COLOR_META[p.usernameColor];
   const flatColor = colorClassToHex[p.usernameColor] || '#00f2ff';
-  console.log('usernameColor:', p.usernameColor);
+  const glowColor = getAvatarGlowColor(p.usernameColor);
+
   nameEl.textContent = p.username;
   nameEl.setAttribute('data-text', p.username);
   let classes = 'overlay-username';
@@ -965,12 +939,12 @@ function applySpeakingState(el, p) {
   if (meta && meta.shadow) {
     nameStyle += `text-shadow:${meta.shadow};`;
   }
+
   if (wasSpeaking !== p.speaking || colorChanged) {
     nameEl.style.cssText = nameStyle;
 
-    const borderColor = p.speaking ? (p.avatarBorderColor || flatColor) : 'transparent';
-    const avatarAnim = p.speaking ? (AVATAR_ANIM[p.usernameColor] || '') : '';
-    avatarEl.style.cssText = `border-color:${borderColor};${avatarAnim ? `animation:${avatarAnim};` : ''}`;
+    const borderColor = p.speaking ? (p.avatarBorderColor || glowColor) : 'transparent';
+    avatarEl.style.cssText = `border-color:${borderColor};`;
   }
 
   el.dataset.wasSpeaking = p.speaking ? '1' : '0';

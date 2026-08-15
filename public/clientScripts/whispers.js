@@ -93,7 +93,7 @@ function buildWhispersModal() {
 
   whispersModal = document.createElement('div');
   whispersModal.id = 'whispersModal';
-  whispersModal.style.cssText = `position: fixed; inset: 0; z-index: 20500; pointer-events: none; display: none;`;
+  whispersModal.style.cssText = `position: fixed; inset: 0; z-index: 9999; pointer-events: none; display: none;`;
 
   whispersBox = document.createElement('div');
   whispersBox.id = 'whispersBox';
@@ -418,32 +418,7 @@ function updateWhisperTypingIndicator(key) {
   el.appendChild(text);
 }
 
-socket.on('whisperTyping', (data) => {
-  const key = data.groupId ? convoKeyForGroup(data.groupId) : data.from;
-  if (!key || data.from === user.id) return;
-  if (!whisperTypingUsers.has(key)) whisperTypingUsers.set(key, new Map());
-  const map = whisperTypingUsers.get(key);
-  clearTimeout(map.get(data.from)?.timeout);
-  map.set(data.from, {
-    username: data.username || 'Someone',
-    timeout: setTimeout(() => {
-      map.delete(data.from);
-      updateWhisperTypingIndicator(key);
-    }, 4000)
-  });
-  updateWhisperTypingIndicator(key);
-});
 
-socket.on('whisperStopTyping', (data) => {
-  const key = data.groupId ? convoKeyForGroup(data.groupId) : data.from;
-  if (!key) return;
-  const map = whisperTypingUsers.get(key);
-  if (map && map.has(data.from)) {
-    clearTimeout(map.get(data.from).timeout);
-    map.delete(data.from);
-    updateWhisperTypingIndicator(key);
-  }
-});
 
 function toggleWhispersModal() {
   buildWhispersModal();
@@ -792,115 +767,6 @@ function openNewGroupModal() {
   nameInput.focus();
 }
 
-socket.on('whisperGroupCreated', (group) => {
-  const key = convoKeyForGroup(group.groupId);
-  const convo = getOrCreateWhisperConvo(key, {
-    isGroup: true,
-    groupId: group.groupId,
-    name: group.name,
-    members: group.members
-  });
-
-  if (Array.isArray(group.messages)) {
-    convo.messages = group.messages.map(m => ({ ...m, outgoing: m.from === user.id }));
-  }
-
-  updateWhispersLauncherBadge();
-  if (whispersModalOpen) renderWhisperConvoList();
-  showToast(`Added to group "${group.name}"`);
-});
-
-
-socket.on('whisperGroupUpdated', (data) => {
-  const key = convoKeyForGroup(data.groupId);
-  const convo = whisperConversations.get(key);
-  if (!convo) return;
-
-  convo.members = data.members;
-  if (data.name) convo.name = data.name;
-
-  if (data.addedUserIds) {
-    showToast(`${data.addedBy} added ${data.addedUserIds.length} member(s) to "${convo.name}"`);
-  } else if (data.leftUsername) {
-    showToast(`${data.leftUsername} left "${convo.name}"`);
-  }
-
-  if (whispersModalOpen) {
-    renderWhisperConvoList();
-    if (activeWhisperKey === key) renderWhisperThread(key);
-  }
-});
-
-socket.on('whisperGroupLeft', (data) => {
-  const key = convoKeyForGroup(data.groupId);
-  whisperConversations.delete(key);
-  if (activeWhisperKey === key) activeWhisperKey = null;
-  updateWhispersLauncherBadge();
-  if (whispersModalOpen) {
-    renderWhisperConvoList();
-    renderWhisperThread(activeWhisperKey);
-  }
-});
-
-
-
-
-socket.on('whisperMessage', (data) => {
-  const isGroup = !!data.groupId;
-  const key = isGroup ? convoKeyForGroup(data.groupId) : (data.from === user.id ? data.to : data.from);
-  const isIncoming = data.from !== user.id;
-
-  const convo = getOrCreateWhisperConvo(key, isGroup
-    ? { isGroup: true, groupId: data.groupId }
-    : {
-        isGroup: false,
-        userId: key,
-        name: isIncoming ? data.fromUsername : undefined,
-        avatar: isIncoming ? data.fromAvatar : undefined,
-        usernameColor: isIncoming ? data.fromUsernameColor : undefined
-      });
-
-  const alreadyHave = convo.messages.some(m =>
-    (data.id && m.id === data.id) ||
-    (!data.id && m.text === data.text && m.time === data.time && m.from === data.from)
-  );
-  if (!alreadyHave) {
-    convo.messages.push({ ...data, outgoing: data.from === user.id });
-  }
-
-  if (isIncoming) {
-    const isViewingThisConvo = whispersModalOpen && activeWhisperKey === key;
-
-    if (!isViewingThisConvo) {
-      convo.unread = (convo.unread || 0) + 1;
-
-      if (notifSettings?.browser && Notification.permission === 'granted') {
-        sendNotification(
-          isGroup ? `${data.fromUsername} in ${convo.name}` : `Whisper from ${data.fromUsername}`,
-          data.text?.substring(0, 100) || 'New whisper',
-          { icon: sanitizeAvatar(data.fromAvatar), tag: `whisper-${key}`, requireInteraction: false }
-        );
-      }
-
-      if (notifSettings?.sound) {
-        const audio = new Audio('/sounds/message-new-email.oga');
-        audio.volume = 0.5;
-        audio.play().catch(() => {});
-      }
-
-      showWhisperNotificationBanner(data, key, convo);
-    }
-     else {
-      setLastReadTime(key, data.time); 
-    }
-  }
-
-  updateWhispersLauncherBadge();
-  renderWhisperConvoList();
-  if (whispersModalOpen && activeWhisperKey === key) {
-    renderWhisperThread(key);
-  }
-});
 
 
 window.pendingWhisperHistory = null;
@@ -929,14 +795,7 @@ window.flushPendingWhisperHistory = function () {
   }
 };
 
-socket.on('whisperHistory', (data) => {
-   console.log('[DEBUG] whisperHistory received,', data?.conversations?.length, 'convos, user =', typeof user, 'user.id =', user?.id, 'at', Date.now());
-  if (!user || !user.id) {
-    window.pendingWhisperHistory = data;
-    return;
-  }
-  applyWhisperHistory(data);
-});
+
 
 
 function renderWhisperConvoList() {
@@ -1253,6 +1112,28 @@ function leaveWhisperGroup(groupId) {
 }
 
 
+function deleteWhisperConvo(key) {
+  const convo = whisperConversations.get(key);
+  if (!convo || convo.isGroup) return;
+
+  showConfirmModal(
+    `You'll stop seeing your conversation with "${convo.name}" in your list. New messages will still come through.`,
+    () => {
+      socket.emit('whisperDeleteConvo', { userId: convo.userId });
+      whisperConversations.delete(key);
+      if (activeWhisperKey === key) activeWhisperKey = null;
+      updateWhispersLauncherBadge();
+      if (whispersModalOpen) {
+        renderWhisperConvoList();
+        renderWhisperThread(activeWhisperKey);
+        updateWhisperInputVisibility();
+      }
+    },
+    { title: `Remove "${convo.name}"?`, confirmLabel: 'Remove' }
+  );
+}
+
+
 function renderWhisperThread(key) {
   const convo = whisperConversations.get(key);
   const header = document.getElementById('whisperThreadHeader');
@@ -1329,11 +1210,24 @@ messagesWrap.style.cssText = 'flex:1; overflow-y:auto; padding:10px 14px; displa
     img.style.cssText = 'width:22px; height:22px; border-radius:50%; flex-shrink:0;';
     const nameSpan = document.createElement('span');
     nameSpan.className = `username-wrapper ${convo.usernameColor || 'username-cyan'}`;
-    nameSpan.style.cssText = 'font-weight:700; font-size:13px;';
+    nameSpan.style.cssText = 'font-weight:700; font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
     nameSpan.textContent = convo.name;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = '❌';
+    deleteBtn.title = 'Remove conversation';
+    deleteBtn.style.cssText = `
+      background:none; border:none; color:#b9bbbe; font-size:14px; cursor:pointer;
+      padding:4px 6px; border-radius:6px; transition:background 0.15s, color 0.15s; flex-shrink:0;
+    `;
+    deleteBtn.onmouseover = () => { deleteBtn.style.background = 'rgba(255,0,0,0.15)'; deleteBtn.style.color = '#ff5555'; };
+    deleteBtn.onmouseout = () => { deleteBtn.style.background = 'transparent'; deleteBtn.style.color = '#b9bbbe'; };
+    deleteBtn.onclick = () => deleteWhisperConvo(convo.key);
+
     header.appendChild(img);
     header.appendChild(nameSpan);
-  }
+    header.appendChild(deleteBtn);
+}
 
   messagesWrap.innerHTML = '';
 convo.messages.forEach(m => {
@@ -1387,7 +1281,7 @@ convo.messages.forEach(m => {
         img.src = m.text.trim();
         img.loading = 'lazy';
         img.style.cssText = 'max-width:220px; max-height:220px; border-radius:8px; display:block; cursor:pointer;';
-        img.onclick = () => window.open(m.text, '_blank');
+        img.onclick = () => openImageModal(m.text.trim());
 
         img.onerror = () => {
           img.remove();
