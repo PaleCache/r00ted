@@ -19,6 +19,18 @@ R00TED is a self hosted, privacy first communication platform that puts you in c
 
 No ads. No tracking. No centralized servers.
 
+## Documentation
+
+**[Read the full documentation](https://palecache.github.io/r00ted/)**
+
+The documentation includes:
+- Installation and deployment
+- Configuration
+- Nginx / HTTPS setup
+- Feature guides
+- Screenshots and UI walkthroughs
+- Troubleshooting
+
 ## Features
 
 - Privacy first, self hosted communication platform.
@@ -48,7 +60,6 @@ No ads. No tracking. No centralized servers.
 ## Installation
 
 Clone the repository and install the dependencies.
-Check out the docs for more info https://palecache.github.io/r00ted/
 
 ```bash
 git clone https://github.com/palecache/r00ted.git
