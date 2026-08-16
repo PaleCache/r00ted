@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R00TED Docs: setup, config, bots</title>
+<meta name="description" content="R00TED documentation: installation, configuration, reverse proxy, file permissions, running the server, building the desktop app, and using bots.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#050505;
+    --panel:#0c0c0c;
+    --raised:#141414;
+    --raised-2:#1c1c1c;
+    --border:#222;
+    --border-bright:#333;
+    --text:#e8e8e8;
+    --text-dim:#777;
+    --text-dimmer:#444;
+    --red:#ff1a1a;
+    --red-dim:#990000;
+    --green:#00ff66;
+    --gold:#ffd700;
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --sans:'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--void);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    z-index:9999;
+    background:repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0,0,0,0.18) 2px,
+      rgba(0,0,0,0.18) 4px
+    );
+    mix-blend-mode:multiply;
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    z-index:9998;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity:0.55;
+  }
+  a{color:inherit;}
+  ::selection{background:var(--red); color:#fff;}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 24px;}
+  code, .mono{font-family:var(--mono);}
+
+  header.nav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(5,5,5,0.92);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border);
+  }
+  .nav-inner{
+    max-width:1120px; margin:0 auto; padding:14px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .logo{
+    font-family:var(--mono); font-weight:700; font-size:17px;
+    letter-spacing:0.5px; display:flex; align-items:center; gap:2px;
+  }
+  .logo .zero{color:var(--red);}
+  .cursor{
+    display:inline-block; width:8px; height:16px; background:var(--red);
+    margin-left:5px; animation:blink 1s steps(1) infinite;
+    transform:translateY(1px);
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+  nav.links{display:flex; gap:26px; font-family:var(--mono); font-size:12px; color:var(--text-dim);}
+  nav.links a{text-decoration:none; transition:color .12s;}
+  nav.links a:hover{color:var(--text);}
+  .btn{
+    font-family:var(--mono); font-size:12px; font-weight:600;
+    padding:8px 14px; border:1px solid var(--red);
+    background:transparent; color:var(--red);
+    cursor:pointer; text-decoration:none; display:inline-block;
+    transition:all .12s;
+    letter-spacing:0.4px; text-transform:uppercase;
+  }
+  .btn:hover{background:var(--red); color:#000; box-shadow:0 0 22px rgba(255,26,26,0.4);}
+  .btn.solid{background:var(--red); color:#000;}
+  .btn.solid:hover{background:#ff3333; box-shadow:0 0 28px rgba(255,26,26,0.5);}
+  .docs-hero{ padding:64px 0 30px; position:relative; overflow:hidden; }
+  .docs-hero::after{
+    content:"";
+    position:absolute; top:-180px; left:50%; transform:translateX(-50%);
+    width:800px; height:420px;
+    background:radial-gradient(ellipse at center, rgba(255,26,26,0.11), transparent 65%);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:1.8px;
+    color:var(--red); text-transform:uppercase; margin:0 0 14px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow::before{content:">"; color:var(--text-dimmer);}
+  .docs-hero h1{
+    font-family:var(--mono); font-weight:700;
+    font-size:clamp(34px, 6vw, 54px);
+    line-height:1.02; letter-spacing:-1px;
+    margin:0 0 16px; position:relative; z-index:1;
+  }
+  .docs-hero h1 .accent{color:var(--red);}
+  .docs-hero p.sub{
+    color:var(--text-dim); max-width:600px; font-size:15px; margin:0 0 30px; position:relative; z-index:1;
+  }
+
+  .docs-layout{
+    display:grid;
+    grid-template-columns:220px 1fr;
+    gap:48px;
+    padding:20px 0 100px;
+    align-items:start;
+  }
+  @media(max-width:860px){ .docs-layout{ grid-template-columns:1fr; } }
+
+  .toc{
+    position:sticky; top:70px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    padding:18px 16px;
+    font-family:var(--mono);
+    font-size:12px;
+  }
+  @media(max-width:860px){ .toc{ position:static; } }
+  .toc-title{ color:var(--text-dimmer); letter-spacing:1.2px; margin-bottom:10px; text-transform:uppercase; font-size:10px;}
+  .toc a{
+    display:block; padding:6px 0; color:var(--text-dim);
+    text-decoration:none; border-left:2px solid transparent; padding-left:10px;
+    margin-left:-11px; transition:all .12s;
+  }
+  .toc a:hover{ color:var(--text); border-left-color:var(--border-bright); }
+
+  .doc-section{
+    padding:38px 0;
+    border-bottom:1px solid var(--border);
+    scroll-margin-top:80px;
+  }
+  .doc-section:last-child{ border-bottom:none; }
+  .doc-section h2{
+    font-family:var(--mono); font-weight:700; font-size:22px;
+    letter-spacing:-0.3px; margin:0 0 6px; display:flex; align-items:baseline; gap:10px;
+  }
+  .doc-section h2 .num{ color:var(--red); font-size:14px; }
+  .doc-section .lede{ color:var(--text-dim); font-size:14px; margin:0 0 20px; max-width:640px; }
+  .doc-section h3{
+    font-family:var(--mono); font-size:14px; color:var(--text); margin:24px 0 8px;
+  }
+  .doc-section p{ font-size:14px; color:#c7c7c7; max-width:680px; }
+  .doc-section ul{ font-size:14px; color:#c7c7c7; max-width:680px; padding-left:20px; }
+  .doc-section li{ margin-bottom:6px; }
+
+  .code-block{
+    background:#080808;
+    border:1px solid var(--border-bright);
+    margin:14px 0;
+    overflow:hidden;
+  }
+  .code-block .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px;
+    background:#111;
+    border-bottom:1px solid var(--border);
+    font-family:var(--mono); font-size:10.5px; color:var(--text-dim);
+    letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .code-block pre{
+    margin:0; padding:14px 16px;
+    font-family:var(--mono); font-size:12.5px; line-height:1.7;
+    color:#c8ffd0; overflow-x:auto; white-space:pre;
+  }
+  .code-block .cm{ color:var(--text-dimmer); }
+
+  .note{
+    border:1px solid var(--border-bright);
+    border-left:3px solid var(--red);
+    background:var(--panel);
+    padding:12px 16px;
+    font-size:13px;
+    color:var(--text-dim);
+    margin:16px 0;
+    max-width:680px;
+  }
+  .note strong{ color:var(--text); }
+
+  .req-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr));
+    gap:1px; background:var(--border); border:1px solid var(--border);
+    margin-top:16px; max-width:680px;
+  }
+  .req-grid div{ background:var(--panel); padding:12px 14px; font-family:var(--mono); font-size:12px; color:var(--text-dim); }
+  .req-grid div b{ color:var(--text); display:block; font-size:13px; margin-bottom:2px; font-family:var(--sans); }
+
+  .placeholder{
+    border:1px dashed var(--border-bright);
+    padding:18px 20px;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--text-dimmer);
+    max-width:680px;
+    margin-top:14px;
+  }
+  .placeholder .fill{ color:var(--red); }
+
+
+
+    .configInfo{
+    padding:18px 0px;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--text-dimmer);
+    max-width:890px;
+    margin-top:14px;
+  }
+  .configInfo .fill{ color:var(--red); }
+
+  table.perm-table{
+    border-collapse:collapse; width:100%; max-width:680px; margin:14px 0;
+    font-family:var(--mono); font-size:12.5px;
+  }
+  table.perm-table th, table.perm-table td{
+    border:1px solid var(--border); padding:8px 12px; text-align:left;
+  }
+  table.perm-table th{ background:var(--panel); color:var(--text-dim); font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:0.5px; }
+  table.perm-table td{ color:#c7c7c7; }
+
+  footer{border-top:1px solid var(--border); padding:28px 0;}
+  .footer-inner{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
+    font-family:var(--mono); font-size:11px; color:var(--text-dimmer);
+  }
+  .footer-inner a{text-decoration:none; color:var(--text-dim);}
+  .footer-inner a:hover{color:var(--text);}
+  :focus-visible{outline:2px solid var(--red); outline-offset:2px;}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo" style="text-decoration:none;">R<span class="zero">00</span>TED<span class="cursor"></span></a>
+    <nav class="links">
+      <a href="index.html#preview">preview</a>
+      <a href="index.html#features">features</a>
+      <a href="docs.html">docs</a>
+    </nav>
+    <a class="btn" href="https://github.com/palecache/r00ted">View on GitHub</a>
+  </div>
+</header>
+
+<section class="docs-hero">
+  <div class="wrap">
+    <p class="eyebrow">r00ted docs</p>
+    <h1>Setting up <span class="accent">R00TED</span>.</h1>
+    <p class="sub">Everything you need to clone, configure, and run your own server, plus how the bots work. This is a self hosted platform, you own the machine, so a few steps are on you.</p>
+  </div>
+</section>
+
+<div class="wrap docs-layout">
+  <nav class="toc">
+    <div class="toc-title">On this page</div>
+    <a href="#requirements">Requirements</a>
+    <a href="#install">Installation</a>
+    <a href="#config">Configuration</a>
+    <a href="#proxy">Reverse Proxy</a>
+    <a href="#permissions">File Permissions</a>
+    <a href="#running">Running the Server</a>
+    <a href="#desktop">Desktop App</a>
+    <a href="#bots">Bots</a>
+    <a href="#support">Support Development</a>
+  </nav>
+
+  <div class="docs-content">
+
+    <div id="requirements" class="doc-section">
+      <h2><span class="num">01</span> Requirements</h2>
+      <p class="lede">R00TED is self-hosted, so a few things need to already exist on your machine before install.</p>
+      <div class="req-grid">
+        <div><b>OS</b>Linux (recommended)</div>
+        <div><b>Runtime</b>Node.js with npm installed</div>
+        <div><b>Reverse proxy</b>Nginx (or similar)</div>
+        <div><b>Voice</b>A working Jitsi Meet instance - can be your own or a public one that has email login disabled</div>
+        <div><b>Domain</b>A domain or subdomain (DuckDNS works) for HTTPS</div>
+        <div><b>Patience</b>I cant help with that :)</div>
+      </div>
+      <div class="note"><strong>Note:</strong> a domain is technically optional with some changes, but you'll need one to get HTTPS working properly. (You should use one, it's easy are free if you use something like duckdns etc)</div>
+    </div>
+
+    <div id="install" class="doc-section">
+      <h2><span class="num">02</span> Installation</h2>
+      <p class="lede">Clone the repo and install dependencies.</p>
+      <div class="code-block">
+        <div class="bar"><span>bash</span></div>
+        <pre><span class="cm"># clone the repository</span>
+git clone https://github.com/palecache/r00ted.git
+cd r00ted
+npm install</pre>
+      </div>
+    </div>
+
+       <div id="config" class="doc-section">
+      <h2><span class="num">03</span> Configuration</h2>
+      <p class="lede">Before starting the server, configure the following files:</p>
+      <ul>
+        <li><code>config/server-config.json</code></li>
+        <li><code>app/configs/appconfig.json</code> - desktop app only</li>
+         <li><code>Jitsi Meet Info</code> - for public ones you only need their config to get the required info (ex. https://example.com/config.js) , or just host you own and get that info from your config</li>
+      </ul>
+      <div class="note"><strong>chatPassword</strong> is a single shared password, anyone who knows it can join your server. Treat it like a key, not a username/password pair.</div>
+      <ul>
+        <li><code>klipyApiKey</code> - The api key from klipy (currently using a testing one).</li>
+        <li><code>chatPassword</code> - The password users will need to join the server.</li>
+        <li><code>kickTokenPath</code> - The api key from kick.com saved in a json file like so <code>{token: key_here}</code></li>
+        <li><code>streamerConfigPath</code> - Points to the stream list file that is provided in the source already.</li>
+        <li><code>serverBanner</code> - Points to the server banner, you can change it to whatever you like or use the provided one.</li>
+        <li><code>botPassword</code> - The password the bot will use to connect.</li>
+        <li><code>backgroundImageUrl</code> - Points to the default background image, you can change it to whatever you like or use the provided one.</li>
+        <li><code>loginImageUrl</code> - Points to the login page image, you can change it to whatever you like or use the provided one.</li>
+        <li><code>pingdomain</code> - This is the domain the clients will ping to get voice call ping display.</li>
+        <li><code>servericon</code> - The server icon, used for the developer badge. It looks for <code>r00ted.png</code> in the public folder.</li>
+        <li><code>domain</code> - The jitsi meet domain (ex. <code>mysite</code>), no <code>.com</code> or ports etc, just the actual domain.</li>
+        <li><code>embeddomain</code> - The domain for the embed voice call if you want to use one (ex. <code>example.com</code>, no https). It embeds the jitsi call in r00ted (requires crossorigin rules to allow embed).</li>
+        <li><code>externalApiUrl</code> - Link to your jitsi meet external api <code>https://example.com/external_api.js</code> (required for voice calls).</li>
+        <li><code>libJitsiUrl</code> - Link to your jitsi meet lib (ex. <code>https://example.com/libs/lib-jitsi-meet.min.js</code>) (required for voice calls).</li>
+        <li><code>roomName</code> - The name used when creating the embed room (anything you like).</li>
+        <li><code>bosh</code> - Link to your jitsi meet's bosh (ex. <code>https://example.com/http-bind</code>).</li>
+        <li><code>muc</code> - Link to your jitsi meet's muc (ex. <code>conference.example.com</code>).</li>
+        <li><code>focusUserJid</code> - Link to your jitsi meet's focus user jid (ex. <code>focus@conference.mydomain</code>).</li>
+        <li><code>p2pEnabled</code> - Sets peer to peer (enabled or disabled).</li>
+        <li><code>startAudioOnly</code> - Sets whether a user should only have audio (no automatic video) when they join.</li>
+        <li><code>startWithAudioMuted</code> - Sets if the user should be muted automatically when they join.</li>
+        <li><code>startWithVideoMuted</code> - Sets if the user's video should be automatically disabled on join.</li>
+        <li><code>constraints</code> - Screen share settings.</li>
+      </ul>
+      <div class="configInfo">
+        <div class="code-block">
+        <div class="bar"><span>r00ted server config /r00ted/config/server-config.json</span></div>
+         <pre>{
+  "klipyApiKey": "key here", 
+  "chatPassword": "chatpasswordhere",
+  "kickTokenPath": "path to kick api key here should be stored in json example {token: key_here}",
+  "streamerConfigPath": "./config/streamers-config.json",
+  "serverBanner": "/backgrounds/r00ted-banner.png",
+  "botPassword": "your_bot_password_here",
+  "public": {
+    "backgroundImageUrl": "/backgrounds/v.png",
+    "loginImageUrl": "/backgrounds/v.png",
+    "pingdomain": "https://mydomain/ [domain for vc ping tests here] ",
+    "servericon": "https://mydomain/ [dev badge icon]"
+  },
+  "jitsi": {
+    "domain": "mydomain [jitsi domain here ex jitsi.org no ports no https://]",
+    "embeddomain": "https://mydomain/ [jitsi domain here ex jitsi.org can have ports no https://]",
+    "externalApiUrl": "https://mydomain/external_api.js",
+    "libJitsiUrl": "https://mydomain/libs/lib-jitsi-meet.min.js",
+    "roomName": "embed room name",
+    "bosh": "https://mydomain/http-bind",
+    "muc": "conference.mydomain.com",
+    "focusUserJid": "focus@conference.mydomain",
+    "p2pEnabled": false,
+    "startAudioOnly": true,
+    "startWithAudioMuted": false,
+    "startWithVideoMuted": true,
+    "constraints": {
+      "video": {
+        "height": {
+          "ideal": 720
+        },
+        "width": {
+          "ideal": 1280
+        }
+      }
+    }
+  }
+}
+
+         </pre>
+      </div>
+    </div>
+
+    <div id="proxy" class="doc-section">
+      <h2><span class="num">04</span> Reverse Proxy (Nginx)</h2>
+      <p class="lede">R00TED only listens on <code>127.0.0.1:5350</code>, so it is not directly reachable from the internet. Put Nginx in front of it and terminate HTTPS there.</p>
+      <p>Replace <code>yourdomain.example.com</code> and <code>/path/to/r00ted</code> with your own values before using this.</p>
+      <div class="code-block">
+        <div class="bar"><span>nginx · /etc/nginx/sites-available/r00ted</span></div>
+        <pre>server {
+    charset utf-8;
+    listen 443 ssl;
+    server_name yourdomain.example.com;
+    client_max_body_size 200M;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    root /path/to/r00ted/public;
+    index index.html;
+
+    location / {
+        try_files $uri @proxy;
+    }
+
+    location /uploads/ {
+        alias /path/to/r00ted/uploads/;
+        expires 30d;
+        access_log off;
+        client_max_body_size 200M;
+    }
+
+    location /avatars/ {
+        alias /path/to/r00ted/public/avatars/;
+        expires 30d;
+        access_log off;
+    }
+
+    location @proxy {
+        proxy_pass http://127.0.0.1:5350;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+        proxy_buffering off;
+    }
+
+    location = /login {
+        proxy_pass http://127.0.0.1:5350/login;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /upload-image {
+        client_max_body_size 200M;
+        proxy_pass http://127.0.0.1:5350/upload-image;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /upload-avatar {
+        client_max_body_size 200M;
+        proxy_pass http://127.0.0.1:5350/upload-avatar;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /upload-emote {
+        client_max_body_size 10M;
+        proxy_pass http://127.0.0.1:5350/upload-emote;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cookie $http_cookie;
+    }
+
+    location ~ ^/delete-emote/ {
+        proxy_pass http://127.0.0.1:5350;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cookie $http_cookie;
+    }
+
+    location /ws/ {
+        proxy_pass http://127.0.0.1:5350/ws/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+        proxy_buffering off;
+    }
+}
+
+server {
+    listen 80;
+    server_name yourdomain.example.com;
+    return 301 https://$host$request_uri;
+}</pre>
+      </div>
+      <p>After saving, verify and reload:</p>
+      <div class="code-block">
+        <div class="bar"><span>bash</span></div>
+        <pre>sudo nginx -t
+sudo systemctl reload nginx</pre>
+      </div>
+    </div>
+
+    <div id="permissions" class="doc-section">
+      <h2><span class="num">05</span> File Permissions</h2>
+      <p class="lede">After installing, or whenever permissions get out of sync, run this from the project root.</p>
+      <div class="code-block">
+        <div class="bar"><span>bash</span></div>
+        <pre>find uploads -type d -exec chmod 750 {} \;
+find uploads -type f -exec chmod 640 {} \;
+
+find public/avatars -type d -exec chmod 755 {} \;
+find public/avatars -type f -exec chmod 644 {} \;
+
+find public -type d -exec chmod 755 {} \;
+find public -type f -exec chmod 644 {} \;
+
+chmod 700 config
+chmod 600 config/*.json
+
+chmod 700 data
+chmod 600 data/*.json</pre>
+      </div>
+      <h3>Why these permissions?</h3>
+      <table class="perm-table">
+        <tr><th>Path</th><th>Mode</th><th>Why</th></tr>
+        <tr><td>uploads/</td><td>750 / 640</td><td>Uploaded images &amp; videos. Never need to be executable.</td></tr>
+        <tr><td>public/avatars/</td><td>755 / 644</td><td>Publicly served avatars &amp; custom emotes.</td></tr>
+        <tr><td>public/</td><td>755 / 644</td><td>Frontend app files, not user data.</td></tr>
+        <tr><td>config/</td><td>700 / 600</td><td>Chat password, bot password, API keys. Owner-only.</td></tr>
+        <tr><td>data/</td><td>700 / 600</td><td>Accounts, messages, playlists, roles, channels. Owner-only.</td></tr>
+      </table>
+      <div class="note">
+        Run these as the user that owns the project, or with <code>sudo</code>. Getting <code>Operation not permitted</code>? Check ownership first with <code>ls -l uploads/&lt;file&gt;</code>, then chown or rerun with <code>sudo</code> as needed. If you change which user runs the Node process, rerun the permission commands.
+      </div>
+    </div>
+
+    <div id="running" class="doc-section">
+      <h2><span class="num">06</span> Running the Server</h2>
+      <p class="lede">Start the server from the project directory.</p>
+      <div class="code-block">
+        <div class="bar"><span>bash</span></div>
+        <pre>node server.js</pre>
+      </div>
+      <div class="note">For production, run R00TED under a process manager like <strong>PM2</strong> or a <strong>systemd</strong> service so it survives terminal sessions and reboots.</div>
+    </div>
+
+    <div id="desktop" class="doc-section">
+      <h2><span class="num">07</span> Building the Desktop App</h2>
+      <p class="lede">Build on the target OS, use Linux to build Linux binaries, Windows to build Windows binaries. Use a VM if needed.</p>
+      <h3>Linux</h3>
+      <div class="code-block">
+        <div class="bar"><span>bash</span></div>
+        <pre>npx electron-builder --linux --publish=never</pre>
+      </div>
+      <h3>Windows</h3>
+      <div class="code-block">
+        <div class="bar"><span>bash</span></div>
+        <pre>npx electron-builder --win --publish=never</pre>
+      </div>
+    </div>
+
+    <div id="bots" class="doc-section">
+      <h2><span class="num">08</span> Bots</h2>
+      <p class="lede">Example bot: <a href="https://github.com/palecache/r00ted-bot" target="_blank" rel="noopener">r00ted-bot</a></p>
+      <ul>
+        <li>Requires Node.js with npm installed.</li>
+        <li>Clone or download the repo, then <code>cd</code> into the folder.</li>
+        <li>Open the bot's main file and fill in your server URL and bot token at the top.</li>
+      </ul>
+      <div class="code-block">
+        <div class="bar"><span>bash</span></div>
+        <pre>npm install
+node index.js</pre>
+      </div>
+    </div>
+
+    <div id="support" class="doc-section">
+      <h2><span class="num">09</span> Support Development</h2>
+      <p class="lede">If R00TED is useful to you, XMR donations are welcome.</p>
+      <div class="code-block">
+        <div class="bar"><span>monero (xmr)</span></div>
+        <pre>455KNy55xW9cK4sGknaHwEHD7s3RYcS1nb3bdACZVNpJDey47BegHWpjUghbPu64xxMi2fZwqG95wfextdwDcXbbALSDFVw</pre>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div class="wrap footer-inner">
+    <span>R00TED: private, self-hosted chat.</span>
+    <span><a href="index.html#preview">preview</a> · <a href="index.html#features">features</a> · <a href="docs.html">docs</a> · <a href="https://github.com/palecache/r00ted">github</a></span>
+  </div>
+</footer>
+
+</body>
+</html>

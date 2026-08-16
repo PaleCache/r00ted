@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R00TED: private, self hosted chat with root access</title>
+<meta name="description" content="R00TED is a self hosted chat server: voice channels, custom roles, XP and prestige badges, live-stream embeds, and optional per-message encryption. Your server, your rules.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#050505;
+    --panel:#0c0c0c;
+    --raised:#141414;
+    --raised-2:#1c1c1c;
+    --border:#222;
+    --border-bright:#333;
+    --text:#e8e8e8;
+    --text-dim:#777;
+    --text-dimmer:#444;
+    --red:#ff1a1a;
+    --red-dim:#990000;
+    --green:#00ff66;
+    --gold:#ffd700;
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --sans:'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--void);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    z-index:9999;
+    background:repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0,0,0,0.18) 2px,
+      rgba(0,0,0,0.18) 4px
+    );
+    mix-blend-mode:multiply;
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    z-index:9998;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity:0.55;
+  }
+  a{color:inherit;}
+  ::selection{background:var(--red); color:#fff;}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 24px;}
+  code, .mono{font-family:var(--mono);}
+
+  header.nav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(5,5,5,0.92);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border);
+  }
+  .nav-inner{
+    max-width:1120px; margin:0 auto; padding:14px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .logo{
+    font-family:var(--mono); font-weight:700; font-size:17px;
+    letter-spacing:0.5px; display:flex; align-items:center; gap:2px;
+  }
+  .logo .zero{color:var(--red);}
+  .cursor{
+    display:inline-block; width:8px; height:16px; background:var(--red);
+    margin-left:5px; animation:blink 1s steps(1) infinite;
+    transform:translateY(1px);
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+  nav.links{display:flex; gap:26px; font-family:var(--mono); font-size:12px; color:var(--text-dim);}
+  nav.links a{text-decoration:none; transition:color .12s;}
+  nav.links a:hover{color:var(--text);}
+  .btn{
+    font-family:var(--mono); font-size:12px; font-weight:600;
+    padding:8px 14px; border:1px solid var(--red);
+    background:transparent; color:var(--red);
+    cursor:pointer; text-decoration:none; display:inline-block;
+    transition:all .12s;
+    letter-spacing:0.4px; text-transform:uppercase;
+  }
+  .btn:hover{background:var(--red); color:#000; box-shadow:0 0 22px rgba(255,26,26,0.4);}
+  .btn.solid{background:var(--red); color:#000;}
+  .btn.solid:hover{background:#ff3333; box-shadow:0 0 28px rgba(255,26,26,0.5);}
+  .btn.ghost{border-color:var(--border-bright); color:var(--text-dim);}
+  .btn.ghost:hover{border-color:var(--text); color:var(--text); background:transparent; box-shadow:none;}
+
+  .hero{
+    padding:90px 0 70px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::after{
+    content:"";
+    position:absolute; top:-180px; left:50%; transform:translateX(-50%);
+    width:800px; height:450px;
+    background:radial-gradient(ellipse at center, rgba(255,26,26,0.11), transparent 65%);
+    pointer-events:none;
+  }
+  .hero-inner{position:relative; z-index:1;}
+  .terminal{
+    background:#080808;
+    border:1px solid var(--border-bright);
+    max-width:580px;
+    margin:0 0 36px;
+    box-shadow:0 0 0 1px #111, 0 24px 50px rgba(0,0,0,0.65);
+    overflow:hidden;
+  }
+  .terminal-bar{
+    display:flex; align-items:center; gap:7px;
+    padding:9px 13px;
+    background:#111;
+    border-bottom:1px solid var(--border);
+  }
+  .dot{width:9px; height:9px; border-radius:50%;}
+  .dot.r{background:#ff5f57;} .dot.y{background:#febc2e;} .dot.g{background:#28c840;}
+  .terminal-title{
+    margin-left:7px; font-family:var(--mono); font-size:11px; color:var(--text-dim);
+  }
+  .terminal-body{
+    padding:16px 18px 20px;
+    font-family:var(--mono); font-size:13px; color:#c8ffd0;
+    min-height:145px;
+  }
+  .terminal-body .dim{color:var(--text-dimmer);}
+  .terminal-body .red{color:var(--red); font-weight:700;}
+  .terminal-body .ok{color:var(--green);}
+  .terminal-line{white-space:pre; opacity:0; animation:fadeIn .2s forwards;}
+  .type-cursor{display:inline-block; width:7px; height:13px; background:#c8ffd0; vertical-align:-2px; animation:blink 0.9s steps(1) infinite;}
+  @keyframes fadeIn{ to{opacity:1;} }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:1.8px;
+    color:var(--red); text-transform:uppercase; margin:0 0 16px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow::before{content:">"; color:var(--text-dimmer);}
+  h1{
+    font-family:var(--mono); font-weight:700;
+    font-size:clamp(40px, 7vw, 72px);
+    line-height:0.96; letter-spacing:-1.5px;
+    margin:0 0 20px;
+  }
+  h1 .glitch{position:relative; color:var(--red);}
+  .hero-sub{
+    font-size:16px; color:var(--text-dim); max-width:540px; margin:0 0 30px;
+    line-height:1.65;
+  }
+  .hero-ctas{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:40px;}
+  .stat-strip{
+    display:flex; flex-wrap:wrap; gap:0;
+    border:1px solid var(--border); overflow:hidden;
+    max-width:620px;
+  }
+  .stat{
+    flex:1 1 135px;
+    padding:14px 16px;
+    border-right:1px solid var(--border);
+    background:var(--panel);
+  }
+  .stat:last-child{border-right:none;}
+  .stat .num{font-family:var(--mono); font-weight:700; font-size:20px; color:var(--text);}
+  .stat .num span{color:var(--red);}
+  .stat .label{font-family:var(--mono); font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.8px; margin-top:3px;}
+
+  section{padding:80px 0;}
+  .section-head{max-width:600px; margin:0 0 42px;}
+  .section-head .eyebrow{margin-bottom:12px;}
+  .section-head h2{
+    font-family:var(--mono); font-weight:700; font-size:clamp(26px,4vw,34px);
+    letter-spacing:-0.5px; margin:0 0 12px; color:var(--text);
+  }
+  .section-head p{color:var(--text-dim); font-size:15px; max-width:500px;}
+
+    .preview-grid{
+        display:grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap:18px;
+    }
+    @media(max-width:900px){
+        .preview-grid{ grid-template-columns: 1fr 1fr; }
+    }
+    @media(max-width:600px){
+        .preview-grid{ grid-template-columns: 1fr; }
+    }
+  .app-window{
+    background:var(--panel);
+    border:1px solid var(--border-bright);
+    overflow:hidden;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+    margin:0;
+  }
+  .app-window img{
+    display:block;
+    width:100%;
+    height:auto;
+    aspect-ratio:16/9;
+    object-fit:contain;
+    background:var(--void);
+    cursor:zoom-in;
+    transition:opacity .15s;
+  }
+  .app-window img:hover{ opacity:0.92; }
+  .app-window img.img-broken{
+    object-fit:none;
+    color:transparent;
+    position:relative;
+    cursor:default;
+  }
+  .app-window figure{ margin:0; position:relative; }
+  .broken-fallback{
+    position:absolute; inset:0;
+    display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:6px;
+    background:repeating-linear-gradient(45deg, var(--raised), var(--raised) 10px, var(--raised-2) 10px, var(--raised-2) 20px);
+    border:1px dashed var(--border);
+    font-family:var(--sans); font-size:13px; color:var(--text-dim);
+    text-align:center; padding:16px;
+  }
+  .app-window img.img-broken + .broken-fallback{ display:flex; }
+  .broken-fallback .path{ color:var(--red); font-size:12px; font-family:var(--mono); }
+  .app-window figcaption{
+    font-family:var(--sans);
+    font-size:13px;
+    color:var(--text-dim);
+    padding:10px 14px;
+    border-top:1px solid var(--border);
+    background:var(--panel);
+  }
+
+  .feature-grid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:1px;
+    background:var(--border); border:1px solid var(--border); overflow:hidden;
+  }
+  @media(max-width:860px){ .feature-grid{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:560px){ .feature-grid{grid-template-columns:1fr;} }
+  .feature{
+    background:var(--panel); padding:24px 22px; transition:background .12s;
+  }
+  .feature:hover{background:var(--raised);}
+  .feature .tag{
+    font-family:var(--mono); font-size:10px; color:var(--red);
+    letter-spacing:1.4px; margin-bottom:11px; display:block;
+  }
+  .feature h3{font-size:15px; margin:0 0 7px; font-weight:600;}
+  .feature p{font-size:13px; color:var(--text-dim); margin:0; line-height:1.55;}
+
+  .stack-strip{
+    display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;
+  }
+  .pill{
+    font-family:var(--mono); font-size:11px; padding:6px 12px;
+    border:1px solid var(--border); color:var(--text-dim);
+    background:var(--panel);
+  }
+
+  .cta-section{
+    text-align:center; padding:90px 0 110px;
+    position:relative;
+  }
+  .cta-box{
+    max-width:600px; margin:0 auto; padding:48px 36px;
+    border:1px solid var(--border-bright);
+    background:linear-gradient(180deg, var(--panel), var(--void));
+    position:relative; overflow:hidden;
+  }
+  .cta-box::before{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(ellipse at top, rgba(255,26,26,0.12), transparent 60%);
+    pointer-events:none;
+  }
+  .cta-box h2{font-family:var(--mono); font-size:clamp(24px,4vw,30px); margin:0 0 12px; position:relative;}
+  .cta-box p{color:var(--text-dim); margin:0 0 28px; position:relative; font-size:15px;}
+  .cta-actions{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; position:relative;}
+
+  footer{border-top:1px solid var(--border); padding:28px 0;}
+  .footer-inner{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
+    font-family:var(--mono); font-size:11px; color:var(--text-dimmer);
+  }
+  .footer-inner a{text-decoration:none; color:var(--text-dim);}
+  .footer-inner a:hover{color:var(--text);}
+
+  .lightbox{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.92);
+    z-index:10000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    cursor:zoom-out;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox img{
+    max-width:min(96vw, 1400px);
+    max-height:92vh;
+    object-fit:contain;
+    border:1px solid var(--border-bright);
+    box-shadow:0 0 60px rgba(0,0,0,0.8);
+    cursor:default;
+  }
+  .lightbox-close{
+    position:absolute;
+    top:18px; right:22px;
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--text-dim);
+    background:none;
+    border:1px solid var(--border-bright);
+    padding:6px 12px;
+    cursor:pointer;
+    transition:all .12s;
+  }
+  .lightbox-close:hover{color:var(--text); border-color:var(--text);}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important;}
+  }
+  :focus-visible{outline:2px solid var(--red); outline-offset:2px;}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="nav-inner">
+    <div class="logo">R<span class="zero">00</span>TED<span class="cursor"></span></div>
+    <nav class="links">
+      <a href="#preview">preview</a>
+      <a href="#features">features</a>
+      <a href="docs.html">docs</a>
+      <a href="#get-it">source</a>
+    </nav>
+    <a class="btn" href="https://github.com/palecache/r00ted">View on GitHub</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="terminal" role="img" aria-label="Terminal showing a simulated login sequence granting access to the R00TED server">
+      <div class="terminal-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="terminal-title">root@r00ted:~</span>
+      </div>
+      <div class="terminal-body" id="termBody"></div>
+    </div>
+    <p class="eyebrow">whoami --server</p>
+    <h1>Chat with<br><span class="glitch">root</span> access.</h1>
+    <p class="hero-sub">R00TED is a self hosted discord alternative chat server for people who'd rather own their data. Voice channels, custom roles, an XP system with prestige badges, and live-stream embeds, running on infrastructure you control.</p>
+    <div class="hero-ctas">
+      <a class="btn solid" href="https://github.com/palecache/r00ted">View on GitHub</a>
+      <a class="btn ghost" href="docs.html">Read the docs</a>
+    </div>
+    <div class="stat-strip">
+      <div class="stat"><div class="num">100<span>%</span></div><div class="label">self hosted</div></div>
+      <div class="stat"><div class="num">0</div><div class="label">ads, ever</div></div>
+      <div class="stat"><div class="num"><span>∞</span></div><div class="label">custom roles</div></div>
+      <div class="stat"><div class="num">1</div><div class="label">password gate</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="preview">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">ls -la ./preview</p>
+      <h2>What it looks like inside</h2>
+      <p>A dark, dense interface built for people who live in chat all day: colored names, level badges, live voice presence, and read receipts.</p>
+    </div>
+
+    <div class="preview-grid">
+      <figure class="app-window">
+        <img src="assets/screenshot-chat.png" alt="R00TED chat view">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/screenshot-chat.png</span></div>
+        <figcaption>chat overview</figcaption>
+      </figure>
+
+      <figure class="app-window">
+        <img src="assets/screenshot-music.png" alt="R00TED music player">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/screenshot-music.png</span></div>
+        <figcaption>music player</figcaption>
+      </figure>
+
+      <figure class="app-window">
+        <img src="assets/popup.gif" alt="profile popout">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/popup.gif</span></div>
+        <figcaption>profile popout with current playing song</figcaption>
+      </figure>
+
+
+
+
+           <figure class="app-window">
+        <img src="assets/screenshot-appearance.png" alt="profile popout">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/screenshot-appearance.png</span></div>
+        <figcaption>appearance tab</figcaption>
+      </figure>
+
+           <figure class="app-window">
+        <img src="assets/screenshot-overlay.png" alt="profile popout">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/screenshot-overlay.png</span></div>
+        <figcaption>In game overlay with the app</figcaption>
+      </figure>
+
+            <figure class="app-window">
+        <img src="assets/screenshot-live-list.png" alt="profile popout">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/screenshot-live-list.png</span></div>
+        <figcaption>Built in live list</figcaption>
+      </figure>
+
+            <figure class="app-window">
+        <img src="assets/screenshot-multi-viewer.png" alt="profile popout">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/screenshot-multi-viewer.png</span></div>
+        <figcaption>Built in multi-viewer for live streams</figcaption>
+      </figure>
+
+
+        <figure class="app-window">
+        <img src="assets/Screenshot-games.png" alt="casino">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/Screenshot-games.png</span></div>
+        <figcaption>casino</figcaption>
+      </figure>
+
+          <figure class="app-window">
+        <img src="assets/Screenshot-plinko.png" alt="plinko">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/Screenshot-plinko.png</span></div>
+        <figcaption>Plinko</figcaption>
+      </figure>
+
+        <figure class="app-window">
+        <img src="assets/Screenshot-wallpapers.png" alt="wallpapers">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/Screenshot-wallpapers.png</span></div>
+        <figcaption>Client side custom wallpaper support</figcaption>
+      </figure>
+
+
+        <figure class="app-window">
+        <img src="assets/v.png" alt="about r00ted">
+        <div class="broken-fallback"><span>image not found</span><span class="path">assets/v.png</span></div>
+        <figcaption>about r00ted</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">cat MANIFEST.txt</p>
+      <h2>Everything runs on your machine</h2>
+      <p>Chat, roles, XP, and moderation run on the Node server itself. Voice runs through a Jitsi Meet instance the server connects to, wired into the same UI.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature">
+        <span class="tag">[VOICE]</span>
+        <h3>Voice &amp; screen share</h3>
+        <p>Voice channels run on Jitsi Meet, embedded directly in the UI with live speaking indicators, mute/deafen, and screen share with picture-in-picture. Requires a Jitsi Meet instance to connect to.</p>
+      </div>
+      <div class="feature">
+        <span class="tag">[ROLES]</span>
+        <h3>Custom roles &amp; badges</h3>
+        <p>Build roles with their own color, badge, and member list from an in chat manager. Admins assign them without touching a config file.</p>
+      </div>
+      <div class="feature">
+        <span class="tag">[XP]</span>
+        <h3>Leveling &amp; prestige</h3>
+        <p>Members earn bonus XP just by being active (needs to be gambled before they actually receive it). Higher levels unlock gradient and animated name colors, badge slots, and prestige tiers.</p>
+      </div>
+      <div class="feature">
+        <span class="tag">[CRYPT]</span>
+        <h3>Optional and simple encryption</h3>
+        <p>Set a password and messages get encrypted client-side before they ever leave the browser. Anyone without the password sees a lock icon.</p>
+      </div>
+      <div class="feature">
+        <span class="tag">[LIVE]</span>
+        <h3>Stream embeds</h3>
+        <p>Pull in Kick and YouTube streams with automatic "now live" pings when a tracked streamer goes live.</p>
+      </div>
+      <div class="feature">
+        <span class="tag">[MOD]</span>
+        <h3>Admin tooling</h3>
+        <p>Slash commands for muting, clearing, redirecting, role changes, and annoying unpausable private youtube videos, built for fun with trolling friends in mind :).</p>
+      </div>
+
+      <div class="feature">
+        <span class="tag">[MUSIC]</span>
+        <h3>Music Player</h3>
+        <p>Built in music player that can play local files or stream songs from your server, Built in music bot that can share music videos via jitsi meet screen share or just songs if you like.</p>
+      </div>
+
+          <div class="feature">
+        <span class="tag">[LIVE]</span>
+        <h3>Multi-View</h3>
+        <p>From the live list click embed and watch multiple streams at once with the ability to switch chats from the drop down.</p>
+      </div>
+
+
+        <div class="feature">
+        <span class="tag">[TEXT]</span>
+        <h3>Whispers</h3>
+        <p>Talk to server members in private.</p>
+      </div>
+
+        <div class="feature">
+        <span class="tag">[FUN]</span>
+        <h3>Casino</h3>
+        <p>Play casino games crash, plinko, black jack, poker, etc.... singleplayer and multiplayer with friends!</p>
+      </div>
+
+
+        <div class="feature">
+        <span class="tag">[FEATURE?]</span>
+        <h3>Feature?</h3>
+        <p>No annoying account creation, no emails, no bullshit!</p>
+      </div>
+
+
+       <div class="feature">
+        <span class="tag">[LOL]</span>
+        <h3>lol</h3>
+        <p>Endless features so many i keep forgetting them lol, I hope you enjoy it!</p>
+      </div>
+    </div>
+    <p class="section-head" style="margin-top:40px; margin-bottom:0;">
+      <span class="eyebrow" style="margin-bottom:10px;">uname -a</span>
+    </p>
+    <div class="stack-strip">
+      <span class="pill">Node.js</span>
+      <span class="pill">Express</span>
+      <span class="pill">Socket.IO</span>
+      <span class="pill">Jitsi Meet (external, for voice)</span>
+      <span class="pill">self hosted</span>
+      <span class="pill">password-gated</span>
+      <span class="pill">no telemetry</span>
+    </div>
+  </div>
+</section>
+
+<section id="get-it" class="cta-section">
+  <div class="wrap">
+    <div class="cta-box">
+      <h2>Get r00ted.</h2>
+      <p>R00TED runs on infrastructure you control. No seat pricing, no data leaving your server. Grab the source and host it yourself.</p>
+      <div class="cta-actions">
+        <a class="btn solid" href="https://github.com/palecache/r00ted">View on GitHub</a>
+        <a class="btn ghost" href="docs.html">Read the docs</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-inner">
+    <span>R00TED: private, self hosted chat.</span>
+    <span><a href="#preview">preview</a> · <a href="#features">features</a> · <a href="docs.html">docs</a> · <a href="https://github.com/palecache/r00ted">github</a></span>
+  </div>
+</footer>
+
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">close [esc]</button>
+  <img src="" alt="" id="lightboxImg">
+</div>
+
+<script>
+(function(){
+  document.querySelectorAll('.app-window img').forEach(function(img){
+    img.addEventListener('error', function(){
+      img.classList.add('img-broken');
+    }, { once:true });
+    if (img.complete && img.naturalWidth === 0) {
+      img.classList.add('img-broken');
+    }
+  });
+})();
+</script>
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var el = document.getElementById('termBody');
+  var lines = [
+    {t:'$ connect r00ted://server.local', c:''},
+    {t:'resolving host... [ok]', c:'ok'},
+    {t:'negotiating handshake... [ok]', c:'ok'},
+    {t:'password: ********', c:'dim'},
+    {t:'', c:''},
+    {t:'ACCESS GRANTED', c:'red'},
+    {t:'welcome back, anonymous.', c:''}
+  ];
+  if (reduce) {
+    el.innerHTML = lines.map(function(l){
+      return '<div class="terminal-line" style="opacity:1" class="'+l.c+'">'+escapeHtml(l.t)+'</div>';
+    }).join('');
+    return;
+  }
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  var i = 0;
+  function renderLine(){
+    if (i >= lines.length){
+      var cursorDiv = document.createElement('div');
+      cursorDiv.className = 'terminal-line';
+      cursorDiv.style.opacity = 1;
+      cursorDiv.innerHTML = '<span class="type-cursor"></span>';
+      el.appendChild(cursorDiv);
+      return;
+    }
+    var line = lines[i];
+    var div = document.createElement('div');
+    div.className = 'terminal-line ' + (line.c || '');
+    el.appendChild(div);
+    var chars = line.t.split('');
+    var j = 0;
+    var speed = line.t.startsWith('$') ? 28 : 6;
+    (function typeChar(){
+      if (j < chars.length){
+        div.textContent += chars[j];
+        div.style.opacity = 1;
+        j++;
+        setTimeout(typeChar, speed);
+      } else {
+        i++;
+        setTimeout(renderLine, line.t === '' ? 80 : 180);
+      }
+    })();
+  }
+  renderLine();
+})();
+</script>
+<script>
+(function(){
+  var lb = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lightboxImg');
+  var closeBtn = document.getElementById('lightboxClose');
+
+  function openLightbox(src, alt){
+    lbImg.src = src;
+    lbImg.alt = alt || '';
+    lb.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox(){
+    lb.classList.remove('open');
+    lbImg.src = '';
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.app-window img').forEach(function(img){
+    img.addEventListener('click', function(){
+      if (img.classList.contains('img-broken')) return;
+      openLightbox(img.src, img.alt);
+    });
+  });
+
+  lb.addEventListener('click', function(e){
+    if (e.target === lb || e.target === closeBtn) closeLightbox();
+  });
+  closeBtn.addEventListener('click', closeLightbox);
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
+  });
+})();
+</script>
+</body>
+</html>
