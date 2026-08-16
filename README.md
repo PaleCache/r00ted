@@ -48,6 +48,7 @@ No ads. No tracking. No centralized servers.
 ## Installation
 
 Clone the repository and install the dependencies.
+Check out the docs for more info https://palecache.github.io/r00ted/
 
 ```bash
 git clone https://github.com/palecache/r00ted.git
