@@ -2,11 +2,15 @@
   <img src="./public/icon-default.png" alt="R00TED Logo" width="220">
 </p>
 
-# R00TED
+# R00TED - Self Hosted, Privacy Focused Communication Platform
 
 > Beyond identity. Beyond control. True freedom.
 
-A self hosted, privacy first communication platform built for people who value digital sovereignty.
+**R00TED is a self hosted, privacy focused communication and community platform for people who want control over their own infrastructure and data.**
+
+R00TED provides real time messaging, voice chat, screen sharing, media sharing, bots, synchronized music, community features, and more without relying on a centralized communication service.
+
+R00TED can be used as a **self hosted Discord alternative** for private communities, gaming groups, friends, and organizations that want to run their own communication server.
 
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/palecache/r00ted)](https://github.com/palecache/r00ted/stargazers)
@@ -15,9 +19,25 @@ A self hosted, privacy first communication platform built for people who value d
 
 ## What is R00TED?
 
-R00TED is a self hosted, privacy first communication platform that puts you in control of your own community.
+R00TED is an open source, self hosted communication platform designed for communities that want to operate their own chat and social infrastructure.
 
-No ads. No tracking. No centralized servers.
+Instead of relying on a centralized platform, you can host your own R00TED server on a Linux machine or VPS and control the server, configuration, user accounts, and community data yourself.
+
+R00TED is built around:
+
+- **Self hosting** - Run your own communication server.
+- **Privacy** - No advertising or third-party tracking built into the platform.
+- **Real time communication** - Chat, whispers, voice chat, and screen sharing.
+- **Community features** - XP, levels, badges, emotes, bots, and shared media.
+- **Media and entertainment** - GIFs, images, videos, music, playlists, and live streams.
+- **Open source** - Inspect, modify, and run the software yourself.
+
+## R00TED as a Discord Alternative
+
+R00TED provides many of the features communities expect from modern chat platforms while allowing you to host the software yourself.
+
+If you are looking for a **self hosted Discord alternative** or a **privacy focused community chat platform**, R00TED is designed for exactly that.
+
 
 ## Documentation
 
@@ -33,21 +53,35 @@ The documentation includes:
 
 ## Features
 
-- Privacy first, self hosted communication platform.
-- No sign up required.
+### Communication
+
 - Real time messaging with whispers.
-- Simple AES-256 encrypted messages (text only and opt in).
+- Voice chat and screen sharing via Jitsi Meet.
+- Image and video uploads.
+- Optional AES-256 encrypted text messages.
+- No sign-up required.
+
+### Community
+
 - XP and level progression.
 - Custom badges and emotes.
-- GIF search via Klipy (API key required).
-- Voice chat and screen sharing via Jitsi Meet.
-- Built in music player with support for local files and server hosted media.
-- Shared playlists with synchronized playback via the built in music bot with music video support.
-- YouTube and Kick live list with muti-view, chat, and live stream notifications (Kick API key required).
 - Bot support.
-- Discord style rich embeds for bots and youtube links.
-- Image and video uploads.
-- A casino style XP wagering system where users can risk and earn in app XP through games like Plinko, Blackjack, and Poker, with both single player and friend based multiplayer modes.
+- Discord style rich embeds for bots and YouTube links.
+
+### Media & Entertainment
+
+- GIF search via Klipy.
+- Built in music player.
+- Server hosted and local media.
+- Shared playlists with synchronized playback.
+- Music video support.
+- YouTube and Kick live streams.
+- Multiview, chat, and live stream notifications.
+
+### Games
+
+- XP wagering games including Plinko, Blackjack, and Poker.
+- Single player and friend based multiplayer modes.
 
 ## Requirements
 
