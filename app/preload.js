@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
    overlayMusicUpdate: (data) => ipcRenderer.send('overlay-music-update', data),
    overlayMusicLevel: (level) => ipcRenderer.send('overlay-music-level', level),
    overlayPingUpdate: (ping) => ipcRenderer.send('overlay-ping-update', ping),
+   onNativeNowPlaying: (cb) => ipcRenderer.on('native-now-playing', (event, data) => cb(data)),
    getRunningGames: () => {
     return new Promise((resolve) => {
       const handler = (event, game) => {
