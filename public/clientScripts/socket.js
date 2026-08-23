@@ -410,6 +410,17 @@ socket.on("userPropertiesUpdated", (data) => {
   if (userIndex !== -1) {
     Object.assign(currentUsers[userIndex], properties);
   }
+
+
+  if (typeof currentProfileUser !== "undefined" && currentProfileUser && currentProfileUser.id === userId) {
+    Object.assign(currentProfileUser, properties);
+    if (properties.profileEffect !== undefined) {
+      applyProfileEffect(currentProfileUser);
+    }
+    if (properties.profileGradient !== undefined) {
+      applyProfilePopupTheme(currentProfileUser);
+    }
+  }
   
  
   updateVoiceUI();
@@ -623,7 +634,6 @@ sendNotification(`New message in #${getChannelDisplayName(msgChannel)}`, getNoti
     addMessage(message, true);
   }
 });
-
 
 
 

@@ -2736,8 +2736,50 @@ if (!isSameSrc) {
   }
 }
 
+
   function wireEvents() {
-    btn.addEventListener("click", openPlayer);
+  try {
+  if (window.electronAPI?.onNativeNowPlaying) {
+  window.electronAPI.onNativeNowPlaying((np) => {
+  window.__lastNativeNowPlaying = np;
+  try {
+    if (currentIndex !== -1 && !audio.paused) return;
+
+        const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge'];
+        if (np?.source && BROWSER_SOURCES.some(b => np.source.toLowerCase().includes(b)) && notifSettings.browserMediaStatus === false) {
+          np = null;
+        }
+
+      if (!np || !np.isPlaying) {
+          if (typeof socket !== "undefined" && socket?.connected) {
+            socket.emit("setMusicStatus", { musicStatus: null, musicArtUrl: null });
+          }
+          if (window.electronAPI?.overlayMusicUpdate) {
+            window.electronAPI.overlayMusicUpdate(null);
+          }
+          return;
+        }
+
+          const musicStatus = np.artist
+            ? `${np.title} - ${np.artist} (via ${np.source || "Spotify"})`
+            : `${np.title} (via ${np.source || "Spotify"})`;
+
+          if (typeof socket !== "undefined" && socket?.connected) {
+            socket.emit("setMusicStatus", { musicStatus, musicArtUrl: np.artUrl || null });
+          }
+          if (window.electronAPI?.overlayMusicUpdate) {
+            window.electronAPI.overlayMusicUpdate({ title: np.title, artist: np.artist, artUrl: np.artUrl });
+          }
+        } catch (e) {
+          console.error("native-now-playing handler failed:", e);
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Failed to register native-now-playing listener:", e);
+  }
+
+  btn.addEventListener("click", openPlayer);
     el("mpCloseBtn").addEventListener("click", closePlayer);
     modal.addEventListener("click", (e) => {
       if (e.target === modal) closePlayer();

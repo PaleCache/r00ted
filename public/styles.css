@@ -6643,3 +6643,70 @@ audio.chat-audio::-webkit-media-controls-time-remaining-display {
   }
 }
 
+
+.reactions-container {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #40444b;
+  border: 1px solid #72767d;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.reaction-pill:hover {
+  background: #72767d;
+}
+
+.reaction-menu-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.reaction-menu-btn:hover {
+  background: #40444b;
+}
+
+.emoji-menu {
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: #2b2d31;
+  border: 1px solid #40444b;
+  border-radius: 8px;
+  padding: 8px;
+  position: absolute;
+  margin-top: 4px;
+  z-index: 1000;
+}
+
+.emoji-menu button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.emoji-menu button:hover {
+  background: #40444b;
+}
+
+

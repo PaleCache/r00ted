@@ -1,12 +1,12 @@
 {
   "name": "r00ted",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "desktopName": "r00ted.desktop",
   "description": "Beyond identity. Beyond control. True Freedom.",
   "main": "./app/main.js",
   "keywords": [],
   "author": "PaleCache",
-  "license": "ISC",
+  "license": "GPL-3.0",
   "type": "commonjs",
   "dependencies": {
     "@napi-rs/canvas": "^0.1.67",

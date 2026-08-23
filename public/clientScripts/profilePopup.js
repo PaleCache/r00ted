@@ -33,46 +33,7 @@ function showProfilePopup(userData, clickX, clickY) {
     popup.appendChild(effectOverlay);
   }
 
-const REPLAY_INTERVAL_MS = 10000; 
-const PLAY_DURATION_MS = 6000;   
-
-if (window._profileEffectTimers) {
-  window._profileEffectTimers.forEach(id => { clearTimeout(id); clearInterval(id); });
-}
-window._profileEffectTimers = [];
-
-if (userData.profileEffect) {
-  const effectUrl = sanitizeAvatar(userData.profileEffect);
-  effectOverlay.innerHTML = '';
-  effectOverlay.style.display = 'block';
-
-  function playOnce() {
-    effectOverlay.innerHTML = '';
-
-    const effectImg = document.createElement('img');
-    effectImg.style.cssText = `
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    `;
-    effectImg.src = effectUrl + (effectUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
-    effectOverlay.appendChild(effectImg);
-
-    const removeTimer = setTimeout(() => {
-      effectOverlay.innerHTML = '';
-    }, PLAY_DURATION_MS);
-
-    window._profileEffectTimers.push(removeTimer);
-  }
-
-  playOnce();
-  const loopTimer = setInterval(playOnce, REPLAY_INTERVAL_MS);
-  window._profileEffectTimers.push(loopTimer);
-
-} else {
-  effectOverlay.innerHTML = '';
-  effectOverlay.style.display = 'none';
-}
+   applyProfileEffect(userData);
 
   popupBorderStyle = document.createElement('style');
   popupBorderStyle.id = 'userProfilePopupBorderStyle';
@@ -272,6 +233,7 @@ if (userData.profileEffect) {
   streamDiv.appendChild(iconBox);
 
   const textWrap = document.createElement('div');
+  textWrap.style.cssText = 'min-width: 0; flex: 1;';
   const streamStrong = document.createElement('strong');
   streamStrong.style.color = '#fff';
   streamStrong.textContent = 'Streaming: ';
@@ -327,6 +289,7 @@ if (userData.profileEffect) {
     musicDiv.appendChild(artBox);
 
     const textWrap = document.createElement('div');
+    textWrap.style.cssText = 'min-width: 0; flex: 1;';
     const musicStrong = document.createElement('strong');
     musicStrong.style.color = '#fff';
     musicStrong.textContent = 'Listening to: ';
@@ -334,8 +297,13 @@ if (userData.profileEffect) {
 
     const songName = document.createElement('span');
     songName.textContent = userData.musicStatus;
-    songName.style.fontSize = '10px'; 
-    songName.style.color = '#e6e6e7';   
+    songName.style.cssText = `
+      font-size: 10px;
+      color: #e6e6e7;
+      display: block;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    `;
     textWrap.appendChild(songName);
     musicDiv.appendChild(textWrap);
 
@@ -399,6 +367,64 @@ function hideProfilePopup() {
   }
   const effectOverlay = document.getElementById('popupEffectOverlay');
   if (effectOverlay) effectOverlay.innerHTML = '';
+}
+
+
+function applyProfileEffect(userData) {
+  const popup = document.getElementById('userProfilePopup');
+  let effectOverlay = document.getElementById('popupEffectOverlay');
+  if (!effectOverlay) {
+    effectOverlay = document.createElement('div');
+    effectOverlay.id = 'popupEffectOverlay';
+    effectOverlay.style.cssText = `
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      border-radius: inherit;
+      overflow: hidden;
+    `;
+    popup.appendChild(effectOverlay);
+  }
+
+  const REPLAY_INTERVAL_MS = 10000;
+  const PLAY_DURATION_MS = 6000;
+
+  if (window._profileEffectTimers) {
+    window._profileEffectTimers.forEach(id => { clearTimeout(id); clearInterval(id); });
+  }
+  window._profileEffectTimers = [];
+
+  if (userData.profileEffect) {
+    const effectUrl = sanitizeAvatar(userData.profileEffect);
+    effectOverlay.innerHTML = '';
+    effectOverlay.style.display = 'block';
+
+    function playOnce() {
+      effectOverlay.innerHTML = '';
+      const effectImg = document.createElement('img');
+      effectImg.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      `;
+      effectImg.src = effectUrl + (effectUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+      effectOverlay.appendChild(effectImg);
+
+      const removeTimer = setTimeout(() => {
+        effectOverlay.innerHTML = '';
+      }, PLAY_DURATION_MS);
+
+      window._profileEffectTimers.push(removeTimer);
+    }
+
+    playOnce();
+    const loopTimer = setInterval(playOnce, REPLAY_INTERVAL_MS);
+    window._profileEffectTimers.push(loopTimer);
+  } else {
+    effectOverlay.innerHTML = '';
+    effectOverlay.style.display = 'none';
+  }
 }
 
 

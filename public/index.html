@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="Content-Security-Policy" content="
+<meta http-equiv="Content-Security-Policy" content="
   default-src 'self' https: wss: blob: data:;
   script-src 'self' https: 'unsafe-inline';
   style-src 'self' https: 'unsafe-inline';
+  img-src 'self' https: blob: data: file:;
 ">
   <script>
     if (!localStorage.getItem("chatToken")) {
@@ -743,6 +744,17 @@
       <span class="slider"></span>
     </label>
   </div>
+
+    <div class="setting-item">
+    <label>Show Status From Browser Media</label>
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggleBrowserMediaStatus" checked>
+      <span class="slider"></span>
+    </label>
+    <p style="font-size:13px; color:#b9bbbe; margin-top:4px;">
+      When off, videos/music playing in your browser tabs won't be shown as your status
+    </p>
+  </div>
   <button id="requestNotifPermissionBtn" style="margin-top:15px;">
     Request Browser Permission
   </button>
@@ -1134,5 +1146,7 @@
 <script src="/clientScripts/socket.js" defer></script>
 <script src="/clientScripts/notifications.js" defer></script>
 <script src="/clientScripts/jitsiStuff.js" defer></script>
+<script src="/clientScripts/reactions.js" defer></script>
+<script src="/clientScripts/Buildlinks.js" defer></script>
 </body>
 </html>

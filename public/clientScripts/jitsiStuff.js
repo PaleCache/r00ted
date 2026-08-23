@@ -974,8 +974,8 @@ function updateVoiceUI() {
   const container = document.getElementById('voiceParticipants');
   if (!container) return;
 
-  function rowSig(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, customRoleIds) {
-    return [id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, (customRoleIds||[]).join(",")].join("|");
+  function rowSig(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, customRoleIds, isMuted, isDeafened) {
+    return [id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, (customRoleIds||[]).join(","), isMuted, isDeafened].join("|");
   }
 
   const existingRows = new Map();
@@ -985,7 +985,7 @@ function updateVoiceUI() {
   const usedIds = new Set();
   {
     const id = "local";
-    const sig = rowSig(id, user.avatar, user.username, user.usernameColor || "username-cyan", user.level || 1, user.badge || null, user.isAdmin || false, user.isDeveloper || false, user.isPromptEngineer || false, user.prestigeBadge || null, user.customRoleIds || []);
+   const sig = rowSig(id, user.avatar, user.username, user.usernameColor || "username-cyan", user.level || 1, user.badge || null, user.isAdmin || false, user.isDeveloper || false, user.isPromptEngineer || false, user.prestigeBadge || null, user.customRoleIds || [], isCurrentlyMuted, isDeafened);
     const existing = existingRows.get(id);
     usedIds.add(id);
     if (existing && existing.dataset.vpRowSig === sig) {
@@ -1020,8 +1020,10 @@ function updateVoiceUI() {
     const isDeveloper = participant.getProperty("isDeveloper") === "true";
     const isPromptEngineer = participant.getProperty("isPromptEngineer") === "true";
     const prestigeBadge = participant.getProperty("prestigeBadge") || null;
+    const stateKey = participant.getProperty("userId") || id;
+    const state = voiceStates.get(stateKey) || { isMuted: false, isDeafened: false };
 
-    const sig = rowSig(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, remoteCustomRoleIds);
+    const sig = rowSig(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, remoteCustomRoleIds, state.isMuted, state.isDeafened);
     const existing = existingRows.get(id);
     usedIds.add(id);
 
@@ -1071,10 +1073,6 @@ function getAvatarGlowColor(colorClass) {
 }
 
 
-
-
-
-
 function buildParticipantRow(id, avatar, name, colorClass, level, badge, isAdmin, isDeveloper = false, isPromptEngineer = false,prestigeBadge = null, customRoleIds = []) {
   const div = document.createElement('div');
   div.className = 'voice-participant';
@@ -1098,16 +1096,14 @@ function buildParticipantRow(id, avatar, name, colorClass, level, badge, isAdmin
   textSpan.className = `username-wrapper ${colorClass || 'username-cyan'}`;
   textSpan.setAttribute('data-text', name || "Anonymous");
   textSpan.textContent = name || "Anonymous";
-   
-    const badgeColor = colorClassToHex[colorClass] || '#00f2ff';
-    const rgbColor = hexToRgb(badgeColor);
-
+  const badgeColor = colorClassToHex[colorClass] || '#00f2ff';
+  const rgbColor = hexToRgb(badgeColor);
   const metaSpan = document.createElement('span');
   metaSpan.style.cssText = "margin-left:4px; vertical-align:middle; white-space:nowrap; display:flex; align-items:center; gap:4px;";
-const displayLevel = level || 1;
-const lvlColor = getLevelColor(displayLevel);
-const lvlRgb = getLevelRgb(displayLevel);
-const levelBadge = document.createElement('span');
+  const displayLevel = level || 1;
+  const lvlColor = getLevelColor(displayLevel);
+  const lvlRgb = getLevelRgb(displayLevel);
+  const levelBadge = document.createElement('span');
 levelBadge.style.cssText = `font-size:10px; color:${lvlColor}; -webkit-text-fill-color:${lvlColor}; background:rgba(${lvlRgb.r},${lvlRgb.g},${lvlRgb.b},0.2); -webkit-background-clip:initial; background-clip:initial; font-weight:700; padding:2px 6px; border-radius:3px; border:1px solid ${lvlColor}; margin-left:4px; display:inline-block; position:relative;`;
 levelBadge.textContent = displayLevel;
 metaSpan.appendChild(levelBadge);

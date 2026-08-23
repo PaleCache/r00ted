@@ -586,3 +586,33 @@ function sendNotification(title, body, options = {}) {
     }
   }
 }
+
+function loadNotifSettings() {
+  const saved = localStorage.getItem("notifSettings");
+  if (saved) {
+    notifSettings = JSON.parse(saved);
+  }
+
+  document.getElementById("toggleBrowserNotif").checked = notifSettings.browser;
+  document.getElementById("toggleLiveBanner").checked = notifSettings.liveBanner;
+  document.getElementById("toggleNotifSound").checked = notifSettings.sound;
+  document.getElementById("toggleBrowserMediaStatus").checked = notifSettings.browserMediaStatus !== false;
+}
+
+function saveNotifSettings(e) {
+  notifSettings.browserMediaStatus = e.target.checked;
+  localStorage.setItem("notifSettings", JSON.stringify(notifSettings));
+
+  if (!notifSettings.browserMediaStatus) {
+    const lastSource = window.__lastNativeNowPlaying?.source?.toLowerCase() || "";
+    const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge'];
+    const isBrowser = BROWSER_SOURCES.some(b => lastSource.includes(b));
+
+    if (isBrowser) {
+      if (typeof socket !== "undefined" && socket?.connected) {
+        socket.emit("setMusicStatus", { musicStatus: null, musicArtUrl: null });
+      }
+      window.electronAPI?.overlayMusicUpdate?.(null);
+    }
+  }
+}

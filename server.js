@@ -24,6 +24,8 @@ const USERS_FILE = "./data/users.json";
 const voiceUserStates = new Map();
 const userSockets = new Map();
 const embedButtonRateLimit = new Map();
+const reactionRateLimit = new Map();
+const REACTION_RATE_LIMIT = 500;
 
 const ALLOWED_UPLOAD_EXT = {
   "image/png": ".png",
@@ -175,6 +177,8 @@ function addServerXP(userId, amount) {
     level++;
   }
   user.level = level;
+
+
   const prestigeBadges = emoteConfig.prestigeBadges || [];
   const newlyUnlocked = prestigeBadges.filter(p => p.level > oldLevel && p.level <= user.level);
   if (newlyUnlocked.length > 0) {
@@ -361,7 +365,8 @@ function updatePersistentUser(userData) {
 
   const ALLOWED_FIELDS = [
     'username', 'avatar', 'banner', 'customStatus',
-    'usernameColor', 'badge', 'profileHeader', 'status'
+    'usernameColor', 'badge', 'profileHeader', 'status',
+    'profileGradient', 'profileEffect'
   ];
 
   ALLOWED_FIELDS.forEach(field => {
@@ -380,6 +385,9 @@ function updatePersistentUser(userData) {
 const saveMessages = () => {
   persistAllMessages();
 };
+
+const { ogRoute } = require("./og-route");
+app.get("/og", ogRoute);
 
 
 app.get('/ping', (req, res) => {
@@ -422,17 +430,17 @@ function formatLastSeen(timestamp) {
 function broadcastOnlineUsers() {
   const now = Date.now();
   const usersToSend = [];
-
-
-  
   onlineUsers.forEach(user => {
    const hasGame = !!user.gameStatus;
-  usersToSend.push({
-    ...user,
-    status: user.status || 'online',
-    customStatus: user.gameStatus || user.customStatus || '',
-    musicStatus: hasGame ? null : (user.musicStatus || null),
-    musicArtUrl: hasGame ? null : (user.musicArtUrl || null)
+    usersToSend.push({
+      ...user,
+      status: user.status || 'online',
+      gameStatus: user.gameStatus || null,
+      customStatus: user.customStatus || '',
+      musicStatus: user.musicStatus || null,
+      musicArtUrl: user.musicArtUrl || null,
+      streamStatus: user.streamStatus || null,
+      profileEffect: user.profileEffect || null 
     });
   });
 
@@ -1913,14 +1921,13 @@ asStartCountdown();
 
 const WG_POT_COUNT = 3;
 const WG_GROW_MS = 60 * 60 * 1000;           
-const WG_WATER_INTERVAL_MIN_MS = 10 * 60 * 1000;
-const WG_WATER_INTERVAL_MAX_MS = 20 * 60 * 1000;
-const WG_DEATH_GRACE_MS = 10 * 60 * 1000;   
+const WG_WATER_INTERVAL_MS = 15 * 60 * 1000;
+const WG_DEATH_GRACE_MS = 10 * 60 * 1000;  
 const WG_HARVEST_XP = 30;
 const WG_LEADERBOARD_FILE = path.join(__dirname, "./data/weedLeaderboard.json");
 const WG_LEADERBOARD_TOP_N = 10;
 function wgRandomWaterInterval() {
-  return WG_WATER_INTERVAL_MIN_MS + crypto.randomInt(0, WG_WATER_INTERVAL_MAX_MS - WG_WATER_INTERVAL_MIN_MS + 1);
+  return WG_WATER_INTERVAL_MS;
 }
 let weedLeaderboard = new Map();
 
@@ -4103,7 +4110,6 @@ function getGroupMembersPayload(group) {
 
 function emitToUser(userId, event, payload) {
   const sockets = userSockets.get(userId);
-  console.log(`[emitToUser] ${event} -> ${userId} | found sockets:`, sockets ? [...sockets] : null);
   if (!sockets) return;
   sockets.forEach(sockId => io.to(sockId).emit(event, payload));
 }
@@ -4311,6 +4317,7 @@ io.on("connection", (socket) => {
     server:serverConfig.public,
     serverBanner: currentServerBanner,
     pepeList: emoteConfig.pepeList,
+    profileEffects: emoteConfig.profileEffects || [],
     prestigeBadges: emoteConfig.prestigeBadges || [],
     version: packageJson.version
   });
@@ -4768,6 +4775,8 @@ userSockets.get(clientData.id).add(socket.id);
   badge:         clientData.badge         ?? dbUser.badge         ?? null,
   customRoleIds: dbUser.customRoleIds ?? [],
   profileHeader: clientData.profileHeader ?? dbUser.profileHeader ?? "",
+  profileGradient: dbUser.profileGradient ?? null,
+  profileEffect: dbUser.profileEffect ?? null, 
   customStatus:  dbUser.statusLocked ? dbUser.customStatus : (clientData.customStatus ?? dbUser.customStatus ?? ""),
   xp:      dbUser.xp      || 0,
   level:   dbUser.level   || 1,
@@ -4788,6 +4797,8 @@ socket.emit("userData", {
   usernameColor:    serverUser.usernameColor,
   badge:            serverUser.badge,
   banner:           serverUser.banner,
+  profileGradient: serverUser.profileGradient,
+  profileEffect:    serverUser.profileEffect,
   isAdmin:          isAdmin,
   isDeveloper:      isDeveloper,
   isPromptEngineer: isPromptEngineer,
@@ -4854,11 +4865,15 @@ if (!socket.isBot) {
     });
 
 
-    const generalMessages = messagesByChannel.get("general") || [];
-    socket.emit("history", { 
-      channel: "general",
-      messages: generalMessages 
-    });
+ const generalMessages = messagesByChannel.get("general") || [];
+socket.emit("history", { 
+  channel: "general",
+  messages: generalMessages.map(msg => ({
+    ...msg,
+    reactions: msg.reactions || {},
+    reactionCounts: msg.reactionCounts || {}
+  }))
+});
   }
 });
 
@@ -4914,15 +4929,17 @@ socket.on("editMessage", (data) => {
   message.editedAt = Date.now();
   saveMessages();
 
-  io.emit("messageEdited", {
-    id: message.id,
-    channel: message.channel || channel || "general",
-    type: message.type,
-    text: message.text,
-    embed: message.embed,
-    edited: true,
-    editedAt: message.editedAt
-  });
+io.emit("messageEdited", {
+  id: message.id,
+  channel: message.channel || channel || "general",
+  type: message.type,
+  text: message.text,
+  embed: message.embed,
+  edited: true,
+  editedAt: message.editedAt,
+  reactions: message.reactions || {},
+  reactionCounts: message.reactionCounts || {}
+});
 
   console.log(`✏️ Message edited: ${data.id} by ${onlineUsers.get(userId)?.username || userId}`);
 });
@@ -4957,6 +4974,17 @@ socket.on("whisperTyping", (data) => {
   if (!toId || toId === fromId) return;
 
   emitToUser(toId, "whisperTyping", { from: fromId, username });
+});
+
+
+socket.on("whisperDeleteConvo", (data) => {
+  if (socket.isBot || !socket.userId) return;
+  const otherId = data?.userId;
+  if (!otherId || otherId === socket.userId) return;
+
+  getHiddenMap(socket.userId).set(otherId, Date.now());
+  saveWhispers();
+  console.log(`🗑️ ${onlineUsers.get(socket.userId)?.username || socket.userId} hid DM convo with ${otherId}`);
 });
 
 socket.on("getWhisperHistory", () => {
@@ -5612,13 +5640,25 @@ io.to(targetSocket).emit('receivePrivateYoutube', {
       data.seenBy = [];
     }
 
-      messages.push(data);
+    messages.push({
+      ...data,
+      reactions: {},
+      reactionCounts: {}
+    });
   if (!messagesByChannel.has(channel)) {
     messagesByChannel.set(channel, []);
   }
-  messagesByChannel.get(channel).push(data);
+  messagesByChannel.get(channel).push({
+    ...data,
+    reactions: {},
+    reactionCounts: {}
+  });
   saveMessages();
-  io.emit("message", data); 
+  io.emit("message", {
+  ...data,
+  reactions: data.reactions || {},
+  reactionCounts: data.reactionCounts || {}
+});
   });
 
  socket.on("voiceStateChange", (data) => {
@@ -5667,10 +5707,14 @@ socket.on("joinChannel", (data) => {
   socket.currentChannel = channel;
   
   const channelMessages = messagesByChannel.get(channel) || [];
-  socket.emit("history", { 
-    channel: channel,
-    messages: channelMessages 
-  });
+socket.emit("history", { 
+  channel: channel,
+  messages: channelMessages.map(msg => ({
+    ...msg,
+    reactions: msg.reactions || {},
+    reactionCounts: msg.reactionCounts || {}
+  }))
+});
   
   const unseenByChannel = {};
   CHANNELS.forEach(ch => {
@@ -5794,10 +5838,11 @@ socket.on("typing", (data) => {
   const currentUser = onlineUsers.get(socket.userId);
   const dbUser = allUsers.get(socket.userId);
   const SERVER_ONLY_FIELDS = ['level', 'xp', 'isAdmin', 'isDeveloper', 'isPromptEngineer'];
- const ALLOWED_CLIENT_FIELDS = [
-  'username', 'avatar', 'banner', 'customStatus',
-  'usernameColor', 'badge', 'profileHeader', 'prestigeBadge'
-];
+  const ALLOWED_CLIENT_FIELDS = [
+    'username', 'avatar', 'banner', 'customStatus',
+    'usernameColor', 'badge', 'profileHeader', 'prestigeBadge',
+    'profileGradient', 'profileEffect'  
+  ];
 
 ALLOWED_CLIENT_FIELDS.forEach(field => {
   if (data.user[field] !== undefined) {
@@ -5835,20 +5880,24 @@ if (data.user.username !== undefined) {
 ALLOWED_CLIENT_FIELDS.forEach(field => {
   if (data.user[field] !== undefined) {
     if (field === "customStatus" && dbUser?.statusLocked) return;
-    if (field === 'username' || field === 'customStatus') {
-      currentUser[field] = sanitizeString(data.user[field], field === 'username' ? 32 : 100);
+
+    if (field === "username" || field === "customStatus") {
+      dbUpdate[field] = sanitizeString(
+        data.user[field],
+        field === "username" ? 32 : 100
+      );
     } else {
-      currentUser[field] = data.user[field];
+      dbUpdate[field] = data.user[field];
     }
   }
 });
 
-  
-  dbUpdate.level   = existingDb.level   || 1;
-  dbUpdate.xp      = existingDb.xp      || 0;
-  dbUpdate.isAdmin = existingDb.isAdmin  || false;
-  dbUpdate.isDeveloper = existingDb?.isDeveloper  || false;
-  dbUpdate.isPromptEngineer = existingDb?.isPromptEngineer || false;
+dbUpdate.level = existingDb.level || 1;
+dbUpdate.xp = existingDb.xp || 0;
+dbUpdate.isAdmin = existingDb.isAdmin || false;
+dbUpdate.isDeveloper = existingDb.isDeveloper || false;
+dbUpdate.isPromptEngineer = existingDb.isPromptEngineer || false;
+
 
   allUsers.set(socket.userId, dbUpdate);
   saveUsers();
@@ -5862,6 +5911,8 @@ io.emit("userPropertiesUpdated", {
     usernameColor:    currentUser.usernameColor,
     badge:            currentUser.badge,
     profileHeader:    currentUser.profileHeader,
+    profileGradient:  currentUser.profileGradient || null,
+    profileEffect:    currentUser.profileEffect || null,
     level:            currentUser.level,
     banner:           currentUser.banner,
     isDeveloper:      currentUser.isDeveloper || false,      
@@ -5913,6 +5964,142 @@ socket.on("unmuteUser", (data) => {
     }
   });
 
+
+
+socket.on("addReaction", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  if (!data?.messageId || !data?.emoji) return;
+  
+
+  const emoji = String(data.emoji).trim();
+       const isEmote = emoji.startsWith("emote:") &&
+         (emoteConfig.pepeList || []).includes(emoji.slice(6));
+       if (emoji.length > 2 && !isEmote) return;
+  
+  const now = Date.now();
+  const lastReaction = reactionRateLimit.get(socket.userId) || 0;
+  if (now - lastReaction < REACTION_RATE_LIMIT) return;
+  reactionRateLimit.set(socket.userId, now);
+  
+  let message = null;
+  let foundChannel = null;
+  for (const [ch, msgs] of messagesByChannel) {
+    const found = msgs.find(m => m.id === data.messageId);
+    if (found) {
+      message = found;
+      foundChannel = ch;
+      break;
+    }
+  }
+  
+  if (!message) {
+    message = messages.find(m => m.id === data.messageId);
+  }
+  if (!message) return;
+  
+  if (!message.reactions) message.reactions = {};
+  if (!message.reactions[emoji]) message.reactions[emoji] = [];
+  
+  if (message.reactions[emoji].includes(socket.userId)) return;
+  
+  message.reactions[emoji].push(socket.userId);
+  if (!message.reactionCounts) message.reactionCounts = {};
+  message.reactionCounts[emoji] = message.reactions[emoji].length;
+  
+  saveMessages();
+  
+  io.emit("reactionAdded", {
+    messageId: data.messageId,
+    emoji,
+    userId: socket.userId,
+    username: onlineUsers.get(socket.userId)?.username || "Unknown",
+    count: message.reactionCounts[emoji],
+    channel: foundChannel || "general"
+  });
+  
+  console.log(`😊 ${onlineUsers.get(socket.userId)?.username} reacted ${emoji} to message`);
+});
+
+socket.on("removeReaction", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  if (!data?.messageId || !data?.emoji) return;
+  
+  const emoji = String(data.emoji).trim();
+  
+  const now = Date.now();
+  const lastReaction = reactionRateLimit.get(socket.userId) || 0;
+  if (now - lastReaction < REACTION_RATE_LIMIT) return;
+  reactionRateLimit.set(socket.userId, now);
+  
+  let message = null;
+  let foundChannel = null;
+  for (const [ch, msgs] of messagesByChannel) {
+    const found = msgs.find(m => m.id === data.messageId);
+    if (found) {
+      message = found;
+      foundChannel = ch;
+      break;
+    }
+  }
+  if (!message) message = messages.find(m => m.id === data.messageId);
+  if (!message || !message.reactions?.[emoji]) return;
+  
+  const idx = message.reactions[emoji].indexOf(socket.userId);
+  if (idx === -1) return;
+  
+  message.reactions[emoji].splice(idx, 1);
+  
+  if (message.reactions[emoji].length === 0) {
+    delete message.reactions[emoji];
+    if (message.reactionCounts) delete message.reactionCounts[emoji];
+  } else {
+    message.reactionCounts[emoji] = message.reactions[emoji].length;
+  }
+  
+  saveMessages();
+  
+  io.emit("reactionRemoved", {
+    messageId: data.messageId,
+    emoji,
+    userId: socket.userId,
+    count: message.reactions[emoji]?.length || 0,
+    channel: foundChannel || "general"
+  });
+  
+  console.log(`😢 ${onlineUsers.get(socket.userId)?.username} removed ${emoji}`);
+});
+
+socket.on("getReactions", (data) => {
+  if (!socket.userId || !data?.messageId) return;
+  
+  let message = null;
+  for (const [ch, msgs] of messagesByChannel) {
+    const found = msgs.find(m => m.id === data.messageId);
+    if (found) { message = found; break; }
+  }
+  if (!message) message = messages.find(m => m.id === data.messageId);
+  if (!message) return;
+  
+  const reactionData = {};
+  if (message.reactions) {
+    Object.entries(message.reactions).forEach(([emoji, userIds]) => {
+      reactionData[emoji] = {
+        count: userIds.length,
+        users: userIds.map(uid => ({
+          userId: uid,
+          username: onlineUsers.get(uid)?.username || allUsers.get(uid)?.username || "Unknown",
+          avatar: onlineUsers.get(uid)?.avatar || allUsers.get(uid)?.avatar || "/avatars/default1.png"
+        })),
+        userReacted: userIds.includes(socket.userId)
+      };
+    });
+  }
+  
+  socket.emit("reactionsData", {
+    messageId: data.messageId,
+    reactions: reactionData
+  });
+});
  
 socket.on("delete", (data) => {
   const message = messages.find(m => m && m.id === data.id);
@@ -6251,6 +6438,13 @@ socket.on("setMusicStatus", (data) => {
   const currentUser = onlineUsers.get(socket.userId);
   currentUser.musicStatus = data.musicStatus || null;
   currentUser.musicArtUrl = data.musicArtUrl || null;
+  broadcastOnlineUsers();
+});
+
+socket.on("setStreamStatus", (data) => {
+  if (!socket.userId || !onlineUsers.has(socket.userId)) return;
+  const currentUser = onlineUsers.get(socket.userId);
+  currentUser.streamStatus = data.streamStatus || null;
   broadcastOnlineUsers();
 });
 
@@ -8183,6 +8377,12 @@ app.delete("/delete-emote/:filename", requireAuth, (req, res) => {
 
 let whispers = [];
 let groupWhispersAll = groupWhispers;
+const hiddenWhisperConvos = new Map();
+
+function getHiddenMap(userId) {
+  if (!hiddenWhisperConvos.has(userId)) hiddenWhisperConvos.set(userId, new Map());
+  return hiddenWhisperConvos.get(userId);
+}
 
 let whispersSaveTimer = null;
 function saveWhispers() {
@@ -8195,11 +8395,16 @@ function saveWhispers() {
 function persistAllMessages() {
   try {
     const allChannelMsgs = Array.from(messagesByChannel.values()).flat();
+    const hiddenObj = {};
+    hiddenWhisperConvos.forEach((map, userId) => {
+      hiddenObj[userId] = Object.fromEntries(map);
+    });
     const combined = {
       channelMessages: allChannelMsgs,
       whispers: whispers,
       groupWhispers: groupWhispers,
-      whisperGroups: whisperGroups
+      whisperGroups: whisperGroups,
+      hiddenWhispers: hiddenObj
     };
     fs.writeFile("./data/messages.json", JSON.stringify(combined, null, 2), (err) => {
       if (err) console.error("❌ Failed to save messages.json:", err);
@@ -8229,6 +8434,11 @@ if (fs.existsSync("./data/messages.json")) {
       whispers = Array.isArray(raw.whispers) ? raw.whispers.filter(m => m && m.id && m.from && m.to) : [];
       groupWhispers = Array.isArray(raw.groupWhispers) ? raw.groupWhispers.filter(m => m && m.id && m.groupId && m.from) : [];
       whisperGroups = Array.isArray(raw.whisperGroups) ? raw.whisperGroups.filter(g => g && g.id && Array.isArray(g.memberIds)) : whisperGroups;
+      if (raw.hiddenWhispers && typeof raw.hiddenWhispers === "object") {
+        Object.entries(raw.hiddenWhispers).forEach(([userId, map]) => {
+          hiddenWhisperConvos.set(userId, new Map(Object.entries(map)));
+        });
+      }
     }
     console.log(`✅ Loaded ${messages.length} channel messages, ${whispers.length} whispers, ${groupWhispers.length} group whispers from messages.json`);
   } catch (e) {
@@ -8239,6 +8449,7 @@ if (fs.existsSync("./data/messages.json")) {
 
 function buildWhisperHistoryFor(userId) {
   const byOther = new Map();
+  const hidden = getHiddenMap(userId);
 
   whispers.forEach(w => {
     if (w.from !== userId && w.to !== userId) return;
@@ -8249,6 +8460,13 @@ function buildWhisperHistoryFor(userId) {
 
   const conversations = [];
   byOther.forEach((msgs, otherId) => {
+    const hiddenAt = hidden.get(otherId);
+    if (hiddenAt !== undefined) {
+      const lastMsgTime = msgs.reduce((max, m) => Math.max(max, m.time), 0);
+      if (lastMsgTime <= hiddenAt) return;
+      hidden.delete(otherId); 
+    }
+
     const otherDb = allUsers.get(otherId);
     const otherOnline = onlineUsers.get(otherId);
     conversations.push({
@@ -8261,7 +8479,6 @@ function buildWhisperHistoryFor(userId) {
     });
   });
 
- 
   whisperGroups.forEach(group => {
     if (!group.memberIds.includes(userId)) return;
     const msgs = groupWhispers.filter(m => m.groupId === group.id).sort((a, b) => a.time - b.time);

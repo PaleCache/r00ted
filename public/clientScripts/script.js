@@ -2167,8 +2167,8 @@ if (u.badge) {
 if (u.prestigeBadge) {
   const pBadge = createFreezeableBadgeImg(sanitizeAvatar(u.prestigeBadge), 'user-badge', true);
   pBadge.title = "Prestige Badge";
-  pBadge.style.width = "20px";
-  pBadge.style.height = "20px";
+  pBadge.style.width = "25px";
+  pBadge.style.height = "25px";
   pBadge.style.objectFit = "contain";
   pBadge.style.flexShrink = "0";
   metaSpan.appendChild(pBadge);
@@ -2588,6 +2588,14 @@ if (isImageUrl(part)) {
         return;
       }
 
+
+    if (isSafeUrl(part)) {
+      container.appendChild(buildSimpleRichLink(part));
+      return;
+    }
+
+
+
       const a = document.createElement("a");
       a.href = part;
       a.textContent = part;
@@ -2622,6 +2630,9 @@ appendTextWithMentionsAndEmoji(part, container, isEmojiOnlyMessage);
 
   return container;
 }
+
+
+
 
 
 
@@ -2829,19 +2840,19 @@ if (m.isAdmin) metaSpan.appendChild(createCrownBadge(23));
 if (m.isDeveloper) {
   const w = document.createElement('span');
   w.style.cssText = 'display:inline-block;position:relative;';
-  w.appendChild(createDeveloperBadge(23));
+  w.appendChild(createDeveloperBadge(20));
   metaSpan.appendChild(w);
 }
 if (m.isPromptEngineer) {
   const w = document.createElement('span');
   w.style.cssText = 'display:inline-block;position:relative;';
-  w.appendChild(createPromptEngineerBadge(23));
+  w.appendChild(createPromptEngineerBadge(20));
   metaSpan.appendChild(w);
 }
 if (m.isBot) {
   const w = document.createElement('span');
   w.style.cssText = 'display:inline-block;position:relative;';
-  w.appendChild(createBotBadge(23));
+  w.appendChild(createBotBadge(20));
   metaSpan.appendChild(w);
 }
 if (m.customRoleIds && m.customRoleIds.length) {
@@ -6185,24 +6196,9 @@ function makeDraggableAndResizable(element, dragHandle, resizeHandleEl) {
 let notifSettings = {
   browser: true,
   liveBanner: true,
-  sound: true
+  sound: true,
+  browserMediaStatus: true 
 };
-
-function loadNotifSettings() {
-  const saved = localStorage.getItem("notifSettings");
-  if (saved) {
-    notifSettings = JSON.parse(saved);
-  }
-  
-
-  document.getElementById("toggleBrowserNotif").checked = notifSettings.browser;
-  document.getElementById("toggleLiveBanner").checked = notifSettings.liveBanner;
-  document.getElementById("toggleNotifSound").checked = notifSettings.sound;
-}
-
-function saveNotifSettings() {
-  localStorage.setItem("notifSettings", JSON.stringify(notifSettings));
-}
 
 
 window.addEventListener('load', () => {
@@ -6221,6 +6217,8 @@ window.addEventListener('load', () => {
     notifSettings.sound = e.target.checked;
     saveNotifSettings();
   });
+
+  document.getElementById("toggleBrowserMediaStatus").addEventListener("change", saveNotifSettings);
 
   document.getElementById("requestNotifPermissionBtn").addEventListener("click", () => {
     if (Notification.permission !== "granted") {
@@ -6761,16 +6759,42 @@ function uploadDroppedFile(file) {
     return;
   }
 
+  const fileLabel = file.type.startsWith('video/') ? 'video' :
+    file.type.startsWith('audio/') ? 'audio' :
+    file.type.startsWith('text/') || file.type === 'application/json' ? 'file' : 'image';
+
   const pasteNotif = document.createElement('div');
+  pasteNotif.classList.add('banner-notification', 'stacked-notification');
   pasteNotif.style.cssText = `
-    position: fixed; bottom: 20px; right: 20px;
-    background: #FF0000; color: white; padding: 12px 16px;
-    border-radius: 8px; font-size: 13px; z-index: 10000;
+    position: fixed;
+    top: ${getStackOffset()}px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111214;
+    border: 1px solid #3a3c42;
+    border-left: 3px solid #FF0000;
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 99999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    animation: bannerDropIn 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
   `;
-  pasteNotif.textContent = `📋 Uploading ${
-    file.type.startsWith('video/') ? 'video' :
-    file.type.startsWith('text/') || file.type === 'application/json' ? 'file' : 'image'
-  }...`;
+
+  const logo = document.createElement('img');
+  logo.src = '/icon.png';
+  logo.style.cssText = 'width: 54px; height: 54px; border-radius: 6px; flex-shrink: 0;';
+
+  const text = document.createElement('span');
+  text.textContent = `📋 Uploading ${fileLabel}... 0%`;
+
+  pasteNotif.appendChild(logo);
+  pasteNotif.appendChild(text);
   document.body.appendChild(pasteNotif);
 
   const formData = new FormData();
@@ -6779,17 +6803,15 @@ function uploadDroppedFile(file) {
   const xhr = new XMLHttpRequest();
   xhr.open("POST", "/upload-image", true);
   xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("chatToken")}`);
-  uploadProgress.style.display = "block";
 
   xhr.upload.onprogress = (event) => {
     if (event.lengthComputable) {
       const percent = Math.round((event.loaded / event.total) * 100);
-      uploadPercent.textContent = percent + "%";
+      text.textContent = `📋 Uploading ${fileLabel}... ${percent}%`;
     }
   };
 
- xhr.onload = () => {
-    uploadProgress.style.display = "none";
+  xhr.onload = () => {
     pasteNotif.remove();
 
     if (xhr.status === 200) {
@@ -6812,35 +6834,27 @@ function uploadDroppedFile(file) {
         isBot: user.isBot || false,
         prestigeBadge: user.prestigeBadge || null,
         text: data.url,
-       
         channel: currentChannel,
         time: Date.now(),
         fileName: (isAudio || isTextFile) ? (data.filename || file.name) : undefined,
         type: isVideo ? "video" : (isAudio ? "audio" : (isTextFile ? "file" : "image"))
-      
       };
 
       socket.emit("message", msg);
 
-           const successNotif = document.createElement('div');
-      successNotif.style.cssText = `position:fixed; bottom:20px; right:20px; background:#23a559; color:white; padding:12px 16px; border-radius:8px; font-size:13px; z-index:10000;`;
-      successNotif.textContent = `${isVideo ? 'Video' : isAudio ? 'Audio' : isTextFile ? 'File' : 'Image'} uploaded!`;
-      document.body.appendChild(successNotif);
-      setTimeout(() => successNotif.remove(), 2000);
+      showToast(`${isVideo ? 'Video' : isAudio ? 'Audio' : isTextFile ? 'File' : 'Image'} uploaded!`);
     } else {
       showToast("Upload failed: " + xhr.responseText);
     }
   };
 
   xhr.onerror = () => {
-    uploadProgress.style.display = "none";
     pasteNotif.remove();
     showToast("Upload error");
   };
 
   xhr.send(formData);
 }
-
 
 let currentChannel = "general";
 let channelsById = new Map();
@@ -8972,21 +8986,44 @@ function sendSingleEmoji(emoji) {
   socket.emit("message", msg);
 }
 
+
+const EMOJIBASE_GROUP_NAMES = {
+  0: "Smileys & Emotion",
+  1: "People & Body",
+  3: "Animals & Nature",
+  4: "Food & Drink",
+  5: "Travel & Places",
+  6: "Activities",
+  7: "Objects",
+  8: "Symbols",
+  9: "Flags"
+};
+ 
+
+
 async function loadEmojiData() {
   if (emojiList.length > 0) return;
   try {
-    const res = await fetch("https://cdn.jsdelivr.net/npm/unicode-emoji-json@0.6.0/data-by-emoji.json");
+    const res = await fetch("https://cdn.jsdelivr.net/npm/emojibase-data@15/en/data.json");
     const data = await res.json();
-    emojiList = Object.entries(data).map(([emoji, info]) => ({
-      emoji,
-      name: info.name,
-      group: info.group
-    }));
+ 
+    const out = [];
+    data.forEach(item => {
+      if (item.group === 2) return;
+      const group = EMOJIBASE_GROUP_NAMES[item.group] || "Other";
+      out.push({ emoji: item.emoji, name: item.label, group });
+      if (Array.isArray(item.skins)) {
+        item.skins.forEach(skin => {
+          out.push({ emoji: skin.emoji, name: skin.label || item.label, group });
+        });
+      }
+    });
+ 
+    emojiList = out;
   } catch (e) {
     console.error("Failed to load emoji data:", e);
   }
 }
-
 function initializeEmojiPicker() {
   const existing = document.getElementById("emojiPicker");
   if (existing) existing.remove();
@@ -9023,9 +9060,20 @@ function initializeEmojiPicker() {
   searchInput.onfocus = () => searchInput.style.borderColor = "#FF0000";
   searchInput.onblur = () => searchInput.style.borderColor = "#3a3c42";
   searchInput.oninput = () => {
-    emojiPickerState.page = 0;
-    renderEmojiPickerGrid(searchInput.value.trim().toLowerCase());
-  };
+  emojiPickerState.page = 0;
+  const query = searchInput.value.trim().toLowerCase();
+  if (query) {
+    showEmojiResultsView();
+    document.getElementById("emojiBackBtn").style.display = "block";
+    renderEmojiPickerGrid(query);
+  } else if (emojiActiveCategory) {
+    showEmojiResultsView();
+    document.getElementById("emojiBackBtn").style.display = "block";
+    renderEmojiPickerGrid(query);
+  } else {
+    showEmojiCategoriesView();
+  }
+};
 
     const backBtn = document.createElement("button");
   backBtn.id = "emojiBackBtn";
