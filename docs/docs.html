@@ -284,6 +284,7 @@
     <a href="#running">Running the Server</a>
     <a href="#desktop">Desktop App</a>
     <a href="#bots">Bots</a>
+    <a href="#xp">XP System</a>
     <a href="#support">Support Development</a>
   </nav>
 
@@ -597,6 +598,21 @@ chmod 600 data/*.json</pre>
         <pre>npm install
 node index.js</pre>
       </div>
+    </div>
+
+        <div id="xp" class="doc-section">
+      <h2><span class="num">09</span> XP System</h2>
+      <p class="lede">How leveling works in chat: chips first, then wager, then claim XP.</p>
+      <p>To earn XP in chat, you get chips from being AFK or growing weed. Those chips currently go into your <strong>bonus wallet</strong>.</p>
+      <p>You then need to wager those chips in the casino. Once you have wagered all the chips in your bonus wallet, you can claim the XP from the <strong>games menu</strong>.</p>
+      <h3>Flow</h3>
+      <ul>
+        <li>Earn chips (AFK, growing weed)</li>
+        <li>Chips land in your bonus wallet</li>
+        <li>Wager the bonus wallet chips in the casino</li>
+        <li>When the bonus wallet is fully wagered, claim XP on the games menu</li>
+      </ul>
+      <div class="note"><strong>Note:</strong> XP is not granted automatically when chips are earned. You must clear the bonus wallet through casino wagering before you can claim the XP.</div>
     </div>
 
     <div id="support" class="doc-section">

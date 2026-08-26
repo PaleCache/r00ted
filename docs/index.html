@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="icon" type="image/svg+xml" href="r00ted.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>R00TED - Open Source Self-Hosted Discord Alternative</title>
@@ -330,6 +329,55 @@
     transition:all .12s;
   }
   .lightbox-close:hover{color:var(--text); border-color:var(--text);}
+  .lightbox-nav{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  font-family:var(--mono);
+  font-size:22px;
+  line-height:1;
+  color:var(--text-dim);
+  background:rgba(12,12,12,0.85);
+  border:1px solid var(--border-bright);
+  width:44px;
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all .12s;
+  z-index:2;
+  padding:0;
+}
+.lightbox-nav:hover{
+  color:var(--text);
+  border-color:var(--text);
+  background:rgba(20,20,20,0.95);
+}
+.lightbox-nav:disabled{
+  opacity:0.25;
+  cursor:default;
+  pointer-events:none;
+}
+.lightbox-prev{ left:18px; }
+.lightbox-next{ right:18px; }
+.lightbox-counter{
+  position:absolute;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--text-dim);
+  letter-spacing:0.5px;
+  pointer-events:none;
+  z-index:2;
+}
+@media (max-width:600px){
+  .lightbox-nav{ width:38px; height:38px; font-size:18px; }
+  .lightbox-prev{ left:10px; }
+  .lightbox-next{ right:10px; }
+}
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:0.001ms !important; animation-iteration-count:1 !important;}
   }
@@ -573,8 +621,11 @@
 
 
 <div class="lightbox" id="lightbox">
-  <button class="lightbox-close" id="lightboxClose">close [esc]</button>
+  <button class="lightbox-close" id="lightboxClose" type="button">close [esc]</button>
+  <button class="lightbox-nav lightbox-prev" id="lightboxPrev" type="button" aria-label="Previous image">‹</button>
+  <button class="lightbox-nav lightbox-next" id="lightboxNext" type="button" aria-label="Next image">›</button>
   <img src="" alt="" id="lightboxImg">
+  <div class="lightbox-counter" id="lightboxCounter"></div>
 </div>
 
 <script>
@@ -648,17 +699,61 @@
   var lb = document.getElementById('lightbox');
   var lbImg = document.getElementById('lightboxImg');
   var closeBtn = document.getElementById('lightboxClose');
+  var prevBtn = document.getElementById('lightboxPrev');
+  var nextBtn = document.getElementById('lightboxNext');
+  var counter = document.getElementById('lightboxCounter');
+  var gallery = [];
+  var currentIndex = -1;
+
+  function collectGallery(){
+    gallery = [];
+    document.querySelectorAll('.app-window img').forEach(function(img){
+      if (!img.classList.contains('img-broken')) {
+        gallery.push({ src: img.src, alt: img.alt || '' });
+      }
+    });
+  }
+
+  function showAt(index){
+    if (!gallery.length) return;
+    currentIndex = (index + gallery.length) % gallery.length;
+    var item = gallery[currentIndex];
+    lbImg.src = item.src;
+    lbImg.alt = item.alt;
+    counter.textContent = (currentIndex + 1) + ' / ' + gallery.length;
+    prevBtn.disabled = gallery.length < 2;
+    nextBtn.disabled = gallery.length < 2;
+  }
 
   function openLightbox(src, alt){
-    lbImg.src = src;
-    lbImg.alt = alt || '';
+    collectGallery();
+    var idx = gallery.findIndex(function(g){ return g.src === src; });
+    if (idx < 0) {
+      idx = gallery.findIndex(function(g){ return g.src.endsWith(src.split('/').pop()); });
+    }
+    if (idx < 0) idx = 0;
     lb.classList.add('open');
     document.body.style.overflow = 'hidden';
+    showAt(idx);
   }
+
   function closeLightbox(){
     lb.classList.remove('open');
     lbImg.src = '';
     document.body.style.overflow = '';
+    currentIndex = -1;
+  }
+
+  function goPrev(e){
+    if (e) e.stopPropagation();
+    if (gallery.length < 2) return;
+    showAt(currentIndex - 1);
+  }
+
+  function goNext(e){
+    if (e) e.stopPropagation();
+    if (gallery.length < 2) return;
+    showAt(currentIndex + 1);
   }
 
   document.querySelectorAll('.app-window img').forEach(function(img){
@@ -669,12 +764,20 @@
   });
 
   lb.addEventListener('click', function(e){
-    if (e.target === lb || e.target === closeBtn) closeLightbox();
+    if (e.target === lb) closeLightbox();
   });
-  closeBtn.addEventListener('click', closeLightbox);
+  closeBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    closeLightbox();
+  });
+  prevBtn.addEventListener('click', goPrev);
+  nextBtn.addEventListener('click', goNext);
 
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowLeft') goPrev();
+    else if (e.key === 'ArrowRight') goNext();
   });
 })();
 </script>
