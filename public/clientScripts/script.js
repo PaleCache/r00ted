@@ -1,4 +1,4 @@
-var debugmode = false;
+var debugmode = true;
 let currentProfileUser = null;
 let lastKnownStatus = new Map();
 let currentVoiceRoom = null;
@@ -136,16 +136,15 @@ const ADMIN_COMMANDS = [
 
 
 
-const ENCRYPTION_SALT = "r00ted-chat-fixed-salt-v1";
-let activeEncryptionKey = null;
+let activeEncryptionPassword = null;
 
-async function deriveKeyFromPassword(password) {
+async function deriveKeyFromPassword(password, saltBytes) {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: enc.encode(ENCRYPTION_SALT), iterations: 150000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: saltBytes, iterations: 150000, hash: "SHA-256" },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,
@@ -154,25 +153,33 @@ async function deriveKeyFromPassword(password) {
 }
 
 async function setEncryptionPassword(password) {
-  activeEncryptionKey = password ? await deriveKeyFromPassword(password) : null;
+  activeEncryptionPassword = password || null;
 }
 
 async function encryptText(plaintext) {
-  if (!activeEncryptionKey) return null;
+  if (!activeEncryptionPassword) return null;
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveKeyFromPassword(activeEncryptionPassword, salt);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const enc = new TextEncoder();
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, activeEncryptionKey, enc.encode(plaintext));
-  return { iv: btoa(String.fromCharCode(...iv)), data: btoa(String.fromCharCode(...new Uint8Array(ciphertext))) };
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plaintext));
+  return {
+    salt: btoa(String.fromCharCode(...salt)),
+    iv: btoa(String.fromCharCode(...iv)),
+    data: btoa(String.fromCharCode(...new Uint8Array(ciphertext)))
+  };
 }
 
 
 
 async function decryptText(payload) {
-  if (!activeEncryptionKey || !payload?.iv || !payload?.data) return null;
+  if (!activeEncryptionPassword || !payload?.salt || !payload?.iv || !payload?.data) return null;
   try {
+    const salt = Uint8Array.from(atob(payload.salt), c => c.charCodeAt(0));
+    const key = await deriveKeyFromPassword(activeEncryptionPassword, salt);
     const iv = Uint8Array.from(atob(payload.iv), c => c.charCodeAt(0));
     const data = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
-    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, activeEncryptionKey, data);
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
     return new TextDecoder().decode(plain);
   } catch { return null; }
 }
@@ -739,7 +746,7 @@ document.getElementById("saveEncryptionPasswordBtn").onclick = async () => {
 };
 
 document.getElementById("clearEncryptionPasswordBtn").onclick = async () => {
-  if (!activeEncryptionKey) {
+  if (!activeEncryptionPassword) {
     showToast("No encryption password set.");
     return;
   }
@@ -1353,15 +1360,9 @@ function initializePepePicker() {
   `;
   searchInput.onfocus = () => searchInput.style.borderColor = "#FF0000";
   searchInput.onblur = () => searchInput.style.borderColor = "#3a3c42";
-searchInput.oninput = () => {
-    emojiPickerState.page = 0;
-    if (searchInput.value.trim() === "") {
-      showEmojiCategoriesView();
-    } else {
-      showEmojiResultsView();
-      document.getElementById("emojiBackBtn").style.display = "block";
-      renderEmojiPickerGrid(searchInput.value.trim().toLowerCase());
-    }
+  searchInput.oninput = () => {
+    emotePickerState.page = 0;
+    renderEmotePickerGrid(searchInput.value.trim().toLowerCase());
   };
   header.appendChild(searchInput);
 
@@ -1892,6 +1893,7 @@ document.getElementById("saveNameBtn").onclick = () => {
 
   user.username = newName;
   localStorage.setItem("chatUser", JSON.stringify(user));
+  initVoicePanelIdentity();
 
  showToast(`Changed username to ${newName}`);
 
@@ -2951,10 +2953,10 @@ if (m.type === "embed" && m.embed) {
   const lockedSpan = document.createElement("div");
   lockedSpan.className = "msg-body";
   lockedSpan.style.cssText = "color:#72767d; font-style:italic;";
-  lockedSpan.textContent = activeEncryptionKey ? "🔓 Decrypting..." : "🔒 Encrypted (enter this messages password in settings)";
+  lockedSpan.textContent = activeEncryptionPassword ? "🔓 Decrypting..." : "🔒 Encrypted (enter this messages password in settings)";
   content.appendChild(lockedSpan);
 
-  if (activeEncryptionKey) {
+  if (activeEncryptionPassword) {
 decryptText(m.encPayload).then(plain => {
   if (plain !== null) lockedSpan.replaceWith(parseContent(plain, m.time));
   else lockedSpan.textContent = "🔒 Wrong password for this message";
@@ -3697,7 +3699,7 @@ if (e.key === "Enter" && !e.shiftKey) {
     let messageText = text;
     let isEncrypted = false;
     let encPayload = null;
-    if (activeEncryptionKey) {
+    if (activeEncryptionPassword) {
       encPayload = await encryptText(text);
       isEncrypted = true;
       messageText = "[Encrypted message]";
@@ -6888,12 +6890,14 @@ function pingJitsiServer() {
     cache: 'no-cache'
   })
   .then(() => {
+    if (!currentVoiceRoom || !conference) return;
     consecutivePingFailures = 0;
     const rawPing = performance.now() - start;
     smoothedPing = (rawPing * 0.3) + (smoothedPing * 0.7);
     updatePingDisplay(Math.round(smoothedPing));
   })
   .catch(() => {
+    if (!currentVoiceRoom || !conference) return; 
     consecutivePingFailures++;
     updatePingDisplay(0);
     if (consecutivePingFailures >= 3 && currentVoiceRoom && !localAudioTrack) {

@@ -390,6 +390,10 @@ socket.on("userPropertiesUpdated", (data) => {
     if (properties.level !== undefined) user.level = properties.level;
     if (properties.profileGradient !== undefined) user.profileGradient = properties.profileGradient;
     if (properties.profileEffect !== undefined) user.profileEffect = properties.profileEffect;
+        if (properties.customStatus !== undefined) {
+      user.customStatus = properties.customStatus;
+      updateVcPresence();
+    }
     localStorage.setItem("chatUser", JSON.stringify(user));
   }
 
@@ -436,8 +440,8 @@ socket.on("updateUser", (data) => {
     if (data.user.usernameColor) target.usernameColor = data.user.usernameColor;
     if (data.user.badge !== undefined) target.badge = data.user.badge;
     if (data.user.customStatus !== undefined) target.customStatus = data.user.customStatus;
-    if (data.user.banner !== undefined) target.banner = data.user.banner;       
-    if (data.user.profileHeader !== undefined) target.profileHeader = data.user.profileHeader; 
+    if (data.user.banner !== undefined) target.banner = data.user.banner;
+    if (data.user.profileHeader !== undefined) target.profileHeader = data.user.profileHeader;
     if (data.user.profileGradient !== undefined) target.profileGradient = data.user.profileGradient;
     if (data.user.profileEffect !== undefined) target.profileEffect = data.user.profileEffect;
   }
@@ -460,7 +464,11 @@ socket.on("updateUser", (data) => {
     target.level = data.user.level;
   }
 
-  renderUsers(currentUsers);
+   renderUsers(currentUsers);
+
+  if (typeof window.updateProfilePopupFromList === 'function') {
+    window.updateProfilePopupFromList(currentUsers);
+  }
 
   
 
@@ -486,7 +494,7 @@ socket.on("history", (data) => {
   renderInitialBatch();
   isInitialLoad = false;
 
-  if (activeEncryptionKey) redecryptVisibleMessages();
+  if (activeEncryptionPassword) redecryptVisibleMessages();
 
   setTimeout(() => {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -511,8 +519,23 @@ socket.on("onlineUsers", (users) => {
     const u = currentUsers.find(x => x && x.id === uid);
     if (u) u.customRoleIds = roleIds;
   });
+  
   renderUsers(currentUsers);
   refreshRoleManagerIfOpen();
+
+  if (typeof window.updateProfilePopupFromList === 'function') {
+    window.updateProfilePopupFromList(currentUsers);
+  }
+
+  const me = currentUsers.find(u => u && u.id === user.id);
+  if (me) {
+    let changed = false;
+    if (me.status !== user.status) { user.status = me.status; changed = true; }
+    if (me.customStatus !== user.customStatus) { user.customStatus = me.customStatus; changed = true; }
+    if (me.gameStatus !== user.gameStatus) { user.gameStatus = me.gameStatus; changed = true; }
+    if (me.musicStatus !== user.musicStatus) { user.musicStatus = me.musicStatus; changed = true; }
+    if (changed) updateVcPresence();
+  }
 });
 
 socket.on("messageSeen", (data) => {
@@ -1032,48 +1055,46 @@ function setNameColor(colorClass) {
   const currentLevel = user.level || 1;
   console.log(`NAME COLOR ${user.level}`)
   const isGradient = colorClass === 'username-gold' ||
-                     colorClass === 'username-pink' ||
-                     colorClass === 'username-purple' ||
-                     colorClass === 'username-cyan' ||
-                     colorClass === 'username-green' ||
-                     colorClass === 'username-red' ||
-                     colorClass === 'username-blue-silver';
+  colorClass === 'username-pink' ||
+  colorClass === 'username-purple' ||
+  colorClass === 'username-cyan' ||
+  colorClass === 'username-green' ||
+  colorClass === 'username-red' ||
+  colorClass === 'username-blue-silver';
 
   if (isGradient && currentLevel < 2) {
-   showToast("🌟 Gradient name colors unlock at Level 2");
+    showToast("🌟 Gradient name colors unlock at Level 2");
     return;
   }
 
   const isAnimated = colorClass === 'username-rainbow' ||
-                     colorClass === 'username-neon' ||
-                     colorClass === 'username-shimmer' ||
-                     colorClass === 'username-glitch' ||
-                     colorClass === 'username-electric' ||
-                     colorClass === 'username-matrix' ||
-                     colorClass === 'username-ghost' ||
-                     colorClass === 'username-hellfire' ||
-                     colorClass === 'username-fire';
+  colorClass === 'username-neon' ||
+  colorClass === 'username-shimmer' ||
+  colorClass === 'username-glitch' ||
+  colorClass === 'username-electric' ||
+  colorClass === 'username-matrix' ||
+  colorClass === 'username-ghost' ||
+  colorClass === 'username-hellfire' ||
+  colorClass === 'username-fire';
 
   if (isAnimated && currentLevel < 2) {
-   showToast("✨ Animated name colors unlock at Level 2");
-    
+    showToast("✨ Animated name colors unlock at Level 2");
     return;
   }
 
- 
   user.usernameColor = colorClass;
-                 
   localStorage.setItem("chatUser", JSON.stringify(user));
-
 
   refreshAllMessageColors();
   renderUsers(currentUsers);
+  initVoicePanelIdentity();
+
   if (conference) {
     conference.setLocalParticipantProperty("usernameColor", colorClass);
     conference.setLocalParticipantProperty("customRoleIds", JSON.stringify(user.customRoleIds || []));
   }
 
-if (socket && socket.connected) {
+  if (socket && socket.connected) {
     socket.emit("updateUser", {
       user: {
         id: user.id,
@@ -1091,9 +1112,9 @@ if (socket && socket.connected) {
     });
   }
 
- showToast(`Name color changed to ${colorClass.replace('username-', '')}`);
- renderGradientButtons();
-renderAnimatedGradientButtons();
+  showToast(`Name color changed to ${colorClass.replace('username-', '')}`);
+  renderGradientButtons();
+  renderAnimatedGradientButtons();
 }
 
 
@@ -1106,6 +1127,7 @@ document.getElementById("saveStatusBtn").onclick = () => {
   const newStatus = document.getElementById("settingsStatusInput").value.trim();
   user.customStatus = newStatus;
   localStorage.setItem("chatUser", JSON.stringify(user));
+  updateVcPresence();
   const myIndex = currentUsers.findIndex(u => u && u.id === user.id);
   if (myIndex !== -1) {
     currentUsers[myIndex].customStatus = newStatus;

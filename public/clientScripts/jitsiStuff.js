@@ -1,5 +1,7 @@
 const userJoinAudio = new Audio('/sounds/power-plug.oga');
 const userLeaveAudio = new Audio('/sounds/power-unplug.oga');
+const localStreamStatus = window.currentStreamStatus || null;
+
 function loadJitsiLibrary() {
   return new Promise((resolve, reject) => {
     if (window.JitsiMeetJS) {
@@ -163,12 +165,17 @@ async function joinVoiceChannel(roomSlug) {
     }
   } catch (error) {
     console.error("Failed to initialize Jitsi:", error);
-   showToast("Voice connection failed. Try again.");
+    showToast("Voice connection failed. Try again.");
     currentVoiceRoom = null;
     return;
   }
-  document.getElementById('voiceControls').style.display = 'flex';
-  document.getElementById('voiceRoomLabel').textContent = roomSlug;
+
+  document.getElementById('vcButtons').style.display = 'flex';
+  initVoicePanelIdentity();
+  const statusEl = document.getElementById('voiceStatusLabel');
+  document.getElementById('pingDisplay').style.display = 'flex';
+  const roomLabelEl = document.getElementById('voiceRoomLabel');
+  if (roomLabelEl) roomLabelEl.textContent = roomSlug;
 
   socket.emit("voiceJoin", {
     roomName: roomSlug,
@@ -198,7 +205,7 @@ async function joinVoiceChannel(roomSlug) {
   pushOverlayVoiceUpdate();
 });
 
-  conference.on(JitsiMeetJS.events.conference.CONFERENCE_JOINED, () => {
+ conference.on(JitsiMeetJS.events.conference.CONFERENCE_JOINED, () => {
   console.log("Conference joined:", roomSlug);
 
   conference.setDisplayName(user.username);
@@ -216,6 +223,7 @@ async function joinVoiceChannel(roomSlug) {
 
   startPingMonitor();
   updateVoiceUI();
+  updateVcPresence();
   setTimeout(() => {
     if (!localAudioTrack) {
       console.warn("👻 Ghost join no local audio track after 4s, rejoining");
@@ -245,6 +253,7 @@ async function joinVoiceChannel(roomSlug) {
       (level) => handleAudioLevel("local", level)
     );
     console.log("Local microphone added");
+     updateVcPresence();
 } catch (e) {
     console.error("Microphone error:", e);
    showToast("🎙️ No microphone detected - you have been removed from the voice channel.\n\nPlease check your mic in system settings and try again.");
@@ -730,48 +739,120 @@ document.getElementById('screenBtn').classList.add('sharing');
 
 
 function leaveVoice() {
- 
   const roomSlug = currentVoiceRoom || document.querySelector('.voice-channel.active')?.dataset.room;
   currentVoiceRoom = null;
-  stopPingMonitor();
-  document.getElementById('voiceControls').style.display = 'none';
-  document.getElementById('voiceRoomLabel').textContent = '';
-  
-  if (roomSlug) {
-    socket.emit("voiceLeave", { roomName: roomSlug, userId: user.id });
-  }
-  
-  if (conference) { try { conference.leave(); } catch (e) {} conference = null; }
-  if (localAudioTrack) { try { localAudioTrack.dispose(); } catch (e) {} localAudioTrack = null; }
-  screenShareIntervals.forEach((interval) => clearInterval(interval));
-  screenShareIntervals.clear();
-  
- remoteTracks.forEach((audio, id) => {
-    try { audio.srcObject = null; audio.remove(); } catch (e) {}
-    if (audioContexts.has(id)) {
-      audioContexts.get(id).context.close().catch(() => {});
-      audioContexts.delete(id);
-    }
-    if (audioGainNodes.has(id)) audioGainNodes.delete(id);
-  });
-  remoteTracks.clear();
-  voiceStates.clear();
-  lastLoudAt.clear();
-  speakingState.clear();
-  isCurrentlyMuted = false;
-  isDeafened = false;
-  document.getElementById('muteBtn').classList.remove('muted');
-  document.getElementById('deafenBtn').classList.remove('muted');
-  document.querySelectorAll('.voice-channel').forEach(ch => ch.classList.remove('active'));
-  const panel = document.getElementById('voicePanel');
-  panel.classList.remove('show');
-  panel.style.display = '';
-  panel.style.display = 'none';
-  document.querySelector('.sidebar2-content').appendChild(panel);
-  if (window.electronAPI?.overlayVoiceUpdate) {
-  window.electronAPI.overlayVoiceUpdate([]);
-}
 
+  try {
+    try { stopPingMonitor(); } catch (e) { console.error("stopPingMonitor error:", e); }
+
+    const roomLabelEl = document.getElementById('voiceRoomLabel');
+    if (roomLabelEl) roomLabelEl.textContent = '';
+
+    if (roomSlug) {
+      try {
+        socket.emit("voiceLeave", { roomName: roomSlug, userId: user.id });
+      } catch (e) { console.error("voiceLeave emit error:", e); }
+    }
+
+    if (conference) {
+      try { conference.leave(); } catch (e) { console.error("conference.leave error:", e); }
+      conference = null;
+    }
+
+    if (localAudioTrack) {
+      try { localAudioTrack.dispose(); } catch (e) { console.error("localAudioTrack dispose error:", e); }
+      localAudioTrack = null;
+    }
+
+    try {
+      screenShareIntervals.forEach((interval) => clearInterval(interval));
+      screenShareIntervals.clear();
+    } catch (e) { console.error("screenShareIntervals cleanup error:", e); }
+
+    try {
+      remoteTracks.forEach((audio, id) => {
+        try { audio.srcObject = null; audio.remove(); } catch (e) {}
+        if (audioContexts.has(id)) {
+          audioContexts.get(id).context.close().catch(() => {});
+          audioContexts.delete(id);
+        }
+        if (audioGainNodes.has(id)) audioGainNodes.delete(id);
+      });
+      remoteTracks.clear();
+    } catch (e) { console.error("remoteTracks cleanup error:", e); }
+
+    voiceStates.clear();
+    lastLoudAt.clear();
+    speakingState.clear();
+    isCurrentlyMuted = false;
+    isDeafened = false;
+
+    try { document.getElementById('muteBtn')?.classList.remove('muted'); } catch (e) {}
+    try { document.getElementById('deafenBtn')?.classList.remove('muted'); } catch (e) {}
+    try { document.querySelectorAll('.voice-channel').forEach(ch => ch.classList.remove('active')); } catch (e) {}
+
+    try {
+      const panel = document.getElementById('voicePanel');
+      if (panel) {
+        panel.classList.remove('show');
+        panel.style.display = 'none';
+        document.querySelector('.sidebar2-content')?.appendChild(panel);
+      }
+    } catch (e) { console.error("voicePanel cleanup error:", e); }
+
+    if (window.electronAPI?.overlayVoiceUpdate) {
+      try { window.electronAPI.overlayVoiceUpdate([]); } catch (e) {}
+    }
+
+    try { updateVcPresence(); } catch (e) { console.error("updateVcPresence error:", e); }
+
+  } catch (e) {
+    console.error("leaveVoice unexpected error:", e);
+  } finally {
+   
+
+
+    if (cameraTrack) {
+      try { cameraTrack.dispose(); } catch (e) {}
+      cameraTrack = null;
+    }
+    const cameraBtn = document.getElementById('cameraBtn');
+    if (cameraBtn) {
+      cameraBtn.classList.remove('active');
+      cameraBtn.style.background = '';
+    }
+    try { removeCameraPreview(); } catch (e) { console.error("removeCameraPreview error:", e); }
+    if (screenTrack) {
+      try { screenTrack.dispose(); } catch (e) {}
+      screenTrack = null;
+    }
+    if (screenAudioTrack) {
+      try { screenAudioTrack.dispose(); } catch (e) {}
+      screenAudioTrack = null;
+    }
+    const screenBtn = document.getElementById('screenBtn');
+    if (screenBtn) {
+      screenBtn.classList.remove('sharing');
+      screenBtn.style.background = '';
+    }
+    try { removeScreenCard("data-screen-id", "local-screen"); } catch (e) {}
+
+  
+    const vcButtons = document.getElementById('vcButtons');
+    if (vcButtons) vcButtons.style.display = 'none';
+
+  
+    const pingEl = document.getElementById('pingDisplay');
+    if (pingEl) pingEl.style.display = 'none';
+
+    ['voiceControls', 'voiceStatusBar', 'voiceStatusLabel'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('ping-good', 'ping-warning', 'ping-bad');
+        el.style.color = '';
+      }
+    });
+  }
 }
 
 async function joinVoiceChannelWithTimeout(roomSlug, timeout = 15000) {
@@ -801,10 +882,15 @@ function toggleDeafen() {
   });
 
   updateVoiceUI();
+  updateVcStatusText();
 }
 let liveStreams = []; 
 
 document.addEventListener('DOMContentLoaded', function() {
+    if (typeof user !== 'undefined' && user.avatar) {
+    initVoicePanelIdentity();
+    updateVcPresence();
+  }
   const liveStreamsBtn = document.getElementById('liveStreamsBtn');
   const liveStreamsModal = document.getElementById('liveStreamsModal');
   liveStreamsModal.addEventListener('dragstart', (e) => {
@@ -974,8 +1060,8 @@ function updateVoiceUI() {
   const container = document.getElementById('voiceParticipants');
   if (!container) return;
 
-  function rowSig(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, customRoleIds, isMuted, isDeafened) {
-    return [id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, (customRoleIds||[]).join(","), isMuted, isDeafened].join("|");
+  function rowSig(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, customRoleIds, isMuted, isDeafened, streamStatus) {
+    return [id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, (customRoleIds||[]).join(","), isMuted, isDeafened, streamStatus || ""].join("|");
   }
 
   const existingRows = new Map();
@@ -985,13 +1071,14 @@ function updateVoiceUI() {
   const usedIds = new Set();
   {
     const id = "local";
-   const sig = rowSig(id, user.avatar, user.username, user.usernameColor || "username-cyan", user.level || 1, user.badge || null, user.isAdmin || false, user.isDeveloper || false, user.isPromptEngineer || false, user.prestigeBadge || null, user.customRoleIds || [], isCurrentlyMuted, isDeafened);
+    const localStreamStatus = window.currentStreamStatus || null;
+    const sig = rowSig(id, user.avatar, user.username, user.usernameColor || "username-cyan", user.level || 1, user.badge || null, user.isAdmin || false, user.isDeveloper || false, user.isPromptEngineer || false, user.prestigeBadge || null, user.customRoleIds || [], isCurrentlyMuted, isDeafened, localStreamStatus);
     const existing = existingRows.get(id);
     usedIds.add(id);
     if (existing && existing.dataset.vpRowSig === sig) {
       fragment.appendChild(existing);
     } else {
-      const row = buildParticipantRow("local", user.avatar, user.username, user.usernameColor || "username-cyan", user.level || 1, user.badge || null, user.isAdmin || false, user.isDeveloper || false, user.isPromptEngineer || false, user.prestigeBadge || null, user.customRoleIds || []);
+      const row = buildParticipantRow("local", user.avatar, user.username, user.usernameColor || "username-cyan", user.level || 1, user.badge || null, user.isAdmin || false, user.isDeveloper || false, user.isPromptEngineer || false, user.prestigeBadge || null, user.customRoleIds || [], localStreamStatus);
       row.dataset.vpRowId = id;
       row.dataset.vpRowSig = sig;
       row.addEventListener('contextmenu', (e) => {
@@ -1020,17 +1107,18 @@ function updateVoiceUI() {
     const isDeveloper = participant.getProperty("isDeveloper") === "true";
     const isPromptEngineer = participant.getProperty("isPromptEngineer") === "true";
     const prestigeBadge = participant.getProperty("prestigeBadge") || null;
+    const streamStatus = participant.getProperty("streamStatus") || null;
     const stateKey = participant.getProperty("userId") || id;
     const state = voiceStates.get(stateKey) || { isMuted: false, isDeafened: false };
 
-    const sig = rowSig(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, remoteCustomRoleIds, state.isMuted, state.isDeafened);
+    const sig = rowSig(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, remoteCustomRoleIds, state.isMuted, state.isDeafened, streamStatus);
     const existing = existingRows.get(id);
     usedIds.add(id);
 
     if (existing && existing.dataset.vpRowSig === sig) {
       fragment.appendChild(existing);
     } else {
-      const remoteRow = buildParticipantRow(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, remoteCustomRoleIds);
+      const remoteRow = buildParticipantRow(id, avatar, username, colorClass, level, badge, isAdmin, isDeveloper, isPromptEngineer, prestigeBadge, remoteCustomRoleIds, streamStatus);
       remoteRow.dataset.vpRowId = id;
       remoteRow.dataset.vpRowSig = sig;
       remoteRow.addEventListener('contextmenu', (e) => {
@@ -1051,8 +1139,7 @@ function updateVoiceUI() {
     }
   }
 
-
-document.querySelectorAll('.voice-participant').forEach(el => {
+  document.querySelectorAll('.voice-participant').forEach(el => {
     const id = el.getAttribute('data-id');
     const isSpeaking = !!speakingState.get(id);
     el.classList.toggle("speaking", isSpeaking);
@@ -1244,6 +1331,7 @@ function toggleMute() {
   });
 
   updateVoiceUI();
+  updateVcStatusText();
 }
 
 
@@ -1285,4 +1373,210 @@ function userjoinSound() {
 function userleaveSound() {
   userLeaveAudio.currentTime = 0;
   userLeaveAudio.play().catch(e => console.warn("Leave sound blocked:", e));
+}
+
+function initVoicePanelIdentity() {
+  const avatarEl = document.getElementById('vcPanelAvatar');
+  const nameEl = document.getElementById('vcPanelUsername');
+  const colorClass = user.usernameColor || 'username-cyan';
+
+  if (avatarEl) {
+    avatarEl.src = sanitizeAvatar(user.avatar) || '/avatars/default1.png';
+    avatarEl.setAttribute('data-color', colorClass);
+    applyAvatarBorder(avatarEl, colorClass, 3);
+  }
+
+  if (nameEl) {
+    const newClass = `username-wrapper ${colorClass}`;
+    if (nameEl.className !== newClass) nameEl.className = newClass;
+
+    const text = user.username || 'You';
+    if (nameEl.getAttribute('data-text') !== text) {
+      nameEl.setAttribute('data-text', text);
+      nameEl.textContent = text;
+    }
+
+    nameEl.style.setProperty('-webkit-background-clip', 'text', 'important');
+    nameEl.style.setProperty('background-clip', 'text', 'important');
+    nameEl.style.setProperty('color', 'transparent', 'important');
+  }
+
+  updateVcPresence();
+}
+
+function updateVcStatusText() {
+  const statusEl = document.getElementById('voiceStatusLabel');
+  if (!statusEl) return;
+  if (user.gameStatus) {
+    statusEl.textContent = user.gameStatus;
+    return;
+  }
+  if (user.musicStatus) {
+    statusEl.textContent = user.musicStatus;
+    return;
+  }
+  if (window.currentStreamStatus) {
+    statusEl.textContent = window.currentStreamStatus;
+    return;
+  }
+
+
+  if (isDeafened && isCurrentlyMuted) {
+    statusEl.textContent = 'Muted & Deafened';
+  } else if (isDeafened) {
+    statusEl.textContent = 'Deafened';
+  } else if (isCurrentlyMuted) {
+    statusEl.textContent = 'Muted';
+  } else if (user.customStatus) {
+    statusEl.textContent = user.customStatus;
+  } else {
+    statusEl.textContent = 'Online';
+  }
+}
+function updateVcPresence() {
+  const dot = document.getElementById('vcStatusDot');
+  const label = document.getElementById('voiceStatusLabel');
+  if (!dot || !label) return;
+
+  label.style.color = '';
+
+  const status = user.status || 'online';
+  dot.className = `status-dot status-${status}`;
+  if (conference) {
+    updateVcStatusText();
+    return;
+  }
+  if (user.gameStatus) {
+    label.textContent = user.gameStatus;
+  } else if (user.musicStatus) {
+    label.textContent = user.musicStatus;
+  } else if (window.currentStreamStatus) {
+    label.textContent = window.currentStreamStatus;
+  } else if (user.customStatus) {
+    label.textContent = user.customStatus;
+  } else {
+    label.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+  }
+}
+
+let cameraTrack = null;
+
+function removeCameraPreview() {
+  removeScreenCard("data-camera-id", "local-camera");
+}
+
+async function toggleCamera() {
+  if (cameraTrack) {
+    if (conference) {
+      try { await conference.removeTrack(cameraTrack); } catch (e) {}
+    }
+    try { cameraTrack.dispose(); } catch (e) {}
+    cameraTrack = null;
+    const btn = document.getElementById('cameraBtn');
+    btn.classList.remove('active');
+    btn.style.background = '#181818';
+    removeCameraPreview();
+    return;
+  }
+
+  try {
+    if (!conference) {
+      showToast("❌ You must join voice first to use your camera");
+      return;
+    }
+
+    const tracks = await JitsiMeetJS.createLocalTracks({ devices: ['video'] });
+    cameraTrack = tracks[0];
+    if (!cameraTrack) {
+      showToast("❌ Could not access camera");
+      return;
+    }
+
+    await conference.addTrack(cameraTrack);
+    const btn = document.getElementById('cameraBtn');
+    btn.classList.add('active');
+    btn.style.background = '#ed4245';
+    removeCameraPreview();
+    const screenContainer = document.getElementById("screenContainer");
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "ss-card ss-local";
+    wrapper.setAttribute("data-camera-id", "local-camera");
+
+    const loading = document.createElement("div");
+    loading.className = "ss-loading";
+    const spinner = document.createElement("div");
+    spinner.className = "ss-spinner";
+    const loadingText = document.createElement("div");
+    loadingText.textContent = "Starting your camera…";
+    loading.appendChild(spinner);
+    loading.appendChild(loadingText);
+    wrapper.appendChild(loading);
+
+    const video = document.createElement("video");
+    video.className = "ss-video";
+    video.autoplay = true;
+    video.muted = true;
+    video.style.objectFit = "cover";
+    video.style.transform = "scaleX(-1)"; 
+    video.style.opacity = "0";
+    video.style.transition = "opacity 0.2s ease";
+    wrapper.appendChild(video);
+
+    const chip = document.createElement("div");
+    chip.className = "ss-chip";
+    const chipDot = document.createElement("span");
+    chipDot.className = "ss-dot";
+    const chipText = document.createElement("span");
+    chipText.textContent = "Your camera";
+    chip.appendChild(chipDot);
+    chip.appendChild(chipText);
+    wrapper.appendChild(chip);
+
+    const controls = document.createElement("div");
+    controls.className = "ss-controls";
+
+    const stopBtn = document.createElement("button");
+    stopBtn.className = "ss-btn ss-btn-danger";
+    stopBtn.title = "Turn off camera";
+    stopBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
+    stopBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleCamera();
+    });
+    controls.appendChild(stopBtn);
+    wrapper.appendChild(controls);
+
+    screenContainer.appendChild(wrapper);
+    cameraTrack.attach(video);
+
+    video.addEventListener('loadedmetadata', () => {
+      loading.style.display = "none";
+      video.style.opacity = "1";
+      video.play().catch(e => console.error("Play error:", e));
+    }, { once: true });
+
+    screenContainer.classList.add("show");
+    screenContainer.style.display = "flex";
+
+    cameraTrack.addEventListener(
+      JitsiMeetJS.events.track.TRACK_STOPPED,
+      () => {
+        cameraTrack = null;
+        const btn = document.getElementById('cameraBtn');
+        btn.classList.remove('active');
+        btn.style.background = '#181818';
+        removeCameraPreview();
+      }
+    );
+
+    console.log("📹 Camera enabled");
+  } catch (e) {
+    console.error("Camera error:", e);
+    if (e.name === "NotAllowedError") {
+      showToast("❌ Camera permission denied");
+    } else {
+      showToast("❌ Could not start camera: " + e.message);
+    }
+  }
 }

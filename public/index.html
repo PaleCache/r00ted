@@ -3,7 +3,8 @@
 <head>
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self' https: wss: blob: data:;
-  script-src 'self' https: 'unsafe-inline';
+  script-src 'self' https: 'unsafe-inline' 'unsafe-eval' blob:;
+  worker-src 'self' blob: https:;
   style-src 'self' https: 'unsafe-inline';
   img-src 'self' https: blob: data: file:;
 ">
@@ -372,53 +373,50 @@
 </div>
 
 <div id="voiceParticipantsDropdown" class="voice-participants-dropdown" style="display:none; position:absolute; background:#121314; border:1px solid #40444b; border-radius:8px; padding:8px; width:267px; max-height:300px; overflow-y:auto; z-index:1000; box-shadow:0 8px 24px rgba(0,0,0,0.6);"></div>
-  <div class="sidebar2-bottom">
 
-    <div id="voiceControls" class="voice-controls" style="display:none; height:auto; flex-direction:column; padding:12px; gap:8px;">
-  <div style="display: flex; flex-direction: column; gap: 4px; width: 100%; margin-left:15px">
-    <span id="voiceStatusLabel" style="font-size: 12px; color: #b9bbbe; font-weight: 500;">Voice Connected</span>
-    <span id="voiceRoomLabel" style="font-size: 11px; color: #72767d; margin-left: 39px;"></span>
-    <div id="pingDisplay" title="0ms" style="
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      cursor: help;
-      width: fit-content;
-    ">
-      <div id="pingBars" style="
-        display: flex;
-        align-items: flex-end;
-        gap: 2px;
-        height: 14px;
-      ">
-        <div class="ping-bar" style="height: 4px; width: 2px; border-radius: 1px;"></div>
-        <div class="ping-bar" style="height: 8px; width: 2px; border-radius: 1px;"></div>
-        <div class="ping-bar" style="height: 12px; width: 2px; border-radius: 1px;"></div>
-        <div class="ping-bar" style="height: 14px; width: 2px; border-radius: 1px;"></div>
-      </div>
-      <span id="pingText" style="display: none;"></span>
+<div class="sidebar2-bottom">
+
+  <div id="voiceControls" class="voice-controls" style="display:flex; flex-direction:column; gap:8px; padding:8px; width:100%; box-sizing:border-box;">
+
+    <div id="vcButtons" style="display:none; align-items:center; justify-content:center; gap:7px;">
+      <button class="voice-btn" id="muteBtn" onclick="toggleMute()" title="Mute" style="width:55px; height:28px; border-radius:7px; background:#181818; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <img src="/svgs/mic-on.svg" alt="Mute" style="width:18px; height:18px;">
+      </button>
+      <button class="voice-btn" id="deafenBtn" onclick="toggleDeafen()" title="Deafen" style="width:55px; height:28px; border-radius:7px; background:#181818; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <img src="/svgs/def.svg" alt="Deafen" style="width:18px; height:18px;">
+      </button>
+      <button class="voice-btn" id="cameraBtn" onclick="toggleCamera()" title="Camera" style="width:55px; height:28px; border-radius:4px; background:#181818; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <img src="/svgs/video-add.svg" alt="Camera" style="width:26px; height:26px;">
+      </button>
+      <button class="voice-btn" id="screenBtn" onclick="toggleScreenShare()" title="Share Screen" style="width:55px; height:28px; border-radius:7px; background:#181818; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <img src="/svgs/sharescreen.svg" alt="Share" style="width:18px; height:18px;">
+      </button>
+      <button class="voice-btn" id="hangupBtn" onclick="leaveVoice()" title="Disconnect" style="width:55px; height:28px; border-radius:7px; background:#ed4245; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <img src="/svgs/hangup.svg" alt="Leave" style="width:26px; height:26px;">
+      </button>
     </div>
-  </div>
+      <div class="user" style="display:flex; align-items:center; gap:8px;">
+      <div style="position:relative; flex-shrink:0;">
+        <img id="vcPanelAvatar" src="/avatars/default1.png" alt="" style="width:32px; height:32px; min-width:32px; border-radius:50%; object-fit:cover; background:#2b2d31; margin:0; display:block;">
+        <span id="vcStatusDot" class="status-dot status-online" style="position:absolute; top:22px; left:22px; z-index:3;"></span>
+      </div>
+      <div style="display:flex; flex-direction:column; justify-content:center; min-width:0; flex:1;">
+       <span id="vcPanelUsername" style="font-size:13px; font-weight:600; position:relative; display:inline-block; white-space:nowrap;"></span>
+        <div style="display:flex; align-items:center;">
+          <div id="pingDisplay" title="0ms" style="display:none; align-items:center; gap:4px; position:static;">
+            <div id="pingBars" style="display:flex; align-items:flex-end; gap:1px; height:10px;">
+              <div class="ping-bar" style="height:4px; width:2px; border-radius:1px;"></div>
+              <div class="ping-bar" style="height:6px; width:2px; border-radius:1px;"></div>
+              <div class="ping-bar" style="height:8px; width:2px; border-radius:1px;"></div>
+              <div class="ping-bar" style="height:10px; width:2px; border-radius:1px;"></div>
+            </div>
+            <span id="pingText" style="display:none;"></span>
+          </div>
+          <span id="voiceStatusLabel" style="font-size:11px; white-space:nowrap; color:#949ba4;"></span>
+        </div>
+      </div>
+    </div>
 
- 
-  <div style="display: flex; gap: 8px; justify-content: center; width: 100%;">
-    <button class="voice-btn" id="muteBtn" onclick="toggleMute()">
-      <img src="/svgs/mic-on.svg" alt="Mute" style="width:16px; height:16px;">
-    </button>
-
-    <button class="voice-btn" id="deafenBtn" onclick="toggleDeafen()">
-      <img src="/svgs/def.svg" style="width:16px; height:16px;">
-    </button>
-
-    <button class="voice-btn" id="screenBtn" onclick="toggleScreenShare()">
-      <img src="/svgs/sharescreen.svg" style="width:16px; height:16px;">
-    </button>
-
-      <button class="voice-btn" id="hangupBtn" onclick="leaveVoice()">
-      <img src="/svgs/hangup.svg" style="width:25px; height:25px;">
-    </button>
-  </div>
 </div>
 
   <div id="embeddedJitsiModal" style="display:none; position:fixed; inset:0; z-index:99999; align-items:center; justify-content:center;">
@@ -581,7 +579,15 @@
   <input type="file" id="bannerUpload" accept="image/*" style="display:none">
 </div>
 
+<div class="setting-item">
+  <label>Profile Effect</label>
+  <div id="profileEffectButtons" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+</div>
 
+<div class="setting-item">
+  <label>Profile Card Gradient</label>
+  <div id="profileGradientButtons" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+</div>
 
 
 
@@ -595,6 +601,8 @@
   <div id="BadgeBtw" style="display: flex; gap: 10px; flex-wrap: wrap;">
   </div>
 </div>
+
+
 
 
    <div class="setting-item">
@@ -620,17 +628,6 @@
 </div>
 
 <div class="setting-item">
-  <label>Profile Card Gradient</label>
-  <div id="profileGradientButtons" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-</div>
-
-
-<div class="setting-item">
-  <label>Profile Effect</label>
-  <div id="profileEffectButtons" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-</div>
-
-<div class="setting-item">
   <label>Preview</label>
   <div id="namePreviewCard" style="
     background: #111214;
@@ -649,7 +646,7 @@
         <span id="previewLevel" style="font-size:11px; font-weight:700; padding:2px 6px; border-radius:3px; border:1px solid; display:inline-block;">1</span>
         <img id="previewBadge" src="" style="width:20px; height:20px; display:none; border-radius:4px;">
       </div>
-      <span style="font-size:12px; color:#72767d;">Today at 12:00 PM</span>
+      <span style="font-size:12px; color:#72767d;">h3110</span>
     </div>
   </div>
 </div>
@@ -1117,7 +1114,6 @@
   </div>
 </div>
 <input type="file" id="pfpUpload" accept="image/*" style="display: none;">
-
 <script src="/games/bonusAccount.js" defer></script>
 <script src="/clientScripts/animations.js" defer></script>
 <script src="/clientScripts/script.js" defer></script>
@@ -1138,6 +1134,7 @@
 <script src="/games/skyrunner.js" defer></script>
 <script src="/games/towerclimb.js" defer></script>
 <script src="/games/darts.js" defer></script>
+<script src="/games/library.js" defer></script>
 <script src="/games/roulette.js" defer></script>
 <script src="/clientScripts/profilePopup.js" defer></script>
 <script src="/clientScripts/audioEmbed.js" defer></script>

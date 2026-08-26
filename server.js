@@ -27,6 +27,9 @@ const embedButtonRateLimit = new Map();
 const reactionRateLimit = new Map();
 const REACTION_RATE_LIMIT = 500;
 
+const LIBRARY_ROOT = path.resolve(path.join(__dirname, "public", "library"));
+const LIBRARY_EXTS = [".zip", ".7z", ".bin", ".gba", ".gb", ".gbc", ".nes", ".sfc", ".smc", ".n64", ".z64", ".iso", ".chd"];
+
 const ALLOWED_UPLOAD_EXT = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
@@ -8498,6 +8501,83 @@ function buildWhisperHistoryFor(userId) {
 function isEmoteUrlServer(url) {
   return typeof url === "string" && /\/avatars\/[^/]+\.(png|jpe?g|gif|webp)$/i.test(url);
 }
+
+
+function safeLibraryPath(subPath = "") {
+  const cleaned = String(subPath || "").replace(/\\/g, "/").replace(/\.\.+/g, "");
+  const resolved = path.resolve(path.join(LIBRARY_ROOT, cleaned));
+  const rootResolved = path.resolve(LIBRARY_ROOT);
+  if (resolved !== rootResolved && !resolved.startsWith(rootResolved + path.sep)) {
+    return rootResolved;
+  }
+  return resolved;
+}
+
+app.get("/api/library/browse", requireAuth, (req, res) => {
+  const reqPath = req.query.path || "";
+  const dirPath = safeLibraryPath(reqPath);
+
+  fs.readdir(dirPath, { withFileTypes: true }, (err, entries) => {
+    if (err) return res.status(404).json({ error: "Folder not found" });
+
+    const folders = [];
+    const files = [];
+
+    entries.forEach(entry => {
+      if (entry.name.startsWith(".")) return;
+      if (entry.isDirectory()) {
+        folders.push(entry.name);
+      } else if (LIBRARY_EXTS.includes(path.extname(entry.name).toLowerCase())) {
+        const relDir = reqPath ? reqPath.replace(/\\/g, "/").replace(/\/+$/, "") + "/" : "";
+        files.push({
+          name: entry.name,
+          relPath: `${relDir}${entry.name}`,
+          url: `/api/library/file?path=${encodeURIComponent(relDir + entry.name)}`,
+          ext: path.extname(entry.name).toLowerCase().slice(1)
+        });
+      }
+    });
+
+    folders.sort((a, b) => a.localeCompare(b));
+    files.sort((a, b) => a.name.localeCompare(b.name));
+    res.json({ path: reqPath, folders, files });
+  });
+});
+
+
+app.get("/api/library/file", (req, res) => {
+  if (req.query.token !== CHAT_PASSWORD) return res.status(401).json({ error: "Unauthorized" });
+
+  const reqPath = req.query.path || "";
+  const absPath = safeLibraryPath(reqPath);
+  const ext = path.extname(absPath).toLowerCase();
+  if (!LIBRARY_EXTS.includes(ext)) return res.status(400).json({ error: "Unsupported file type" });
+
+  fs.stat(absPath, (err, stat) => {
+    if (err) return res.status(404).end();
+
+    const range = req.headers.range;
+    if (range) {
+      const [startStr, endStr] = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(startStr, 10);
+      const end = endStr ? parseInt(endStr, 10) : stat.size - 1;
+      res.writeHead(206, {
+        "Content-Range": `bytes ${start}-${end}/${stat.size}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": end - start + 1,
+        "Content-Type": "application/octet-stream"
+      });
+      fs.createReadStream(absPath, { start, end }).pipe(res);
+    } else {
+      res.writeHead(200, {
+        "Content-Length": stat.size,
+        "Content-Type": "application/octet-stream",
+        "Accept-Ranges": "bytes"
+      });
+      fs.createReadStream(absPath).pipe(res);
+    }
+  });
+});
 
 
 server.listen(5350, '127.0.0.1', () => {

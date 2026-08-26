@@ -607,7 +607,7 @@ function saveNotifSettings(e) {
     const lastSource = window.__lastNativeNowPlaying?.source?.toLowerCase() || "";
     const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge'];
     const isBrowser = BROWSER_SOURCES.some(b => lastSource.includes(b));
-
+    window.notifSettings = window.notifSettings || JSON.parse(localStorage.getItem("notifSettings") || "{}");
     if (isBrowser) {
       if (typeof socket !== "undefined" && socket?.connected) {
         socket.emit("setMusicStatus", { musicStatus: null, musicArtUrl: null });

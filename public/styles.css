@@ -257,6 +257,8 @@ div#usersList {
   box-shadow: 0 0 3px rgba(0,0,0,0.8);
 }
 
+
+
 .status-online { background: #23a559 !important; }  
 .status-offline { background: #747f8d !important; } 
 
@@ -1903,13 +1905,10 @@ div#popupLevel {
   height: 24px;
   border-radius: 7px;
   width: fit-content;
-  background-color: #45454452;
-  margin-top: -30px;
+
 }
 
-span#voiceStatusLabel {
-    margin-left: 37px;
-}
+
 
 
 #pingText {
@@ -2307,7 +2306,22 @@ span#voiceStatusLabel {
   position: absolute;
   bottom: 1px;
   right: 1px;
+  border: 2.5px solid rgb(35, 36, 40);
 }
+
+span#vcStatusDot {
+    display: inline-block;
+    width: 8px;
+    height: 7px;
+    border-radius: 50%;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    border: 2.5px solid rgb(35, 36, 40);
+}
+
+
 
 .status-online { background: #23a559; }
 .status-offline { background: #747f8d; }
@@ -2807,23 +2821,7 @@ div#usersList img {
   color: #ef4444;
 }
 
-#voiceStatusLabel {
-  color: #b9bbbe;
-  transition: color 0.3s ease;
-}
-
-.voice-controls.ping-good #voiceStatusLabel {
-  color: #23a559 !important;
-}
-
-.voice-controls.ping-warning #voiceStatusLabel {
-  color: #f59e0b !important;
-}
-
-.voice-controls.ping-bad #voiceStatusLabel {
-  color: #ef4444 !important;
-}
-
+voiceStatusLabel
 #scrollToBottomBtn:hover{
   color: #FF0000 !important;
 }
@@ -6710,3 +6708,347 @@ audio.chat-audio::-webkit-media-controls-time-remaining-display {
 }
 
 
+.voice-controls {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: rgba(0,0,0,0);
+  padding: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.vc-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #2b2d31;
+  flex-shrink: 0;
+}
+
+.vc-user-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.vc-username {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+.vc-status-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vc-status {
+  font-size: 11px;
+  color: #23a55a;
+  white-space: nowrap;
+}
+
+#pingDisplay {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#pingBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 10px;
+}
+
+#pingBars .ping-bar {
+  width: 2px;
+  border-radius: 1px;
+  background: #23a55a;
+}
+
+.vc-buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.vc-buttons .voice-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: #b5bac1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.vc-buttons .voice-btn:hover {
+  background: #2b2d31;
+}
+
+.vc-buttons .voice-btn img {
+  width: 18px;
+  height: 18px;
+}
+
+.vc-buttons .voice-btn.muted {
+  background: rgba(237, 66, 69, 0.15);
+}
+
+.vc-buttons .voice-btn.muted img {
+  filter: brightness(0) saturate(100%) invert(36%) sepia(80%) saturate(3000%) hue-rotate(335deg);
+}
+
+.vc-buttons .hangup {
+  background: #ed4245;
+}
+
+.vc-buttons .hangup:hover {
+  background: #c53537;
+}
+
+
+
+#vcStatusDot {
+  width: 8px !important;
+  height: 7px !important;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.2px #16171a;
+}
+
+.status-idle#vcStatusDot {
+  box-shadow: 0 0 0 0.2px #16171a, inset -3px -1px 1px 0px #f0b232;
+}
+
+#vcButtons .voice-btn.muted {
+  background: rgba(237, 66, 69, 0.15) !important;
+}
+
+#vcButtons .voice-btn.muted img {
+  filter: brightness(0) saturate(100%) invert(36%) sepia(80%) saturate(3000%) hue-rotate(335deg) !important;
+}
+
+#vcButtons #screenBtn.sharing {
+  background: rgba(237, 66, 69, 0.15) !important;
+}
+
+#vcButtons #screenBtn.sharing img {
+filter: brightness(0) saturate(100%) invert(36%) sepia(80%) saturate(3000%) hue-rotate(335deg) !important;
+}
+
+#vcButtons .voice-btn:hover {
+  background: #2b2d31 !important;
+}
+
+#vcButtons #cameraBtn.active {
+  background: rgba(237, 66, 69, 0.15) !important;
+}
+
+#vcButtons #cameraBtn.active img {
+  filter: brightness(0) saturate(100%) invert(36%) sepia(80%) saturate(3000%) hue-rotate(335deg) !important;
+}
+
+.voice-btn img {
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+#vcPanelAvatar {
+  border: 3px solid transparent;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+#vcPanelAvatar[data-color="username-gold"] { border-color: #ffd700; }
+#vcPanelAvatar[data-color="username-pink"] { border-color: #ff2d95; }
+#vcPanelAvatar[data-color="username-purple"] { border-color: #9d4eff; }
+#vcPanelAvatar[data-color="username-cyan"] { border-color: #00f2ff; }
+#vcPanelAvatar[data-color="username-green"] { border-color: #39ff6e; }
+#vcPanelAvatar[data-color="username-red"] { border-color: #ff3333; }
+#vcPanelAvatar[data-color="username-blue-silver"] { border-color: #3399ff; }
+
+#vcPanelAvatar[data-color="username-neon"]      { border-color: #00ffea; }
+#vcPanelAvatar[data-color="username-shimmer"]   { border-color: #aaffff; }
+#vcPanelAvatar[data-color="username-glitch"]    { border-color: #00ffcc; }
+#vcPanelAvatar[data-color="username-electric"]  { border-color: #00ddff; }
+#vcPanelAvatar[data-color="username-matrix"]    { border-color: #00ff41; }
+#vcPanelAvatar[data-color="username-ghost"]     { border-color: #ffffff; }
+#vcPanelAvatar[data-color="username-hellfire"]  { border-color: #ff2200; }
+#vcPanelAvatar[data-color="username-fire"]      { border-color: #ff4400; }
+#vcPanelAvatar[data-color="username-rainbow"]   { border-color: #ff0000; }
+#vcPanelAvatar[data-color="username-cyberpunk"] { border-color: #ff006e; }
+#vcPanelAvatar[data-color="username-cosmic"]    { border-color: #a78bfa; }
+#vcPanelAvatar[data-color="username-plasma"]    { border-color: #ff1493; }
+#vcPanelAvatar[data-color="username-aurora"]    { border-color: #00ff88; }
+#vcPanelAvatar[data-color="username-inferno"]   { border-color: #ff0000; }
+#vcPanelAvatar[data-color="username-void"]      { border-color: #00ffff; }
+#vcPanelAvatar[data-color="username-candy"]     { border-color: #ff69b4; }
+#vcPanelAvatar[data-color="username-quantum"]   { border-color: #00d9ff; }
+#vcPanelAvatar[data-color="username-twilight"]  { border-color: #7c3aed; }
+#vcPanelAvatar[data-color="username-corrupted"] { border-color: #ff0080; }
+#vcPanelAvatar[data-color="username-void-pulse"]{ border-color: #00ffff; }
+#vcPanelAvatar[data-color="username-acid"]      { border-color: #ff0000; }
+#vcPanelAvatar[data-color="username-fractal"]   { border-color: #ff006e; }
+#vcPanelAvatar[data-color="username-hyperdrive"]{ border-color: #00ffff; }
+#vcPanelAvatar[data-color="username-supernova"] { border-color: #ffff00; }
+#vcPanelAvatar[data-color="username-quantum-entangle"] { border-color: #00d9ff; }
+#vcPanelAvatar[data-color="username-dimensional"] { border-color: #ff00ff; }
+#vcPanelAvatar[data-color="username-toxic"]     { border-color: #39ff14; }
+#vcPanelAvatar[data-color="username-chaos"]     { border-color: #ff0080; }
+#vcPanelAvatar[data-color="username-singularity"] { border-color: #ffffff; }
+#vcPanelAvatar[data-color="username-matrix-code"] { border-color: #00ff41; }
+
+
+
+.vc-user-text.message {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  position: static;
+  max-width: none;
+  word-break: normal;
+}
+
+.vc-user-text.message:hover {
+  background: none;
+  border-radius: 0;
+}
+
+.voice-controls .user {
+  padding: 0;
+}
+.voice-controls .user:hover {
+  background: none;
+  border-radius: 0;
+}
+
+.voice-controls .user:hover img#vcPanelAvatar[data-color] {
+  box-shadow: none;
+}
+
+
+.voice-controls .user:hover #vcPanelUsername.username-glitch::before,
+.voice-controls .user:hover #vcPanelUsername.username-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+}
+.voice-controls .user:hover #vcPanelUsername.username-glitch::before {
+  animation: glitch1 0.6s infinite;
+  color: #00ffff;
+  left: 2px;
+  text-shadow: -2px 0 #ff00ff;
+  clip: rect(0, 900px, 0, 0);
+}
+.voice-controls .user:hover #vcPanelUsername.username-glitch::after {
+  animation: glitch2 0.4s infinite;
+  color: #ff00ff;
+  left: -2px;
+  text-shadow: 2px 0 #00ffff;
+  clip: rect(0, 900px, 0, 0);
+}
+
+.voice-controls .user:hover #vcPanelUsername.username-quantum-entangle::before {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  animation: quantumEntangleAnim 1.2s ease-in-out infinite reverse;
+  color: #6600ff;
+  text-shadow: 0 0 10px #6600ff;
+}
+
+
+
+
+
+
+
+#vcPanelUsername {
+  align-self: flex-start;
+  width: fit-content;
+}
+
+
+#vcPanelUsername:not(.username-corrupted):not(.username-matrix-code):not(.username-glitch):not(.username-quantum-entangle)::before,
+#vcPanelUsername:not(.username-corrupted):not(.username-matrix-code):not(.username-glitch):not(.username-quantum-entangle)::after {
+  content: none !important;
+}
+
+
+#vcPanelUsername.username-glitch::before,
+#vcPanelUsername.username-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+}
+#vcPanelUsername.username-glitch::before {
+  animation: glitch1 0.6s infinite;
+  color: #00ffff;
+  left: 2px;
+  text-shadow: -2px 0 #ff00ff;
+  clip: rect(0, 900px, 0, 0);
+}
+#vcPanelUsername.username-glitch::after {
+  animation: glitch2 0.4s infinite;
+  color: #ff00ff;
+  left: -2px;
+  text-shadow: 2px 0 #00ffff;
+  clip: rect(0, 900px, 0, 0);
+}
+
+#vcPanelUsername.username-quantum-entangle::before {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  animation: quantumEntangleAnim 1.2s ease-in-out infinite reverse;
+  color: #6600ff;
+  text-shadow: 0 0 10px #6600ff;
+}
+
+
+#vcPanelUsername::before,
+#vcPanelUsername::after {
+  content: none !important;
+}
+
+.voice-controls .user:hover #vcPanelUsername.username-glitch::before,
+.voice-controls .user:hover #vcPanelUsername.username-glitch::after,
+.voice-controls .user:hover #vcPanelUsername.username-quantum-entangle::before {
+  content: attr(data-text) !important;
+}
+
+.voice-controls .user:hover #vcPanelAvatar {
+  animation: none !important;
+}

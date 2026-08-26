@@ -368,8 +368,6 @@
 
     function renderGrid() {
       grid.innerHTML = "";
-
-   
       if (activeCategory === EMOTES_CATEGORY_KEY) {
         grid.style.gridTemplateColumns = "repeat(6,1fr)";
         footer.style.display = "none";

@@ -64,6 +64,12 @@
                 icon: `<circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" />`,
                 open: forwardClickTo("dartsBtn")
             },
+
+            {
+                label: "Game Library",
+                icon: `<path d="M4 4m0 3a3 3 0 0 1 3 -3h10a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-10a3 3 0 0 1 -3 -3z" /><path d="M9 8v8l6 -4z" />`,
+                open: () => window.openLibraryModal && window.openLibraryModal()
+            },
                 ],
         multiplayer: [
             {

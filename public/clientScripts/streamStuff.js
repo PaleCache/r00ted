@@ -789,17 +789,15 @@ function broadcastStreamStatus() {
   if (typeof socket === "undefined" || !socket?.connected) return;
   const watching = [...openEmbedWindows.values()];
   const count = watching.length;
-
   let streamStatus = null;
-
-  if (count === 1) {
-    streamStatus = `Watching ${watching[0].name} on ${watching[0].platform}`;
-  } else if (count > 1) {
-    streamStatus = `Watching ${count} streams`;
-  }
+  if (count === 1) streamStatus = `Watching ${watching[0].name} on ${watching[0].platform}`;
+  else if (count > 1) streamStatus = `Watching ${count} streams`;
 
   window.currentStreamStatus = streamStatus;
   socket.emit("setStreamStatus", { streamStatus });
+  if (typeof conference !== "undefined" && conference) {
+    conference.setLocalParticipantProperty("streamStatus", streamStatus || "");
+  }
 
   if (window.electronAPI?.overlayStreamUpdate) {
     if (count >= 1) {
@@ -812,4 +810,7 @@ function broadcastStreamStatus() {
       window.electronAPI.overlayStreamUpdate(null);
     }
   }
+
+  updateVoiceUI();
+  updateVcPresence();
 }
