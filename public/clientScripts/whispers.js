@@ -499,7 +499,7 @@ async function sendWhisper(key, text) {
   let messageText = text;
   let isEncrypted = false;
   let encPayload = null;
-  if (activeEncryptionKey) {
+  if (activeEncryptionPassword) {
     encPayload = await encryptText(text);
     isEncrypted = true;
     messageText = "[Encrypted message]";
@@ -1263,7 +1263,7 @@ convo.messages.forEach(m => {
       color: #fff; word-break: break-word;
     `;
     if (m.encrypted && m.encPayload) {
-      bubble.textContent = activeEncryptionKey ? "🔓 Decrypting..." : "🔒 Encrypted (enter this messages password in settings)";
+      bubble.textContent = activeEncryptionPassword ? "🔓 Decrypting..." : "🔒 Encrypted (enter this messages password in settings)";
       decryptText(m.encPayload).then(plain => {
         bubble.innerHTML = '';
         if (plain !== null) {
