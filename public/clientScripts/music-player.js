@@ -981,13 +981,17 @@ let cachedPlaylists = {};
     catch (e) { return true; }
   })();
 
-  function setVideoArtEnabled(enabled) {
-    videoArtEnabled = enabled;
-    el("mpVideoArtBtn").classList.toggle("active", enabled);
-    try { localStorage.setItem("mpVideoArtEnabled", String(enabled)); } catch (e) {}
-    updateNowPlayingUI();
-    syncBotVideoTrack();
+async function setVideoArtEnabled(enabled) {
+  videoArtEnabled = enabled;
+  el("mpVideoArtBtn").classList.toggle("active", enabled);
+  try { localStorage.setItem("mpVideoArtEnabled", String(enabled)); } catch (e) {}
+
+  if (!enabled) {
+    await removeBotVideoTrack();
   }
+
+  updateNowPlayingUI();
+}
 
   function shuffleArray(arr) {
     const a = arr.slice();
@@ -1446,12 +1450,14 @@ let cachedPlaylists = {};
     return !!(isBroadcasting && videoArtEnabled && track?.videoUrl && el("mpArtVideo").style.display !== "none");
   }
 
-  async function addBotVideoTrack() {
-    if (!botConference || botVideoTrack) return;
-    await waitForRealVideoFrame(el("mpArtVideo"));
-    const stream = getBotVideoStream();
-    const vTrack = stream?.getVideoTracks()[0];
-    if (!vTrack) return;
+async function addBotVideoTrack() {
+  console.log("[bot-video] addBotVideoTrack called", { botConference: !!botConference, botVideoTrack: !!botVideoTrack });
+  if (!botConference || botVideoTrack) { console.log("[bot-video] addBotVideoTrack early-return"); return; }
+  await waitForRealVideoFrame(el("mpArtVideo"));
+  const stream = getBotVideoStream();
+  const vTrack = stream?.getVideoTracks()[0];
+  console.log("[bot-video] got stream/track", { stream: !!stream, vTrack: !!vTrack });
+  if (!vTrack) return;
 
     try { vTrack.contentHint = "motion"; } catch (e) {}
 
@@ -1503,15 +1509,21 @@ let cachedPlaylists = {};
     }, 1500);
   }
 
-  async function removeBotVideoTrack() {
-    if (!botVideoTrack) return;
-    try { await botConference?.removeTrack(botVideoTrack); } catch (e) {}
-    botVideoTrack.dispose();
-    botVideoTrack = null;
+async function removeBotVideoTrack() {
+  if (!botVideoTrack) return;
+  const trackToRemove = botVideoTrack;
+  botVideoTrack = null;
 
-    const videoEl = el("mpArtVideo");
-    videoEl.__mpCaptureStream = null;
+  try {
+    await botConference?.removeTrack(trackToRemove);
+  } catch (e) {
+    console.warn("removeTrack failed, forcing cleanup:", e);
   }
+
+  try { trackToRemove.getTrack()?.stop(); } catch (e) {}
+  trackToRemove.dispose();
+  el("mpArtVideo").__mpCaptureStream = null;
+}
 
   function waitForRealVideoFrame(videoEl) {
     return new Promise((resolve) => {
@@ -1525,19 +1537,26 @@ let cachedPlaylists = {};
     });
   }
 
-  function syncBotVideoTrack() {
-    if (botShouldSendVideo()) {
-      const videoEl = el("mpArtVideo");
-      if (videoEl.readyState < 2) {
-        videoEl.addEventListener("loadeddata", () => syncBotVideoTrack(), { once: true });
-        return;
-      }
-      addBotVideoTrack();
-    } else {
-      removeBotVideoTrack();
-    }
-  }
+let videoTrackOpInProgress = false;
 
+async function syncBotVideoTrack(force) {
+  console.log("[bot-video] syncBotVideoTrack, shouldSend =", botShouldSendVideo(), { isBroadcasting, videoArtEnabled, botConference: !!botConference, force });
+  if (videoTrackOpInProgress) {
+    setTimeout(() => syncBotVideoTrack(force), 100);
+    return;
+  }
+  videoTrackOpInProgress = true;
+  try {
+    if (botShouldSendVideo()) {
+      if (force) await removeBotVideoTrack(); 
+      await addBotVideoTrack();
+    } else {
+      await removeBotVideoTrack();
+    }
+  } finally {
+    videoTrackOpInProgress = false;
+  }
+}
   function pushAudioLevel() {
     analyser.getByteFrequencyData(dataArray);
     const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
@@ -1886,35 +1905,35 @@ let cachedPlaylists = {};
     el("mpTitle").textContent = track.title;
     el("mpArtist").textContent = track.artist;
 
-    const useVideo = videoArtEnabled && !!track.videoUrl;
+const useVideo = videoArtEnabled && !!track.videoUrl;
 
-   if (useVideo) {
+if (useVideo) {
   el("mpArtImg").style.display = "none";
   el("mpArtFallback").style.display = "none";
 
-  const isSameSrc = videoEl.dataset.trackId === track.id && videoEl.src;
-if (!isSameSrc) {
-  el("mpVideoSpinner").classList.add("show");
-
-  videoEl.src = track.videoUrl;
-  videoEl.dataset.trackId = track.id;
-  videoEl.preload = "auto"; 
-
-  videoEl.addEventListener("canplay", function onReady() {
-    videoEl.removeEventListener("canplay", onReady);
-    videoEl.currentTime = audio.currentTime;
-    el("mpVideoSpinner").classList.remove("show");
-    if (!audio.paused) videoEl.play().catch(() => {});
-  }, { once: true });
-
-  
+  const isSameSrc = videoEl.dataset.trackId === track.id && !!videoEl.getAttribute("src");
+  if (!isSameSrc) {
+    el("mpVideoSpinner").classList.add("show");
+    videoEl.__mpCaptureStream = null;
+    videoEl.src = track.videoUrl;
+    videoEl.dataset.trackId = track.id;
+    videoEl.preload = "auto";
+    videoEl.addEventListener("canplay", function onReady() {
+      videoEl.removeEventListener("canplay", onReady);
+      videoEl.currentTime = audio.currentTime;
+      el("mpVideoSpinner").classList.remove("show");
+      if (!audio.paused) videoEl.play().catch(() => {});
+      swapBotVideoSource(); 
+    }, { once: true });
   }
 
   videoEl.style.display = "block";
   if (!audio.paused) videoEl.play().catch(() => {});
+
 } else {
   videoEl.pause();
   videoEl.removeAttribute("src");
+  videoEl.dataset.trackId = ""; 
   videoEl.load();
   videoEl.style.display = "none";
   el("mpVideoSpinner").classList.remove("show");
@@ -1969,6 +1988,36 @@ if (!isSameSrc) {
     updateNowPlayingUI();
     setPlayIcon(true);
   }
+
+
+  async function swapBotVideoSource() {
+  if (!isBroadcasting || !videoArtEnabled) {
+    return syncBotVideoTrack();
+  }
+
+  const pc = botConference?.jvbJingleSession?.peerconnection?.peerconnection;
+  const sender = pc?.getSenders().find(s => s.track && s.track.kind === "video");
+
+  if (!botVideoTrack || !sender) {
+    return syncBotVideoTrack();
+  }
+
+  try {
+    el("mpArtVideo").__mpCaptureStream = null;  
+    await waitForRealVideoFrame(el("mpArtVideo"));
+    const stream = getBotVideoStream();
+    const newTrack = stream?.getVideoTracks()[0];
+    if (!newTrack) return;
+
+    try { newTrack.contentHint = "motion"; } catch (e) {}
+
+    await sender.replaceTrack(newTrack);
+    console.log("[bot-video] swapped track without renegotiation, bitrate preserved");
+  } catch (e) {
+    console.warn("replaceTrack failed, falling back to full rebuild:", e);
+    await syncBotVideoTrack(true);
+  }
+}
 
   function removeTrackAt(index) {
     const removed = queue[index];

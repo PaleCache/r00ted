@@ -195,6 +195,21 @@ async function joinVoiceChannel(roomSlug) {
     channelLastN: -1
   });
 
+
+conference.on(
+  JitsiMeetJS.events.connectionQuality.LOCAL_STATS_UPDATED,
+  stats => {
+    if (!currentVoiceRoom || !conference) return;
+
+    const transport = stats.transport?.[0];
+    const rtt = transport?.rtt ?? stats.jvbRTT;
+
+    if (rtt === undefined || rtt === null) return;
+
+    updatePingDisplay(Math.round(rtt));
+  }
+);
+
  
   conference.on(JitsiMeetJS.events.conference.TRACK_ADDED, onRemoteTrackAdded);
   conference.on(JitsiMeetJS.events.conference.TRACK_REMOVED, onRemoteTrackRemoved);
@@ -431,8 +446,39 @@ pipBtn.addEventListener("click", (e) => {
   }
  
   track.attach(video);
- 
+
+  let stallTimeout = null;
+  let metadataLoaded = false;
+
+  const clearStallWatch = () => {
+    if (stallTimeout) {
+      clearTimeout(stallTimeout);
+      stallTimeout = null;
+    }
+  };
+
+  const attemptReattach = (attempt = 1) => {
+    if (metadataLoaded) return;
+    console.warn(`⚠️ Video stalled for ${participantId}, attempting reattach (try ${attempt})`);
+
+    try { track.detach(video); } catch (e) {}
+    try { track.attach(video); } catch (e) {}
+
+    if (attempt < 3) {
+      stallTimeout = setTimeout(() => attemptReattach(attempt + 1), 5000);
+      video.__mpStallTimeout = stallTimeout;
+    } else {
+      loadingText.textContent = "Having trouble loading this stream. Try refreshing.";
+      console.error(`❌ Gave up on video for ${participantId} after 3 reattach attempts`);
+    }
+  };
+
+  stallTimeout = setTimeout(() => attemptReattach(1), 5000);
+  video.__mpStallTimeout = stallTimeout;
+
   video.addEventListener('loadedmetadata', () => {
+    metadataLoaded = true;
+    clearStallWatch();
     loading.style.display = "none";
     video.style.opacity = "1";
     video.play().catch(e => console.error("Play error:", e));
@@ -1032,10 +1078,14 @@ function onRemoteTrackRemoved(track) {
       console.log("Cleared interval for", participantId);
     }
     
-    const wrapper = document.querySelector(`[data-screen-id="${participantId}"]`);
+       const wrapper = document.querySelector(`[data-screen-id="${participantId}"]`);
     if (wrapper) {
       const video = wrapper.querySelector('video');
       if (video) {
+        if (video.__mpStallTimeout) {
+          clearTimeout(video.__mpStallTimeout);
+          video.__mpStallTimeout = null;
+        }
         try {
           track.detach(video);
         } catch (e) {

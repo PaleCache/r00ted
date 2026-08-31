@@ -168,6 +168,7 @@
     document.getElementById("libraryCloseBtn").onclick = closeLibraryModal;
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && modal.classList.contains("show")) closeLibraryModal();
+      window.openGamesMenu();
     });
 
     makeDraggable(els.box, els.header);
@@ -291,5 +292,6 @@ function stopEmulator() {
   window.closeLibraryModal = function () {
     if (els.modal) els.modal.classList.remove("show");
     stopEmulator();
+    window.openGamesMenu();
   };
 })();

@@ -210,6 +210,229 @@ socket.on("prestigeUnlocked", (data) => {
 });
 let hasReceivedInitialUserData = false;
 
+
+
+
+socket.on("forumPostsList", (data) => {
+  if (data.channel !== currentChannel) return;
+  const list = document.getElementById("forumPostList");
+  if (!list) return;
+  list.innerHTML = "";
+  if (data.posts.length === 0) {
+    list.innerHTML = `<div style="color:#72767d;">No posts yet. Start one!</div>`;
+    return;
+  }
+  data.posts.forEach(post => {
+    forumPostAuthors.set(post.id, post.userId);
+    const card = document.createElement("div");
+    card.style.cssText = `
+      position:relative;
+      background:rgba(0,0,0,0.9); border-radius:8px; padding:14px 16px;
+      margin-bottom:10px; cursor:pointer;
+      display:flex; align-items:center; gap:12px;
+    `;
+
+    const textCol = document.createElement("div");
+    textCol.style.cssText = "flex:1; min-width:0;";
+    textCol.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+        <img src="${sanitizeAvatar(post.avatar)}" style="width:24px;height:24px;border-radius:50%;">
+        <span class="username-wrapper ${post.usernameColor}">${escapeHtml(post.username)}</span>
+      </div>
+      <div style="color:#fff; font-weight:700; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(post.title)}</div>
+      <div style="display:flex; align-items:center; margin-top:4px;">
+        <span style="color:#b9bbbe; font-size:12px;">${post.replyCount} repl${post.replyCount === 1 ? "y" : "ies"}</span>
+        <span style="color:#72767d; font-size:12px; margin-left: 11px;">${formatTime(post.lastActivity)}</span>
+      </div>
+    `;
+        card.appendChild(textCol);
+
+
+    const bodyText = (post.bodyPreview || "").trim();
+    const urlMatch = bodyText.match(/(https?:\/\/[^\s]+)/);
+    if (urlMatch && isSafeUrl(urlMatch[1]) && isImageUrl(urlMatch[1]) && !isEmoteUrl(urlMatch[1])) {
+      const preview = document.createElement("img");
+      preview.src = urlMatch[1];
+      preview.loading = "lazy";
+      preview.style.cssText = `
+        width:64px; height:64px; flex-shrink:0;
+        border-radius:6px; object-fit:cover;
+      `;
+      card.appendChild(preview);
+    }
+
+    if (user.isAdmin || user.isDeveloper || post.userId === user.id) {
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "✕";
+      delBtn.title = "Delete post";
+      delBtn.style.cssText = `
+        position:absolute; top:1px; right:0px;
+        background:none; border:none; color:#72767d;
+        font-size:14px; cursor:pointer; padding:2px 6px;
+        transition:color 0.15s;
+      `;
+      delBtn.onmouseover = () => delBtn.style.color = "#ff3333";
+      delBtn.onmouseout = () => delBtn.style.color = "#72767d";
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        showConfirmModal(
+          "This post and all its replies will be permanently removed.",
+          () => socket.emit("deleteForumPost", { postId: post.id, channel: currentChannel }),
+          { title: `Delete "${post.title}"?`, confirmLabel: "Delete" }
+        );
+      };
+      card.appendChild(delBtn);
+    }
+
+    card.onclick = () => openForumPost(post);
+    list.appendChild(card);
+  });
+});
+
+
+
+socket.on("forumPostHistory", (data) => {
+  if (data.postId !== window._currentForumPostId) return;
+  const container = document.getElementById("forumThreadMessages");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const unseenIds = new Set();
+  data.messages.forEach(m => {
+    if (m.seenBy && Array.isArray(m.seenBy)) {
+      messageSeenBy.set(m.id, m.seenBy);
+    }
+    const seenByMe = (m.seenBy || []).some(u => u.userId === user.id);
+    if (!seenByMe && m.userId !== user.id) {
+      unseenIds.add(m.id);
+    }
+    const el = buildMessageElement(m, false, { isForumReply: true, postId: data.postId });
+    if (el) container.appendChild(el);
+  });
+  setupMessageHoverSeen();    
+  refreshAllSeenByVisibility(); 
+  if (!forumUnseenPosts.has(currentChannel)) forumUnseenPosts.set(currentChannel, new Map());
+  const postMap = forumUnseenPosts.get(currentChannel);
+  if (unseenIds.size > 0) {
+    postMap.set(data.postId, unseenIds);
+  } else {
+    postMap.delete(data.postId);
+  }
+
+  markReadBtn.style.display = unseenIds.size > 0 ? 'block' : 'none';
+});
+
+socket.on("forumPostDeleted", (data) => {
+  if (data.channel === currentChannel) {
+    socket.emit("getForumPosts", { channel: currentChannel });
+  }
+});
+
+socket.on("forumReplyDeleted", (data) => {
+  if (window._currentForumPostId !== data.postId) return;
+  const el = document.querySelector(`#forumThreadMessages [data-id="${data.messageId}"]`);
+  if (el) el.remove();
+});
+
+socket.on("forumReplyAdded", (data) => {
+  const isViewingThisPost = window._currentForumPostId === data.postId;
+
+  if (isViewingThisPost) {
+    const container = document.getElementById("forumThreadMessages");
+    if (container) {
+      const el = buildMessageElement(data.message, true, { isForumReply: true, postId: data.postId });
+      if (el) {
+        container.appendChild(el);
+        setupMessageHoverSeen();    
+        refreshAllSeenByVisibility(); 
+      }
+    }
+  }
+
+  const msg = data.message;
+  if (!msg || isOwnActivity(msg.userId)) return;
+
+  const channel = data.channel || currentChannel;
+  const notifEnabled = localStorage.getItem(`notif_${channel}`) !== 'false';
+  const isMyThread = forumPostAuthors.get(data.postId) === user.id;
+
+  addForumUnseen(channel, data.postId, data.message.id);
+
+  const title = isMyThread
+    ? `${msg.username} replied to your thread`
+    : `New reply in #${getChannelDisplayName(channel)}`;
+
+  if (notifEnabled && notifSettings.browser) {
+    sendNotification(
+      title,
+      getNotificationBody(msg),
+      { icon: sanitizeAvatar(msg.avatar), tag: `forum-reply-${data.postId}`, requireInteraction: false }
+    );
+  }
+
+  if (notifEnabled && notifSettings.sound) {
+    const audio = new Audio('/sounds/message-new-email.oga');
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  }
+
+  if (notifEnabled) {
+    showMessageNotificationBanner(channel, msg);
+  }
+});
+
+socket.on("forumPostCreated", (data) => {
+  const { channel, post } = data;
+  if (post) forumPostAuthors.set(post.id, post.userId ?? post.authorId); 
+
+  if (channel === currentChannel) {
+    socket.emit("getForumPosts", { channel });
+  }
+
+  
+
+  if (!post || isOwnActivity(post.authorId)) return;
+
+  const notifEnabled = localStorage.getItem(`notif_${channel}`) !== 'false';
+
+  if (channel !== currentChannel || window._currentForumPostId !== post.id) {
+     addForumUnseen(channel, data.postId, data.message.id);
+  }
+
+  if (notifEnabled && notifSettings.browser) {
+    sendNotification(
+      `New post in #${getChannelDisplayName(channel)}`,
+      post.title || "New forum post",
+      { icon: sanitizeAvatar(post.avatar), tag: `forum-${channel}`, requireInteraction: false }
+    );
+  }
+
+  if (notifEnabled && notifSettings.sound) {
+    const audio = new Audio('/sounds/message-new-email.oga');
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  }
+
+  if (notifEnabled) {
+    showMessageNotificationBanner(channel, {
+      username: post.username,
+      avatar: post.avatar,
+      usernameColor: post.usernameColor,
+      text: post.title || "started a new post",
+      type: "text"
+    });
+  }
+});
+
+
+
+
+socket.on("channelList", (channels) => {
+  dynamicChannels_client = channels;
+  channels.forEach(ch => { if (!unreadCounts.has(ch.id)) unreadCounts.set(ch.id, 0); });
+  renderChannelList(channels);
+});
+
 socket.on("userData", (data) => {
   if (data.id && data.id !== user.id) return;
 console.log('[DEBUG] userData received, id =', data.id, 'at', Date.now());
@@ -934,52 +1157,6 @@ socket.on('whisperHistory', (data) => {
 });
 
 
-function openCreateChannelModal(type = "text") {
-  document.getElementById("createChannelModal")?.remove();
-  const modal = document.createElement("div");
-  modal.id = "createChannelModal";
-  modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; z-index:20000;";
-  modal.innerHTML = `
-    <div style="background:#2b2d31; border-radius:12px; padding:28px 32px; width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.6); border:1px solid #3a3c42;">
-      <h3 style="margin:0 0 6px; color:#fff; font-size:18px;">Create ${type === "voice" ? "Voice" : "Text"} Channel</h3>
-      <p style="margin:0 0 20px; color:#b9bbbe; font-size:13px;">Lowercase letters, numbers, hyphens and underscores only.</p>
-      <input id="newChannelNameInput" type="text" placeholder="${type === "voice" ? "lounge" : "new-channel"}" maxlength="32"
-        style="width:100%; padding:10px 14px; background:#40444b; border:1px solid #40444b; border-radius:8px; color:#fff; font-size:15px; box-sizing:border-box; outline:none; transition:border-color 0.2s;">
-      ${type === "voice" ? `
-      <label style="display:flex; align-items:center; gap:8px; margin-top:14px; color:#b9bbbe; font-size:13px; cursor:pointer;">
-        <input id="newChannelEmbedCheckbox" type="checkbox" style="cursor:pointer; width:16px; height:16px; accent-color:#FF0000;">
-        Embed Voice Channel (opens the embedded Jitsi window instead of joining via voice controls)
-      </label>` : ``}
-      <p id="createChannelError" style="color:#ff3333; font-size:13px; min-height:18px; margin:8px 0 0;"></p>
-      <div style="display:flex; gap:10px; margin-top:16px; justify-content:flex-end;">
-        <button id="cancelCreateChannel" style="background:#40444b; border:none; color:#fff; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px;">Cancel</button>
-        <button id="confirmCreateChannel" style="background:#FF0000; border:none; color:#fff; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;">Create</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  const input = modal.querySelector("#newChannelNameInput");
-  const embedCheckbox = modal.querySelector("#newChannelEmbedCheckbox");
-  const errEl = modal.querySelector("#createChannelError");
-  input.focus();
-  input.addEventListener("focus", () => input.style.borderColor = "#FF0000");
-  input.addEventListener("blur", () => input.style.borderColor = "#40444b");
-  const submit = () => {
-    const name = input.value.trim();
-    if (!name) { errEl.textContent = "Channel name cannot be empty."; return; }
-    const payload = { name, type };
-    if (type === "voice") {
-      payload.embed = !!embedCheckbox?.checked;
-    }
-    socket.emit("createChannel", payload);
-  };
-  modal.querySelector("#confirmCreateChannel").onclick = submit;
-  modal.querySelector("#cancelCreateChannel").onclick = () => modal.remove();
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") modal.remove(); });
-  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
-  const onError = (data) => { errEl.textContent = data.msg; socket.off("channelError", onError); };
-  socket.on("channelError", onError);
-}
 
 
 function markMessageAsSeen(messageId) {
@@ -1005,7 +1182,6 @@ let lastActivitySent = 0;
 function updateLastActiveOnServer() {
   const now = Date.now();
   if (now - lastActivitySent < 7000) return; 
-  console.log(`FULL SENDING`)
   lastActivitySent = now;
 
   if (socket && socket.connected && user?.id) {
@@ -1157,6 +1333,10 @@ document.getElementById("saveStatusBtn").onclick = () => {
 
 
 function markAllRead() {
+    if (window._currentForumPostId) {
+    markForumThreadRead(window._currentForumPostId);
+    return;
+  }
   unreadCounts.set(currentChannel, 0);
   updateChannelBadge(currentChannel, 0);
   updateTabBadge();
@@ -1206,6 +1386,43 @@ function markAllRead() {
       });
     }
   });
+
+  socket.emit("markAllSeen", {
+    messageIds,
+    userId: user.id,
+    username: user.username,
+    avatar: user.avatar,
+    seenAt: now
+  });
+
+  markReadBtn.style.display = 'none';
+}
+
+
+function markForumThreadRead(postId) {
+  const postMap = forumUnseenPosts.get(currentChannel);
+  const msgSet = postMap?.get(postId);
+  if (!msgSet || msgSet.size === 0) {
+    markReadBtn.style.display = 'none';
+    return;
+  }
+
+  const messageIds = [...msgSet];
+  const now = Date.now();
+
+  messageIds.forEach(id => {
+    if (!messageSeenBy.has(id)) messageSeenBy.set(id, []);
+    const list = messageSeenBy.get(id);
+    if (!list.some(u => u.userId === user.id)) {
+      list.push({ userId: user.id, username: user.username, avatar: user.avatar, seenAt: now });
+    }
+  });
+
+  const removed = msgSet.size;
+  postMap.delete(postId);
+  const count = Math.max(0, (unreadCounts.get(currentChannel) || 0) - removed);
+  unreadCounts.set(currentChannel, count);
+  updateChannelBadge(currentChannel, count);
 
   socket.emit("markAllSeen", {
     messageIds,

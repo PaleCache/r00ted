@@ -70,6 +70,12 @@
                 icon: `<path d="M4 4m0 3a3 3 0 0 1 3 -3h10a3 3 0 0 1 3 3v10a3 3 0 0 1 -3 3h-10a3 3 0 0 1 -3 -3z" /><path d="M9 8v8l6 -4z" />`,
                 open: () => window.openLibraryModal && window.openLibraryModal()
             },
+
+            {
+                label: "Chicken Runner",
+                icon: `<path d="M8 3a3 3 0 0 1 3 3v1h1a4 4 0 0 1 4 4c0 2 -1 3 -1 5a3 3 0 0 1 -3 3h-1" /><path d="M8 3a3 3 0 0 0 -3 3c0 1 .5 2 1.5 2.5" /><path d="M5 8.5c-1.5 .5 -2.5 2 -2.5 3.5c0 2 1.5 3 1.5 5a3 3 0 0 0 3 3h6" /><circle cx="9" cy="6" r=".5" fill="currentColor" />`,
+                open: () => window.openChicken && window.openChicken()
+            },
                 ],
         multiplayer: [
             {

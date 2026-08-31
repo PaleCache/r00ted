@@ -26,6 +26,8 @@ const userSockets = new Map();
 const embedButtonRateLimit = new Map();
 const reactionRateLimit = new Map();
 const REACTION_RATE_LIMIT = 500;
+const DICE_BONUS_MAX_WIN_CHANCE = 91;
+const chickenSessions = new Map();
 
 const LIBRARY_ROOT = path.resolve(path.join(__dirname, "public", "library"));
 const LIBRARY_EXTS = [".zip", ".7z", ".bin", ".gba", ".gb", ".gbc", ".nes", ".sfc", ".smc", ".n64", ".z64", ".iso", ".chd"];
@@ -1438,11 +1440,7 @@ function pongEndRoom(room, winner) {
   room.status = "over";
   clearInterval(room.interval);
   room.interval = null;
- 
   const loser = room.players.find(p => p.userId !== winner.userId);
- 
-  addServerXP(winner.userId, PONG_XP_REWARD);
- 
   room.players.forEach(p => {
     emitToUser(p.userId, "pongGameOver", {
       winnerId: winner.userId,
@@ -1922,13 +1920,187 @@ function asTriggerCrash() {
 
 asStartCountdown();
 
+const CHICKEN_MAX_BET_CHIPS = 20000;
+const CHICKEN_HOUSE_EDGE = 0.97;
+
+const CHICKEN_DIFFICULTIES = {
+  easy:   { lanes: 24, start: 1.02, growth: 1.055 },
+  medium: { lanes: 20, start: 1.08, growth: 1.13 },
+  hard:   { lanes: 16, start: 1.20, growth: 1.24 },
+};
+
+function chickenBuildMults(cfg) {
+  const arr = [];
+  let m = cfg.start;
+  for (let i = 0; i < cfg.lanes; i++) {
+    arr.push(Math.round(m * 100) / 100);
+    m *= cfg.growth;
+  }
+  return arr;
+}
+
+
+const CHICKEN_TABLES = {};
+Object.entries(CHICKEN_DIFFICULTIES).forEach(([key, cfg]) => {
+  const mults = chickenBuildMults(cfg);
+  const survival = mults.map((m, i) => {
+    const prev = i === 0 ? 1 : mults[i - 1];
+    const ratio = m / prev;
+    return Math.min(0.999, CHICKEN_HOUSE_EDGE / ratio);
+  });
+  CHICKEN_TABLES[key] = { cfg, mults, survival };
+});
+
+function chickenRollSurvives(chance) {
+  const roll = crypto.randomInt(0, 1000000) / 1000000;
+  return roll < chance;
+}
+
+const CHICKEN_LEADERBOARD_FILE = path.join(__dirname, "./data/chickenLeaderboard.json");
+const CHICKEN_LEADERBOARD_TOP_N = 10;
+let chickenLeaderboard = new Map();
+
+function chickenLoadLeaderboard() {
+  if (fs.existsSync(CHICKEN_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(CHICKEN_LEADERBOARD_FILE, "utf8"));
+      chickenLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded chicken leaderboard (${chickenLeaderboard.size} players)`);
+    } catch (e) {
+      console.error("❌ chickenLeaderboard.json load failed", e);
+    }
+  }
+}
+function chickenSaveLeaderboard() {
+  try {
+    fs.writeFileSync(CHICKEN_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(chickenLeaderboard), null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save chickenLeaderboard.json:", e);
+  }
+}
+chickenLoadLeaderboard();
+
+function chickenRecordResult(userId, multiplier, payoutChips) {
+  const current = chickenLeaderboard.get(userId);
+  if (!current || payoutChips > current.payout) {
+    chickenLeaderboard.set(userId, { multiplier, payout: payoutChips, ts: Date.now() });
+    chickenSaveLeaderboard();
+    return true;
+  }
+  return false;
+}
+
+function chickenBuildLeaderboardPayload() {
+  const leaders = Array.from(chickenLeaderboard.entries())
+    .map(([userId, entry]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        multiplier: entry.multiplier,
+        payout: entry.payout
+      };
+    })
+    .sort((a, b) => b.payout - a.payout)
+    .slice(0, CHICKEN_LEADERBOARD_TOP_N);
+  return { leaders };
+}
+function chickenBroadcastLeaderboard() {
+  io.emit("chickenLeaderboardState", chickenBuildLeaderboardPayload());
+}
+function chickenBroadcastRecentBet(entry) {
+  io.emit("chickenRecentBet", entry);
+}
+
 const WG_POT_COUNT = 3;
 const WG_GROW_MS = 60 * 60 * 1000;           
 const WG_WATER_INTERVAL_MS = 15 * 60 * 1000;
 const WG_DEATH_GRACE_MS = 10 * 60 * 1000;  
-const WG_HARVEST_XP = 30;
+const WG_HARVEST_XP = 100;
 const WG_LEADERBOARD_FILE = path.join(__dirname, "./data/weedLeaderboard.json");
 const WG_LEADERBOARD_TOP_N = 10;
+const WG_FERTILIZER_COST_CHIPS = 1;            
+const WG_FERTILIZER_REDUCTION_MS = 3 * 60 * 1000; 
+const WG_FERTILIZER_MAX_PER_POT = 10; 
+const WG_SEED_COST_CHIPS = 2;
+const WG_STRAINS = {
+  ditch: {
+    id: "ditch",
+    name: "Ditch Weed",
+    growMs: 30 * 60 * 1000,
+    harvestXp: 50,
+    seedCostChips: 0
+  },
+  kush: {
+    id: "kush",
+    name: "OG Kush",
+    growMs: 60 * 60 * 1000,
+    harvestXp: 100,
+    seedCostChips: 2
+  },
+  lights: {
+    id: "lights",
+    name: "Northern Lights",
+    growMs: 120 * 60 * 1000,
+    harvestXp: 260,
+    seedCostChips: 4
+  }
+};
+const WG_DEFAULT_STRAIN = "kush";
+
+function wgEnsureSeedField(user) {
+  if (!user.seedsOwned || typeof user.seedsOwned !== "object") {
+    user.seedsOwned = { ditch: 0, kush: 0, lights: 0 };
+  }
+  Object.keys(WG_STRAINS).forEach(id => {
+    if (user.seedsOwned[id] === undefined) user.seedsOwned[id] = 0;
+  });
+  return user;
+}
+
+function wgGetSeedsOwned(userId, strainId) {
+  const user = allUsers.get(userId);
+  if (!user) return 0;
+  wgEnsureSeedField(user);
+  return user.seedsOwned[strainId] || 0;
+}
+
+function wgBuildStoreStatePayload(userId) {
+  const user = allUsers.get(userId);
+  wgEnsureSeedField(user);
+  return {
+    bags: wgGetFertilizerBags(userId),
+    seeds: { ...user.seedsOwned },
+    strains: Object.values(WG_STRAINS).map(s => ({
+      id: s.id,
+      name: s.name,
+      growMinutes: s.growMs / 60000,
+      harvestXp: s.harvestXp,
+      harvestChips: s.harvestXp / BJ_XP_PER_CHIP,
+      seedCostChips: s.seedCostChips
+    })),
+    balance: getChipBalance(userId),
+    costs: {
+      fertilizer: WG_FERTILIZER_COST_CHIPS
+    },
+    reductionMinutes: WG_FERTILIZER_REDUCTION_MS / 60000,
+    maxPerPot: WG_FERTILIZER_MAX_PER_POT
+  };
+}
+
+function wgEnsureFertilizerField(user) {
+  if (user.fertilizerBags === undefined) user.fertilizerBags = 0;
+  return user;
+}
+
+function wgGetFertilizerBags(userId) {
+  const user = allUsers.get(userId);
+  if (!user) return 0;
+  wgEnsureFertilizerField(user);
+  return user.fertilizerBags;
+}
 function wgRandomWaterInterval() {
   return WG_WATER_INTERVAL_MS;
 }
@@ -1984,13 +2156,17 @@ const weedGardens = new Map();
 function wgEmptyPot() {
   return {
     stage: "empty",
+    strainId: null,
+    growMs: null,
+    harvestXp: null,
     plantedAt: null,
     wateredAt: null,
     nextWaterDueAt: null,
     wilted: false,
     wiltedAt: null,
-    growAccumMs: 0,   
-    growSince: null,  
+    growAccumMs: 0,
+    growSince: null,
+    fertilizerCount: 0,
     timer: null
   };
 }
@@ -2007,27 +2183,82 @@ function wgGetGarden(userId) {
 
 function wgProgress(pot, now = Date.now()) {
   if (!pot || pot.stage === "empty") return 0;
+  const growMs = pot.growMs || WG_GROW_MS; 
   const activeMs = pot.growAccumMs + (pot.wilted ? 0 : Math.max(0, now - pot.growSince));
-  return Math.min(1, activeMs / WG_GROW_MS);
+  return Math.min(1, activeMs / growMs);
 }
 
 function wgSerializePot(pot) {
   if (!pot || pot.stage === "empty") return { stage: "empty" };
   const now = Date.now();
+  const growMs = pot.growMs || WG_GROW_MS;
   const progress = wgProgress(pot, now);
   const stage = progress >= 1 ? "ready" : "growing";
   const needsWater = stage !== "ready" && !pot.wilted && pot.nextWaterDueAt !== null && now >= pot.nextWaterDueAt;
 
   return {
     stage,
+    strainId: pot.strainId || WG_DEFAULT_STRAIN,
+    strainName: (WG_STRAINS[pot.strainId] || WG_STRAINS[WG_DEFAULT_STRAIN]).name,
     plantedAt: pot.plantedAt,
     progress,
     needsWater,
     wilted: !!pot.wilted,
     deathInMs: pot.wilted ? Math.max(0, (pot.wiltedAt + WG_DEATH_GRACE_MS) - now) : null,
-    growMsLeft: stage === "ready" ? 0 : Math.max(0, WG_GROW_MS - (pot.growAccumMs + (pot.wilted ? 0 : Math.max(0, now - pot.growSince))))
+    growMsLeft: stage === "ready" ? 0 : Math.max(0, growMs - (pot.growAccumMs + (pot.wilted ? 0 : Math.max(0, now - pot.growSince)))),
+    fertilizerCount: pot.fertilizerCount || 0,
+    fertilizerMax: WG_FERTILIZER_MAX_PER_POT
   };
 }
+
+
+const WG_GARDENS_FILE = path.join(__dirname, "./data/weedGardens.json");
+
+function wgSaveGardens() {
+  try {
+    const obj = {};
+    weedGardens.forEach((garden, userId) => {
+      obj[userId] = garden.map(pot => {
+        if (!pot || pot.stage === "empty") return { stage: "empty" };
+        const { timer, ...rest } = pot;
+        return rest;
+      });
+    });
+    fs.writeFileSync(WG_GARDENS_FILE, JSON.stringify(obj, null, 2));
+  } catch (e) {
+    console.error("❌ Failed to save weedGardens.json:", e);
+  }
+}
+
+function wgLoadGardens() {
+  if (!fs.existsSync(WG_GARDENS_FILE)) return;
+  try {
+    const data = JSON.parse(fs.readFileSync(WG_GARDENS_FILE, "utf8"));
+    Object.entries(data).forEach(([userId, pots]) => {
+      const garden = pots.map(p => {
+        if (!p || p.stage === "empty") return wgEmptyPot();
+        return { ...p, timer: null };
+      });
+      weedGardens.set(userId, garden);
+    });
+    console.log(`✅ Loaded weed gardens for ${weedGardens.size} users`);
+  } catch (e) {
+    console.error("❌ weedGardens.json load failed", e);
+  }
+}
+
+function wgRearmAllTimers() {
+  weedGardens.forEach((garden, userId) => {
+    garden.forEach((pot, idx) => {
+      if (pot && pot.stage !== "empty") {
+        wgScheduleNext(userId, idx, pot);
+      }
+    });
+  });
+}
+
+wgLoadGardens();
+wgRearmAllTimers();
 
 function wgBroadcastState(userId) {
   const garden = wgGetGarden(userId);
@@ -2080,17 +2311,21 @@ function wgHandleTimer(userId, potIndex, pot) {
     pot.growSince = null;
     emitToUser(userId, "weedWilted", { potIndex, pot: wgSerializePot(pot) });
     wgScheduleNext(userId, potIndex, pot);
+    wgSaveGardens();
     return;
   }
 
 if (pot.wilted && now >= pot.wiltedAt + WG_DEATH_GRACE_MS) {
     garden[potIndex] = wgEmptyPot();
     emitToUser(userId, "weedDied", { potIndex, pot: wgSerializePot(garden[potIndex]) });
+    wgSaveGardens();
 
     const displayName = onlineUsers.get(userId)?.username || allUsers.get(userId)?.username || userId;
     console.log(`💀 Plant died from neglect in pot ${potIndex} for ${displayName}`);
     return;
 }
+
+
 
   wgScheduleNext(userId, potIndex, pot);
 }
@@ -2100,13 +2335,12 @@ const DARTS_MAX_BET_CHIPS = 20000;
 const DARTS_HOUSE_EDGE = 0.97;
 const DARTS_ANIMATION_MS = 1600;
 
-
 const DARTS_RINGS = [
-  { id: "bullseye",  label: "Bullseye",   weight: 3,  multiplier: 15 },
-  { id: "inner",     label: "Inner Ring", weight: 10, multiplier: 4  },
-  { id: "middle",    label: "Middle Ring",weight: 22, multiplier: 2  },
-  { id: "outer",     label: "Outer Ring", weight: 30, multiplier: 1.2},
-  { id: "miss",      label: "Miss",       weight: 35, multiplier: 0  },
+  { id: "bullseye",  label: "Bullseye",   weight: 3,  multiplier: 10 },
+  { id: "inner",     label: "Inner Ring", weight: 8,  multiplier: 4  },
+  { id: "middle",    label: "Middle Ring",weight: 14, multiplier: 2  },
+  { id: "outer",     label: "Outer Ring", weight: 0,  multiplier: 0  },
+  { id: "miss",      label: "Miss",       weight: 75, multiplier: 0  },
 ];
 
 function dartsPickRing() {
@@ -4314,6 +4548,29 @@ const ACCOUNT_CREATION_LIMIT = 2;
 const ACCOUNT_CREATION_WINDOW = 60 * 60 * 1000;
 const packageJson = require('./package.json');
 
+function computeUnseenCount(channel, userId) {
+  const channelMessages = messagesByChannel.get(channel) || [];
+  let unseenCount = 0;
+
+  channelMessages.forEach(msg => {
+    const hasSeen = msg.seenBy && msg.seenBy.some(s => s.userId === userId);
+    if (!hasSeen && msg.userId !== userId) unseenCount++;
+  });
+
+  const postsInChannel = forumPostsByChannel.get(channel) || [];
+  postsInChannel.forEach(post => {
+    const replies = forumPostMessages.get(post.id) || [];
+    replies.forEach(msg => {
+      const hasSeen = msg.seenBy && msg.seenBy.some(s => s.userId === userId);
+      if (!hasSeen && msg.userId !== userId) unseenCount++;
+    });
+  });
+
+  return unseenCount;
+}
+
+
+
 io.on("connection", (socket) => {
   socket.emit('serverConfig', {
     jitsi: serverConfig.jitsi,
@@ -4519,7 +4776,11 @@ socket.on("markAllSeen", (data) => {
   const { messageIds, userId, username, avatar, seenAt } = data;
   if (!Array.isArray(messageIds)) return;
 
+  const affectedChannels = new Set();
+
   messageIds.forEach(messageId => {
+    let found = false;
+
     for (const [ch, channelMessages] of messagesByChannel) {
       const msg = channelMessages.find(m => m.id === messageId);
       if (msg) {
@@ -4527,30 +4788,83 @@ socket.on("markAllSeen", (data) => {
         if (!msg.seenBy.some(u => u.userId === userId)) {
           msg.seenBy.push({ userId, username, avatar, seenAt });
         }
+        affectedChannels.add(ch);
+        found = true;
         break;
       }
     }
-  
-    const globalMsg = messages.find(m => m.id === messageId);
-    if (globalMsg) {
-      if (!globalMsg.seenBy) globalMsg.seenBy = [];
-      if (!globalMsg.seenBy.some(u => u.userId === userId)) {
-        globalMsg.seenBy.push({ userId, username, avatar, seenAt });
+
+    if (!found) {
+      const globalMsg = messages.find(m => m.id === messageId);
+      if (globalMsg) {
+        if (!globalMsg.seenBy) globalMsg.seenBy = [];
+        if (!globalMsg.seenBy.some(u => u.userId === userId)) {
+          globalMsg.seenBy.push({ userId, username, avatar, seenAt });
+        }
+        found = true;
       }
+    }
+
+    if (!found) {
+      for (const [postId, replies] of forumPostMessages) {
+        const msg = replies.find(m => m.id === messageId);
+        if (msg) {
+          if (!msg.seenBy) msg.seenBy = [];
+          if (!msg.seenBy.some(u => u.userId === userId)) {
+            msg.seenBy.push({ userId, username, avatar, seenAt });
+          }
+          for (const [ch, posts] of forumPostsByChannel) {
+            if (posts.some(p => p.id === postId)) { affectedChannels.add(ch); break; }
+          }
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      console.warn(`⚠️ markAllSeen: message not found: ${messageId}`);
     }
   });
 
-  saveMessages();
-  io.emit("messageSeen", { messageIds, userId, username, avatar, seenAt });
+  saveMessages(); 
+  messageIds.forEach(messageId => {
+    io.emit("messageSeen", { messageId, userId, username, avatar, seenAt });
+  });
+
+ 
+  affectedChannels.forEach(channel => {
+    const channelMessages = messagesByChannel.get(channel) || [];
+    let unseenCount = 0;
+    channelMessages.forEach(msg => {
+      const hasSeen = msg.seenBy && msg.seenBy.some(u => u.userId === userId);
+      if (!hasSeen && msg.userId !== userId) unseenCount++;
+    });
+
+    const postsInChannel = forumPostsByChannel.get(channel) || [];
+    postsInChannel.forEach(post => {
+      const replies = forumPostMessages.get(post.id) || [];
+      replies.forEach(msg => {
+        const hasSeen = msg.seenBy && msg.seenBy.some(u => u.userId === userId);
+        if (!hasSeen && msg.userId !== userId) unseenCount++;
+      });
+    });
+
+    emitToUser(userId, "unreadMessages", {
+      unreadByChannel: { [channel]: unseenCount }
+    });
+  });
 });
+
+
 
 socket.on("createChannel", (data) => {
   if (!socket.isAdmin) { socket.emit("channelError", { msg: "❌ Admin only." }); return; }
   const { name, type = "text", embed = false } = data || {};
   if (!name || typeof name !== "string") return;
-  if (!["text", "voice"].includes(type)) return;
+  if (!["text", "voice", "forum"].includes(type)) return; 
 
-  const displayName = sanitizeString(name.trim(), 32); 
+  const displayName = sanitizeString(name.trim(), 32);
   if (!displayName) return;
 
   let clean = name.toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/^-+|-+$/g, "").slice(0, 32);
@@ -4560,7 +4874,7 @@ socket.on("createChannel", (data) => {
   if (dynamicChannels.find(c => c.id === id)) {
     let suffix;
     do {
-      suffix = crypto.randomBytes(3).toString("hex"); 
+      suffix = crypto.randomBytes(3).toString("hex");
       id = `${clean}-${suffix}`;
     } while (dynamicChannels.find(c => c.id === id));
   }
@@ -4574,12 +4888,200 @@ socket.on("createChannel", (data) => {
     createdBy: onlineUsers.get(socket.userId)?.username || "Unknown"
   };
   dynamicChannels.push(channel);
+
   if (type === "text") messagesByChannel.set(id, []);
+  if (type === "forum") forumPostsByChannel.set(id, []); 
+
   syncChannelsArray();
   saveChannels(dynamicChannels);
   io.emit("channelList", dynamicChannels);
   io.emit("channelCreated", channel);
 });
+
+
+socket.on("getForumPosts", (data) => {
+  const channelId = data?.channel;
+  const ch = dynamicChannels.find(c => c.id === channelId && c.type === "forum");
+  if (!ch) return;
+  const posts = forumPostsByChannel.get(channelId) || [];
+  const enriched = posts.map(p => {
+    const msgs = forumPostMessages.get(p.id);
+    const bodyPreview = msgs && msgs[0] ? msgs[0].text : "";
+    return { ...p, bodyPreview };
+  });
+  socket.emit("forumPostsList", {
+    channel: channelId,
+    posts: enriched.sort((a, b) => b.lastActivity - a.lastActivity)
+  });
+});
+
+
+socket.on("createForumPost", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const channelId = data?.channel;
+  const ch = dynamicChannels.find(c => c.id === channelId && c.type === "forum");
+  if (!ch) return;
+
+  const title = sanitizeString((data?.title || "").trim(), 100);
+  const body = sanitizeString((data?.body || "").trim(), 4000);
+  if (!title || !body) {
+    socket.emit("forumError", { msg: "Title and body are required." });
+    return;
+  }
+
+  const user = onlineUsers.get(socket.userId) || allUsers.get(socket.userId);
+  if (!user) return;
+
+  const postId = crypto.randomUUID();
+  const now = Date.now();
+
+  const post = {
+    id: postId,
+    channel: channelId,
+    title,
+    authorId: socket.userId,
+    username: user.username,
+    avatar: user.avatar,
+    usernameColor: user.usernameColor || "username-cyan",
+    createdAt: now,
+    lastActivity: now,
+    replyCount: 0
+  };
+
+  if (!forumPostsByChannel.has(channelId)) forumPostsByChannel.set(channelId, []);
+  forumPostsByChannel.get(channelId).push(post);
+  const firstMsg = {
+    id: crypto.randomUUID(),
+    userId: socket.userId,
+    username: user.username,
+    avatar: user.avatar,
+    usernameColor: user.usernameColor || "username-cyan",
+    badge: user.badge || null,
+    level: user.level || 1,
+    isAdmin: !!user.isAdmin,
+    isDeveloper: !!user.isDeveloper,
+    text: body,
+    type: "text",
+    time: now,
+    postId
+  };
+  forumPostMessages.set(postId, [firstMsg]);
+
+  saveForumData();
+  io.emit("forumPostCreated", { channel: channelId, post });
+});
+
+
+socket.on("joinForumPost", (data) => {
+  const postId = data?.postId;
+  const msgs = forumPostMessages.get(postId) || [];
+  socket.emit("forumPostHistory", { postId, messages: msgs });
+});
+
+
+socket.on("forumReply", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const postId = data?.postId;
+
+  let foundChannel = null, post = null;
+  for (const [ch, posts] of forumPostsByChannel) {
+    const p = posts.find(p => p.id === postId);
+    if (p) { post = p; foundChannel = ch; break; }
+  }
+  if (!post) return;
+
+  if (mutedUsers.has(socket.userId)) {
+    socket.emit("error", { msg: "❌ You are muted and cannot send messages." });
+    return;
+  }
+
+  const text = sanitizeString((data?.text || "").trim(), 4000);
+  if (!text) return;
+
+  const user = onlineUsers.get(socket.userId) || allUsers.get(socket.userId);
+  if (!user) return;
+
+  const now = Date.now();
+  const msg = {
+    id: crypto.randomUUID(),
+    userId: socket.userId,
+    username: user.username,
+    avatar: user.avatar,
+    usernameColor: user.usernameColor || "username-cyan",
+    badge: user.badge || null,
+    level: user.level || 1,
+    isAdmin: !!user.isAdmin,
+    isDeveloper: !!user.isDeveloper,
+    text,
+    type: "text",
+    time: now,
+    postId
+  };
+
+  if (!forumPostMessages.has(postId)) forumPostMessages.set(postId, []);
+  forumPostMessages.get(postId).push(msg);
+
+  post.replyCount = (post.replyCount || 0) + 1;
+  post.lastActivity = now;
+
+  saveForumData();
+  io.emit("forumReplyAdded", { postId, channel: foundChannel, message: msg, replyCount: post.replyCount });
+});
+
+
+socket.on("deleteForumPost", (data) => {
+  if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
+  const postId = data?.postId;
+
+  for (const [ch, posts] of forumPostsByChannel) {
+    const idx = posts.findIndex(p => p.id === postId);
+    if (idx !== -1) {
+      posts.splice(idx, 1);
+      forumPostMessages.delete(postId);
+      saveForumData();
+      io.emit("forumPostDeleted", { channel: ch, postId });
+      return;
+    }
+  }
+});
+
+
+socket.on("deleteForumReply", (data) => {
+  const { postId, messageId } = data || {};
+  if (!postId || !messageId) return;
+
+  const msgs = forumPostMessages.get(postId);
+  if (!msgs) return;
+
+  const idx = msgs.findIndex(m => m.id === messageId);
+  if (idx === -1) return;
+
+  const msg = msgs[idx];
+  if (msg.userId !== socket.userId && !socket.isAdmin && !socket.isDeveloper) {
+    socket.emit("error", { msg: "❌ You can only delete your own replies." });
+    return;
+  }
+
+  
+  if (idx === 0) {
+    socket.emit("error", { msg: "❌ Use deleteForumPost to remove the whole post." });
+    return;
+  }
+
+  msgs.splice(idx, 1);
+  for (const [ch, posts] of forumPostsByChannel) {
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      post.replyCount = Math.max(0, (post.replyCount || 1) - 1);
+      break;
+    }
+  }
+
+  saveForumData();
+  io.emit("forumReplyDeleted", { postId, messageId });
+});
+
+
 
 
 socket.on("resetAccountCreation", () => {
@@ -4600,22 +5102,42 @@ socket.on("resetAccountCreation", () => {
 });
 
 socket.on("deleteChannel", (data) => {
-    if (!socket.isAdmin) {
+  if (!socket.isAdmin) {
     socket.emit("channelError", { msg: "❌ Admin only." });
     return;
   }
   const { id } = data || {};
-  if (!id) { socket.emit("channelError", { msg: "No channel specified." }); return; }
-  if (dynamicChannels.length <= 1) { socket.emit("channelError", { msg: "Cannot delete the last channel." }); return; }
+  if (!id) {
+    socket.emit("channelError", { msg: "No channel specified." });
+    return;
+  }
+  if (dynamicChannels.length <= 1) {
+    socket.emit("channelError", { msg: "Cannot delete the last channel." });
+    return;
+  }
+
   const idx = dynamicChannels.findIndex(c => c.id === id);
-  if (idx === -1) { socket.emit("channelError", { msg: "Channel not found." }); return; }
-  
+  if (idx === -1) {
+    socket.emit("channelError", { msg: "Channel not found." });
+    return;
+  }
+
+
+  const ch = dynamicChannels[idx];
+
   dynamicChannels.splice(idx, 1);
-  messagesByChannel.delete(id);     
-  messages = messages.filter(m => m.channel !== id);  
+  messagesByChannel.delete(id);
+  messages = messages.filter(m => m.channel !== id);
+  if (ch.type === "forum") {
+    const posts = forumPostsByChannel.get(id) || [];
+    posts.forEach(p => forumPostMessages.delete(p.id));
+    forumPostsByChannel.delete(id);
+    saveForumData();
+  }
+
   syncChannelsArray();
   saveChannels(dynamicChannels);
-  saveMessages();                  
+  saveMessages();
   io.emit("channelList", dynamicChannels);
   io.emit("channelDeleted", { id });
   console.log(`🗑️ Channel deleted: #${id}`);
@@ -4848,19 +5370,8 @@ if (!socket.isBot && !isReconnect && !wasAlreadyOnline) {
 if (!socket.isBot) {
     const unseenByChannel = {};
     CHANNELS.forEach(ch => {
-      const channelMessages = messagesByChannel.get(ch) || [];
-      let unseenCount = 0;
-
-      channelMessages.forEach(msg => {
-        const hasSeen = msg.seenBy && msg.seenBy.some(s => s.userId === clientData.id);
-        if (!hasSeen && msg.userId !== clientData.id) {
-          unseenCount++;
-        }
-      });
-
-      if (unseenCount > 0) {
-        unseenByChannel[ch] = unseenCount;
-      }
+      const count = computeUnseenCount(ch, clientData.id);
+      if (count > 0) unseenByChannel[ch] = count;
     });
 
     socket.emit("unreadMessages", {
@@ -5710,30 +6221,19 @@ socket.on("joinChannel", (data) => {
   socket.currentChannel = channel;
   
   const channelMessages = messagesByChannel.get(channel) || [];
-socket.emit("history", { 
-  channel: channel,
-  messages: channelMessages.map(msg => ({
-    ...msg,
-    reactions: msg.reactions || {},
-    reactionCounts: msg.reactionCounts || {}
-  }))
-});
+  socket.emit("history", { 
+    channel: channel,
+    messages: channelMessages.map(msg => ({
+      ...msg,
+      reactions: msg.reactions || {},
+      reactionCounts: msg.reactionCounts || {}
+    }))
+  });
   
   const unseenByChannel = {};
   CHANNELS.forEach(ch => {
-    const messages = messagesByChannel.get(ch) || [];
-    let unseenCount = 0;
-    
-    messages.forEach(msg => {
-      const hasSeen = msg.seenBy && msg.seenBy.some(s => s.userId === socket.userId);
-      if (!hasSeen && msg.userId !== socket.userId) {
-        unseenCount++;
-      }
-    });
-    
-    if (unseenCount > 0) {
-      unseenByChannel[ch] = unseenCount;
-    }
+    const count = computeUnseenCount(ch, socket.userId);
+    if (count > 0) unseenByChannel[ch] = count;
   });
   
   socket.emit("unreadMessages", {
@@ -5751,28 +6251,46 @@ socket.on("requestVoiceStates", (data) => {
   socket.emit("voiceStatesSync", states);
 });
   
- socket.on("messageSeen", (data) => {
+socket.on("messageSeen", (data) => {
   if (!data || !data.messageId || !data.userId) return;
   let message = null;
   let foundInChannel = null;
   for (const [channel, channelMessages] of messagesByChannel) {
     const found = channelMessages.find(m => m.id === data.messageId);
-    if (found) {
-      message = found;
-      foundInChannel = channel;
-      break;
-    }
+    if (found) { message = found; foundInChannel = channel; break; }
   }
-  
+
+
   if (!message) {
     message = messages.find(m => m.id === data.messageId);
   }
-  
-  if (message) {
-    if (!message.seenBy) {
-      message.seenBy = [];
-    }
 
+  if (!message) {
+    for (const [postId, replies] of forumPostMessages) {
+      const found = replies.find(m => m.id === data.messageId);
+      if (found) {
+        message = found;
+        for (const [channel, posts] of forumPostsByChannel) {
+          if (posts.some(p => p.id === postId)) {
+            foundInChannel = channel;
+            break;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+
+  if (!message) {
+    for (const [channel, posts] of forumPostsByChannel) {
+      const found = posts.find(p => p.id === data.messageId);
+      if (found) { message = found; foundInChannel = channel; break; }
+    }
+  }
+
+  if (message) {
+    if (!message.seenBy) message.seenBy = [];
     const alreadySeen = message.seenBy.some(s => s.userId === data.userId);
     if (!alreadySeen) {
       message.seenBy.push({
@@ -5795,20 +6313,27 @@ socket.on("requestVoiceStates", (data) => {
     seenAt: Date.now()
   });
 
-  const channel = foundInChannel || "general";
+const channel = foundInChannel || "general";
   const channelMessages = messagesByChannel.get(channel) || [];
   let unseenCount = 0;
+
   channelMessages.forEach(msg => {
     const hasSeen = msg.seenBy && msg.seenBy.some(s => s.userId === data.userId);
-    if (!hasSeen && msg.userId !== data.userId) {
-      unseenCount++;
-    }
+    if (!hasSeen && msg.userId !== data.userId) unseenCount++;
+  });
+
+  
+  const postsInChannel = forumPostsByChannel.get(channel) || [];
+  postsInChannel.forEach(post => {
+    const replies = forumPostMessages.get(post.id) || [];
+    replies.forEach(msg => {
+      const hasSeen = msg.seenBy && msg.seenBy.some(s => s.userId === data.userId);
+      if (!hasSeen && msg.userId !== data.userId) unseenCount++;
+    });
   });
 
   socket.emit("unreadMessages", {
-    unreadByChannel: {
-      [channel]: unseenCount
-    }
+    unreadByChannel: { [channel]: unseenCount }
   });
 });
 
@@ -6174,6 +6699,7 @@ socket.on("disconnect", () => {
   }
   pepeRunStarts.delete(socket.userId); 
   dragonTowerSessions.delete(socket.userId);
+  chickenSessions.delete(socket.userId);
   msSessions.delete(socket.userId);        
   pongHandleLeave(socket.userId, "disconnect");
 
@@ -6904,13 +7430,20 @@ socket.on("diceRoll", (data) => {
     socket.emit("diceError", { msg: `Target must be between ${DICE_MIN_TARGET} and ${DICE_MAX_TARGET}.` });
     return;
   }
+
+  const winChance = mode === "under" ? target : (100 - target);
+  if (useBonus && winChance > DICE_BONUS_MAX_WIN_CHANCE) {
+    socket.emit("diceError", {
+      msg: `Bonus chip bets are capped at ${DICE_BONUS_MAX_WIN_CHANCE}% win chance.`
+    });
+    return;
+  }
  
 
   if (useBonus) placeBonusBet(userId, amount);
   else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
  
   const roll = diceRoll();
-  const winChance = diceWinChance(target, mode);
   const multiplier = diceMultiplier(winChance);
   const won = mode === "under" ? roll < target : roll > target;
   const payoutChips = won ? Math.floor(amount * multiplier) : 0;
@@ -7303,6 +7836,341 @@ socket.on("pongLeaveGame", () => {
   pongHandleLeave(socket.userId, "left");
 });
 
+socket.on("fertilizerGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  socket.emit("wgStoreState", wgBuildStoreStatePayload(socket.userId));
+});
+
+socket.on("fertilizerBuy", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  const amount = Math.floor(Number(data?.amount));
+  if (!Number.isInteger(amount) || amount <= 0 || amount > 100) {
+    socket.emit("fertilizerError", { msg: "Invalid amount." });
+    return;
+  }
+
+  const cost = amount * WG_FERTILIZER_COST_CHIPS;
+  const balance = getChipBalance(userId);
+  if (cost > balance) {
+    socket.emit("fertilizerError", { msg: "Insufficient chips for that many bags." });
+    return;
+  }
+
+  adjustUserXp(userId, -cost * BJ_XP_PER_CHIP);
+
+  const user = allUsers.get(userId);
+  wgEnsureFertilizerField(user);
+  user.fertilizerBags += amount;
+  allUsers.set(userId, user);
+  saveUsers();
+
+socket.emit("fertilizerState", {
+    bags: user.fertilizerBags,
+    costChips: WG_FERTILIZER_COST_CHIPS,
+    reductionMinutes: WG_FERTILIZER_REDUCTION_MS / 60000,
+    maxPerPot: WG_FERTILIZER_MAX_PER_POT,
+    balance: getChipBalance(userId)
+  });
+
+  console.log(`🧪 Fertilizer bought: ${user.username || userId} bought ${amount} bag(s) for ${cost} chips`);
+});
+
+socket.on("fertilizerApply", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  if (isGameBanned(userId)) {
+    emitToUser(userId, "weedError", { msg: "You've been restricted from Weed Grow by an admin." });
+    return;
+  }
+
+  const potIndex = Math.floor(Number(data?.potIndex));
+  if (!Number.isInteger(potIndex) || potIndex < 0 || potIndex >= WG_POT_COUNT) return;
+
+  const garden = wgGetGarden(userId);
+  const pot = garden[potIndex];
+  if (!pot || pot.stage === "empty") {
+    emitToUser(userId, "fertilizerError", { msg: "Nothing planted in that pot." });
+    return;
+  }
+  if (wgProgress(pot) >= 1) {
+    emitToUser(userId, "fertilizerError", { msg: "That plant is already fully grown." });
+    return;
+  }
+  if ((pot.fertilizerCount || 0) >= WG_FERTILIZER_MAX_PER_POT) {
+    emitToUser(userId, "fertilizerError", { msg: "This plant can't take any more fertilizer." });
+    return;
+  }
+
+  const user = allUsers.get(userId);
+  wgEnsureFertilizerField(user);
+  if (user.fertilizerBags <= 0) {
+    emitToUser(userId, "fertilizerError", { msg: "You don't have any fertilizer bags." });
+    return;
+  }
+
+  user.fertilizerBags -= 1;
+  allUsers.set(userId, user);
+  saveUsers();
+
+  const now = Date.now();
+  if (!pot.wilted) {
+    pot.growAccumMs += Math.max(0, now - pot.growSince);
+    pot.growSince = now;
+  }
+  pot.growAccumMs += WG_FERTILIZER_REDUCTION_MS;
+  pot.fertilizerCount = (pot.fertilizerCount || 0) + 1;
+
+  wgScheduleNext(userId, potIndex, pot);
+  wgSaveGardens();
+  emitToUser(userId, "wgStoreState", wgBuildStoreStatePayload(userId));
+
+  emitToUser(userId, "weedFertilized", {
+    potIndex,
+    pot: wgSerializePot(pot),
+    bagsRemaining: user.fertilizerBags
+  });
+
+  if (wgProgress(pot) >= 1) {
+    emitToUser(userId, "weedReady", { potIndex, pot: wgSerializePot(pot) });
+  }
+
+  console.log(`🧪 Fertilizer applied: ${user.username || userId} used a bag on pot ${potIndex} (${pot.fertilizerCount}/${WG_FERTILIZER_MAX_PER_POT})`);
+});
+
+socket.on("seedBuy", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  const strainId = String(data?.strainId || "");
+  const strain = WG_STRAINS[strainId];
+  if (!strain) {
+    socket.emit("seedError", { msg: "Invalid strain." });
+    return;
+  }
+
+  const amount = Math.floor(Number(data?.amount));
+  if (!Number.isInteger(amount) || amount <= 0 || amount > 100) {
+    socket.emit("seedError", { msg: "Invalid amount." });
+    return;
+  }
+
+  const cost = amount * strain.seedCostChips;
+  const balance = getChipBalance(userId);
+  if (cost > balance) {
+    socket.emit("seedError", { msg: "Insufficient chips for that many seeds." });
+    return;
+  }
+
+  adjustUserXp(userId, -cost * BJ_XP_PER_CHIP);
+
+  const user = allUsers.get(userId);
+  wgEnsureSeedField(user);
+  user.seedsOwned[strainId] += amount;
+  allUsers.set(userId, user);
+  saveUsers();
+
+  emitToUser(userId, "wgStoreState", wgBuildStoreStatePayload(userId));
+  console.log(`🌱 Seeds bought: ${user.username || userId} bought ${amount}x ${strain.name} for ${cost} chips`);
+});
+
+socket.on("wgStoreGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  socket.emit("wgStoreState", wgBuildStoreStatePayload(socket.userId));
+});
+
+socket.on("chickenGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  const session = chickenSessions.get(socket.userId);
+  socket.emit("chickenState", {
+    balance: getChipBalance(socket.userId),
+    bonusBalance: getBonusBalance(socket.userId),
+    maxBet: CHICKEN_MAX_BET_CHIPS,
+    difficulty: session?.difficulty || null,
+    active: !!(session && session.active),
+    laneIndex: session ? session.laneIndex : -1
+  });
+});
+
+socket.on("chickenLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("chickenLeaderboardState", chickenBuildLeaderboardPayload());
+});
+
+socket.on("chickenStart", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  const existing = chickenSessions.get(userId);
+  if (existing && existing.active) {
+    socket.emit("chickenError", { msg: "A round is already in progress." });
+    return;
+  }
+
+  const amount = Math.floor(Number(data?.amount));
+  const difficulty = typeof data?.difficulty === "string" ? data.difficulty : "";
+  const useBonus = data?.account === "bonus";
+  const table = CHICKEN_TABLES[difficulty];
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+
+  if (!table) {
+    socket.emit("chickenError", { msg: "Invalid difficulty." });
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("chickenError", { msg: "Invalid bet." });
+    return;
+  }
+  if (amount > CHICKEN_MAX_BET_CHIPS) {
+    socket.emit("chickenError", { msg: `Max bet is ${CHICKEN_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+  if (amount > balance) {
+    socket.emit("chickenError", { msg: "Insufficient XP for that bet." });
+    return;
+  }
+
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+
+  chickenSessions.set(userId, {
+    active: true,
+    betChips: amount,
+    useBonus,
+    difficulty,
+    laneIndex: -1
+  });
+
+  socket.emit("chickenStarted", {
+    betChips: amount,
+    difficulty,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  console.log(`🐔 Chicken start: ${onlineUsers.get(userId)?.username || userId} bet ${amount} on ${difficulty}`);
+});
+
+socket.on("chickenHop", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = chickenSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("chickenError", { msg: "No active round." });
+    return;
+  }
+
+  const table = CHICKEN_TABLES[session.difficulty];
+  const nextLane = session.laneIndex + 1;
+  if (nextLane >= table.cfg.lanes) {
+    socket.emit("chickenError", { msg: "Already at the final lane." });
+    return;
+  }
+
+  const survived = chickenRollSurvives(table.survival[nextLane]);
+
+  if (!survived) {
+    session.active = false;
+    socket.emit("chickenHopResult", {
+      laneIndex: nextLane,
+      crashed: true,
+      betChips: session.betChips,
+      balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+    });
+    chickenSessions.delete(userId);
+    console.log(`💥 Chicken crash: ${onlineUsers.get(userId)?.username || userId} died on lane ${nextLane + 1}`);
+    return;
+  }
+
+  session.laneIndex = nextLane;
+  const multiplier = table.mults[nextLane];
+  const isFinalLane = nextLane >= table.cfg.lanes - 1;
+
+  socket.emit("chickenHopResult", {
+    laneIndex: nextLane,
+    crashed: false,
+    multiplier
+  });
+
+  if (isFinalLane) {
+    const payoutChips = Math.floor(session.betChips * multiplier);
+    session.active = false;
+
+    if (session.useBonus) creditBonusWin(userId, payoutChips);
+    else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+
+    if (chickenRecordResult(userId, multiplier, payoutChips)) chickenBroadcastLeaderboard();
+
+    socket.emit("chickenCashoutResult", {
+      multiplier,
+      payoutChips,
+      account: session.useBonus ? "bonus" : "normal",
+      balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+    });
+
+    const user = onlineUsers.get(userId) || allUsers.get(userId) || {};
+    chickenBroadcastRecentBet({
+      userId,
+      username: user.username || "Anonymous",
+      avatar: user.avatar || "/avatars/default1.png",
+      betChips: session.betChips,
+      multiplier,
+      payoutChips,
+      ts: Date.now()
+    });
+
+    chickenSessions.delete(userId);
+    console.log(`🏆 Chicken full clear: ${onlineUsers.get(userId)?.username || userId} -> ${multiplier}x -> ${payoutChips}`);
+  }
+});
+
+socket.on("chickenCashout", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = chickenSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("chickenError", { msg: "No active round." });
+    return;
+  }
+  if (session.laneIndex < 0) {
+    socket.emit("chickenError", { msg: "Hop at least one lane before cashing out." });
+    return;
+  }
+
+  const table = CHICKEN_TABLES[session.difficulty];
+  const multiplier = table.mults[session.laneIndex];
+  const payoutChips = Math.floor(session.betChips * multiplier);
+  session.active = false;
+
+  if (session.useBonus) creditBonusWin(userId, payoutChips);
+  else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+
+  if (chickenRecordResult(userId, multiplier, payoutChips)) chickenBroadcastLeaderboard();
+
+  socket.emit("chickenCashoutResult", {
+    multiplier,
+    payoutChips,
+    account: session.useBonus ? "bonus" : "normal",
+    balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+
+  const user = onlineUsers.get(userId) || allUsers.get(userId) || {};
+  chickenBroadcastRecentBet({
+    userId,
+    username: user.username || "Anonymous",
+    avatar: user.avatar || "/avatars/default1.png",
+    betChips: session.betChips,
+    multiplier,
+    payoutChips,
+    ts: Date.now()
+  });
+
+  chickenSessions.delete(userId);
+  console.log(`💰 Chicken cashout: ${onlineUsers.get(userId)?.username || userId} at lane ${session.laneIndex + 1} (${multiplier}x) -> ${payoutChips}`);
+});
+
 socket.on("weedGetState", () => {
   if (!socket.userId || socket.isBot) return;
   wgBroadcastState(socket.userId);
@@ -7313,8 +8181,6 @@ socket.on("weedPlant", (data) => {
   const userId = socket.userId;
 
   if (isGameBanned(userId)) {
-    const username = onlineUsers.get(userId)?.username || allUsers.get(userId)?.username;
-    console.log(`🚫 Blocked weed-grow action from banned user: ${username}`);
     emitToUser(userId, "weedError", { msg: "You've been restricted from Weed Grow by an admin." });
     return;
   }
@@ -7322,15 +8188,35 @@ socket.on("weedPlant", (data) => {
   const potIndex = Math.floor(Number(data?.potIndex));
   if (!Number.isInteger(potIndex) || potIndex < 0 || potIndex >= WG_POT_COUNT) return;
 
+  const strainId = String(data?.strainId || "");
+  const strain = WG_STRAINS[strainId];
+  if (!strain) {
+    emitToUser(userId, "weedError", { msg: "Invalid strain selected." });
+    return;
+  }
+
   const garden = wgGetGarden(userId);
   if (garden[potIndex].stage !== "empty") {
     emitToUser(userId, "weedError", { msg: "That pot is already in use." });
     return;
   }
 
+  const user = allUsers.get(userId);
+  wgEnsureSeedField(user);
+  if ((user.seedsOwned[strainId] || 0) <= 0) {
+    emitToUser(userId, "weedError", { msg: `You don't have any ${strain.name} seeds.` });
+    return;
+  }
+  user.seedsOwned[strainId] -= 1;
+  allUsers.set(userId, user);
+  saveUsers();
+
   const now = Date.now();
   const pot = {
     stage: "alive",
+    strainId,
+    growMs: strain.growMs,
+    harvestXp: strain.harvestXp,
     plantedAt: now,
     wateredAt: now,
     nextWaterDueAt: now + wgRandomWaterInterval(),
@@ -7338,13 +8224,16 @@ socket.on("weedPlant", (data) => {
     wiltedAt: null,
     growAccumMs: 0,
     growSince: now,
+    fertilizerCount: 0,
     timer: null
   };
   garden[potIndex] = pot;
   wgScheduleNext(userId, potIndex, pot);
+  wgSaveGardens();
 
   emitToUser(userId, "weedPlanted", { potIndex, pot: wgSerializePot(pot) });
-  console.log(`🌱 ${onlineUsers.get(userId)?.username || userId} planted pot ${potIndex}`);
+  emitToUser(userId, "wgStoreState", wgBuildStoreStatePayload(userId));
+  console.log(`🌱 ${user.username || userId} planted ${strain.name} in pot ${potIndex}`);
 });
 
 socket.on("weedWater", (data) => {
@@ -7388,6 +8277,7 @@ if (!needsWater) {
   pot.nextWaterDueAt = now + wgRandomWaterInterval();
 
   wgScheduleNext(userId, potIndex, pot);
+  wgSaveGardens();
   emitToUser(userId, "weedWatered", { potIndex, pot: wgSerializePot(pot) });
 });
 
@@ -7396,8 +8286,6 @@ socket.on("weedHarvest", (data) => {
   const userId = socket.userId;
 
   if (isGameBanned(userId)) {
-    const username = onlineUsers.get(userId)?.username || allUsers.get(userId)?.username;
-    console.log(`🚫 Blocked weed-grow action from banned user: ${username}`);
     emitToUser(userId, "weedError", { msg: "You've been restricted from Weed Grow by an admin." });
     return;
   }
@@ -7416,15 +8304,19 @@ socket.on("weedHarvest", (data) => {
     return;
   }
 
+  const xpAward = pot.harvestXp || WG_HARVEST_XP;
+  const strainName = (WG_STRAINS[pot.strainId] || {}).name || "Weed";
+
   wgClearTimer(pot);
   garden[potIndex] = wgEmptyPot();
 
-  addBonusXp(userId, WG_HARVEST_XP);
+  addBonusXp(userId, xpAward);
   wgRecordHarvest(userId);
   wgBroadcastLeaderboard();
+  wgSaveGardens();
 
-  emitToUser(userId, "weedHarvested", { potIndex, pot: wgSerializePot(garden[potIndex]), xpAwarded: WG_HARVEST_XP });
-  console.log(`🌳 ${onlineUsers.get(userId)?.username || userId} harvested pot ${potIndex} (+${WG_HARVEST_XP} XP)`);
+  emitToUser(userId, "weedHarvested", { potIndex, pot: wgSerializePot(garden[potIndex]), chipsAwarded: xpAward / BJ_XP_PER_CHIP, strainName });
+  console.log(`🌳 ${onlineUsers.get(userId)?.username || userId} harvested ${strainName} from pot ${potIndex} (+${xpAward} XP)`);
 });
  
 socket.on("weedLeaderboardGet", () => {
@@ -8015,22 +8907,19 @@ socket.on("dartsThrow", (data) => {
   if (!socket.userId || socket.isBot) return;
   const userId = socket.userId;
   const useBonus = data?.account === "bonus";
-
   const amount = Math.floor(Number(data?.amount));
   const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+
+  if (balance <= 0) {
+  socket.emit("dartsError", { msg: "You have no chips to bet with." });
+  return;
+}
 
   if (!Number.isFinite(amount) || amount <= 0) {
     socket.emit("dartsError", { msg: "Invalid bet." });
     return;
   }
-  if (amount > balance) {
-    socket.emit("dartsError", { msg: "Insufficient XP for that bet." });
-    return;
-  }
-  if (amount > DARTS_MAX_BET_CHIPS) {
-    socket.emit("dartsError", { msg: `Max bet is ${DARTS_MAX_BET_CHIPS} chips.` });
-    return;
-  }
+  
 
   if (useBonus) placeBonusBet(userId, amount);
   else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
@@ -8381,6 +9270,48 @@ app.delete("/delete-emote/:filename", requireAuth, (req, res) => {
 let whispers = [];
 let groupWhispersAll = groupWhispers;
 const hiddenWhisperConvos = new Map();
+let forumPostsByChannel = new Map();
+let forumPostMessages = new Map();
+
+const FORUM_DATA_FILE = path.join(__dirname, "./data/forumData.json");
+
+function loadForumData() {
+  try {
+    if (fs.existsSync(FORUM_DATA_FILE)) {
+      const data = JSON.parse(fs.readFileSync(FORUM_DATA_FILE, "utf8"));
+      forumPostsByChannel = Array.isArray(data.forumPostsByChannel)
+        ? new Map(data.forumPostsByChannel)
+        : new Map();
+      forumPostMessages = Array.isArray(data.forumPostMessages)
+        ? new Map(data.forumPostMessages)
+        : new Map();
+      console.log(`✅ Loaded forum data (${forumPostsByChannel.size} channels)`);
+    } else {
+      forumPostsByChannel = new Map();
+      forumPostMessages = new Map();
+    }
+  } catch (err) {
+    console.error("❌ Failed to load forumData.json:", err);
+    forumPostsByChannel = new Map();
+    forumPostMessages = new Map();
+  }
+}
+
+function saveForumData() {
+  try {
+    if (!(forumPostsByChannel instanceof Map)) forumPostsByChannel = new Map();
+    if (!(forumPostMessages instanceof Map)) forumPostMessages = new Map();
+    fs.writeFileSync(FORUM_DATA_FILE, JSON.stringify({
+      forumPostsByChannel: Array.from(forumPostsByChannel.entries()),
+      forumPostMessages: Array.from(forumPostMessages.entries())
+    }, null, 2));
+  } catch (err) {
+    console.error("❌ Failed to save forumData.json:", err);
+  }
+}
+
+
+loadForumData();
 
 function getHiddenMap(userId) {
   if (!hiddenWhisperConvos.has(userId)) hiddenWhisperConvos.set(userId, new Map());

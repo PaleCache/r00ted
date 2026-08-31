@@ -1,4 +1,4 @@
-var debugmode = true;
+var debugmode = false;
 let currentProfileUser = null;
 let lastKnownStatus = new Map();
 let currentVoiceRoom = null;
@@ -122,13 +122,13 @@ const ADMIN_COMMANDS = [
   { cmd: '/shh',   desc: 'Mute a user',            usage: '/shh <username>' },
   { cmd: '/unssh', desc: 'Unmute a user',           usage: '/unssh <username>' },
   { cmd: '/oops',  desc: 'Clear all messages',      usage: '/oops' },
-  { cmd: '/lo',    desc: 'Send private YouTube',    usage: '/lo <username> <url>' },
+  { cmd: '/lo',    desc: 'Send private YouTube video that the user can\'t pause lol',    usage: '/lo <username> <url>' },
   { cmd: '/rm',    desc: 'Remove private video',    usage: '/rm' },
   { cmd: '/setrole', desc: 'Set user role', usage: '/setrole <user> <admin|developer|promptengineer> <true|false>' },
   { cmd: '/ree', desc: 'Force redirect user', usage: '/ree <username> <url>' },
   { cmd: '/roles', desc: 'Manage custom roles', usage: '/roles' },
-  { cmd: '/gameban', desc: 'Block a user from weed-grow actions', usage: '/gameban <username>' },
-  { cmd: '/gameunban', desc: 'Restore weed-grow access', usage: '/gameunban <username>' },
+  { cmd: '/gameban', desc: 'Block a user from grow room actions and getting any xp tokens', usage: '/gameban <username>' },
+  { cmd: '/gameunban', desc: 'Restore grow access and allow getting xp tokens', usage: '/gameunban <username>' },
   { cmd: '/lockstatus', desc: 'Set and lock a user\'s status', usage: '/lockstatus <username> <status text>' },
   { cmd: '/unlockstatus', desc: 'Unlock a user\'s status', usage: '/unlockstatus <username>' },
   { cmd: '/resetaccounts', desc: 'Clear account creation limits', usage: '/resetaccounts' },
@@ -1766,31 +1766,60 @@ function editMsg(id, currentText) {
 function updateSeenByUI(messageId) {
   const messageEl = document.querySelector(`[data-id="${messageId}"]`);
   if (!messageEl) return;
-
+ 
   let container = messageEl.querySelector('.seen-by-container');
   if (!container) {
     container = document.createElement('div');
     container.className = 'seen-by-container';
     messageEl.appendChild(container);
   }
-
+ 
   container.innerHTML = '';
-
+ 
   const seenUsers = messageSeenBy.get(messageId) || [];
-
+ 
   seenUsers.forEach(u => {
     if (u.userId === user.id) return;
-
+ 
     const img = document.createElement('img');
     img.src = sanitizeAvatar(u.avatar);
     img.className = 'seen-by-avatar';
-    const seenTime = u.seenAt ? formatSeenTime(u.seenAt) : "just now";
+    const seenTime = u.seenAt ? formatSeenTime(u.seenAt) : 'just now';
     img.title = `${u.username} seen this ${seenTime}`;
-
+ 
     container.appendChild(img);
   });
+ 
+  const isLastMessage = isLastRenderedMessage(messageEl);
+  const isHovered = messageEl.dataset.seenHovered === '1';
+ 
+  container.style.display =
+    (container.children.length > 0 && (isLastMessage || isHovered))
+      ? 'flex'
+      : 'none';
+}
 
-  container.style.display = container.children.length > 0 ? 'flex' : 'none';
+
+function isLastRenderedMessage(messageEl) {
+  const container = messageEl.closest('#messages, #forumThreadMessages');
+  if (!container) return false;
+  const all = container.querySelectorAll('.message');
+  return all.length > 0 && all[all.length - 1] === messageEl;
+}
+
+
+function refreshAllSeenByVisibility() {
+  document.querySelectorAll('#messages, #forumThreadMessages').forEach(container => {
+    const all = container.querySelectorAll('.message');
+    all.forEach((el, idx) => {
+      const seenContainer = el.querySelector('.seen-by-container');
+      if (!seenContainer) return;
+      const isLast = idx === all.length - 1;
+      const isHovered = el.dataset.seenHovered === '1';
+      seenContainer.style.display =
+        (seenContainer.children.length > 0 && (isLast || isHovered)) ? 'flex' : 'none';
+    });
+  });
 }
 
 function refreshSeenTimestamps() {
@@ -1798,11 +1827,10 @@ function refreshSeenTimestamps() {
     const messageEl = container.closest('.message');
     if (messageEl) {
       const messageId = messageEl.dataset.id;
-      if (messageId) {
-        updateSeenByUI(messageId);
-      }
+      if (messageId) updateSeenByUI(messageId);
     }
   });
+  refreshAllSeenByVisibility();
 }
 
 
@@ -2733,13 +2761,16 @@ function autoScrollToBottom() {
 }
 
 
-function buildMessageElement(m, shouldNotify = false) {
+function buildMessageElement(m, shouldNotify = false, context = {}) {
   if (!m) return null;
 
   const el = document.createElement("div");
   el.className = "message";
   el.dataset.id = m.id || "";
   el.dataset.sender = m.userId || "";
+  if (context.isForumReply && context.postId) {
+  el.dataset.forumPostId = context.postId;
+}
 
   let isMentioned = false;
   if (typeof m.text === "string" && m.text.trim() !== "") {
@@ -3009,10 +3040,16 @@ const isEditable = m.userId === user.id
       actions.appendChild(dlBtn);
     }
 
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "btn";
-    deleteBtn.textContent = "✕";
-    deleteBtn.onclick = () => deleteMsg(m.id);
+ const deleteBtn = document.createElement("button");
+  deleteBtn.className = "btn";
+  deleteBtn.textContent = "✕";
+  deleteBtn.onclick = () => {
+    if (context.isForumReply) {
+      socket.emit("deleteForumReply", { postId: context.postId, messageId: m.id });
+    } else {
+      deleteMsg(m.id);
+    }
+  };
     actions.appendChild(deleteBtn);
     el.appendChild(actions);
   }
@@ -3082,6 +3119,7 @@ function addMessage(m, shouldNotify = false) {
   }
 
   setupMessageHoverSeen();
+  refreshAllSeenByVisibility();
   autoScrollToBottom();
 }
 
@@ -3098,21 +3136,46 @@ function checkIfMentioned(text) {
 
 function setupMessageHoverSeen() {
   const messages = document.querySelectorAll('.message');
+ 
   messages.forEach(msg => {
     const messageId = msg.dataset.id;
     if (!messageId) return;
     msg.removeEventListener('mouseenter', msg._seenHandler);
-
     msg._seenHandler = () => {
+      if (Date.now() < forumHoverSuppressedUntil) return;
       const seenList = messageSeenBy.get(messageId) || [];
       const alreadySeen = seenList.some(u => u.userId === user.id);
-      if (!alreadySeen) {
-        markMessageAsSeen(messageId);
+      if (!alreadySeen) markMessageAsSeen(messageId);
+      if (msg.dataset.forumPostId) {
+        clearForumUnseenMessage(currentChannel, msg.dataset.forumPostId, messageId);
       }
     };
-
     msg.addEventListener('mouseenter', msg._seenHandler);
+    if (msg._seenVisEnter) msg.removeEventListener('mouseenter', msg._seenVisEnter);
+    if (msg._seenVisLeave) msg.removeEventListener('mouseleave', msg._seenVisLeave);
+ 
+    msg._seenVisEnter = () => {
+      msg.dataset.seenHovered = '1';
+      const container = msg.querySelector('.seen-by-container');
+      if (container && container.children.length > 0) {
+        container.style.display = 'flex';
+      }
+    };
+ 
+    msg._seenVisLeave = () => {
+      msg.dataset.seenHovered = '0';
+      if (!isLastRenderedMessage(msg)) {
+        const container = msg.querySelector('.seen-by-container');
+        if (container) container.style.display = 'none';
+      }
+    };
+ 
+    msg.addEventListener('mouseenter', msg._seenVisEnter);
+    msg.addEventListener('mouseleave', msg._seenVisLeave);
   });
+ 
+
+  refreshAllSeenByVisibility();
 }
 
 function deleteMsg(id) {
@@ -3599,6 +3662,14 @@ if (e.key === "Enter" && !e.shiftKey) {
     if (isInputEmpty()) return;
     if (!socket || !socket.connected) {
       console.warn("⚠️ Socket not connected yet");
+      return;
+    }
+
+    const activeChannelData = dynamicChannels_client.find(c => c.id === currentChannel);
+    if (activeChannelData?.type === "forum") {
+      showToast("This is a forum channel - open or start a post to reply.");
+      clearInputField();
+      hideCommandDropdown();
       return;
     }
 
@@ -5696,9 +5767,7 @@ let connectionHealthCheck = null;
 
 function startConnectionHealthCheck() {
   if (connectionHealthCheck) clearInterval(connectionHealthCheck);
-  console.log("💓 Health check started");
   connectionHealthCheck = setInterval(() => {
-    console.log(`❤️‍🩹 HEALTH CHECK | inVoice: ${!!currentVoiceRoom} | initializing: ${!!window.jitsiInitializing} | initialized: ${!!window.jitsiInitialized} | connection: ${!!connection}`);
     if (window.jitsiInitializing) {
       console.log("⏳ Still initializing, skipping check");
       return;
@@ -5721,7 +5790,6 @@ function startConnectionHealthCheck() {
           console.error("❌ Jitsi reinit failed:", err);
         });
     } else {
-      console.log("Jitsi connection healthy");
     }
 
   }, 30000);
@@ -6689,11 +6757,16 @@ function sendGif(gifUrl) {
 
 
 
+function isCurrentChannelForum() {
+  const ch = dynamicChannels_client?.find(c => c.id === currentChannel);
+  return ch?.type === "forum";
+}
 
 const dropZone = document.getElementById('dropZone');
 document.addEventListener('dragenter', (e) => {
   e.preventDefault();
   e.stopPropagation();
+  if (isCurrentChannelForum()) return;
   if (e.dataTransfer?.items) {
     let hasFiles = false;
     for (let item of e.dataTransfer.items) {
@@ -6712,6 +6785,7 @@ document.addEventListener('dragenter', (e) => {
 document.addEventListener('dragover', (e) => {
   e.preventDefault();
   e.stopPropagation();
+  if (isCurrentChannelForum()) return;
   dropZone.style.display = 'flex';
 });
 
@@ -6729,7 +6803,12 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   e.stopPropagation();
   dropZone.style.display = 'none';
-  
+
+  if (isCurrentChannelForum()) {
+    showToast("This is a forum channel - use the attach button on a post to add files.");
+    return;
+  }
+
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
     Array.from(files).forEach(file => {
@@ -6865,52 +6944,67 @@ function getChannelDisplayName(channelId) {
   return channelsById.get(channelId)?.name || channelId;
 }
 
+let currentPingMs = 0;
+let consecutiveBadStats = 0;
+
+let latestRtt = null;
+let statsListenerActive = false;
 let pingInterval = null;
 
-
 function startPingMonitor() {
+  if (!statsListenerActive) {
+    conference.on(
+      JitsiMeetJS.events.connectionQuality.LOCAL_STATS_UPDATED,
+      handleStatsUpdate
+    );
+    statsListenerActive = true;
+  }
+
   if (pingInterval) clearInterval(pingInterval);
-  
   pingInterval = setInterval(() => {
-    pingJitsiServer();
+    if (!currentVoiceRoom || !conference) return;
+
+    if (latestRtt === null) {
+      consecutiveBadStats++;
+      if (consecutiveBadStats >= 5 && currentVoiceRoom && !localAudioTrack) {
+        console.warn("🔁 5 missed stats ticks + no local track, rejoining");
+        consecutiveBadStats = 0;
+        const room = currentVoiceRoom;
+        leaveVoice();
+        setTimeout(() => joinVoiceChannelWithTimeout(room), 1500);
+      }
+      return; 
+    }
+
+    consecutiveBadStats = 0;
+    updatePingDisplay(Math.round(latestRtt));
   }, 1500);
 }
 
-
-let consecutivePingFailures = 0;
-
-function pingJitsiServer() {
-  const DOMAIN = SERVER_CONFIG.server.pingdomain;
-  const start = performance.now();
-  let smoothedPing = 90;
-
-  fetch(`https://${DOMAIN}`, {
-    method: 'HEAD',
-    mode: 'no-cors',
-    cache: 'no-cache'
-  })
-  .then(() => {
-    if (!currentVoiceRoom || !conference) return;
-    consecutivePingFailures = 0;
-    const rawPing = performance.now() - start;
-    smoothedPing = (rawPing * 0.3) + (smoothedPing * 0.7);
-    updatePingDisplay(Math.round(smoothedPing));
-  })
-  .catch(() => {
-    if (!currentVoiceRoom || !conference) return; 
-    consecutivePingFailures++;
-    updatePingDisplay(0);
-    if (consecutivePingFailures >= 3 && currentVoiceRoom && !localAudioTrack) {
-      console.warn("🔁 3 ping failures + no local track rejoining");
-      consecutivePingFailures = 0;
-      const room = currentVoiceRoom;
-      leaveVoice();
-      setTimeout(() => joinVoiceChannelWithTimeout(room), 1500);
-    }
-  });
+function handleStatsUpdate(stats) {
+  const transport = stats.transport?.[0];
+  const rtt = transport?.rtt ?? stats.jvbRTT;
+  if (rtt !== undefined && rtt !== null) {
+    latestRtt = rtt;
+  }
 }
 
-let currentPingMs = 0;
+function stopPingMonitor() {
+  if (conference && statsListenerActive) {
+    conference.off(
+      JitsiMeetJS.events.connectionQuality.LOCAL_STATS_UPDATED,
+      handleStatsUpdate
+    );
+    statsListenerActive = false;
+  }
+  if (pingInterval) {
+    clearInterval(pingInterval);
+    pingInterval = null;
+  }
+  consecutiveBadStats = 0;
+  latestRtt = null;
+}
+
 function updatePingDisplay(ping) {
   currentPingMs = ping;
   if (window.electronAPI?.overlayPingUpdate) {
@@ -6921,14 +7015,14 @@ function updatePingDisplay(ping) {
   const pingText = document.getElementById('pingText');
   const voiceControls = document.querySelector('.voice-controls');
   const barsContainer = document.getElementById('pingBars');
-  
+
   if (!barsContainer || !pingDisplay || !pingText || !voiceControls) return;
-  
+
   pingText.style.display = 'none';
   pingDisplay.title = `${ping}ms`;
 
   let activeBars, color;
-  
+
   if (ping < 100) {
     activeBars = 4;
     color = 'ping-good';
@@ -6942,21 +7036,14 @@ function updatePingDisplay(ping) {
     activeBars = 1;
     color = 'ping-bad';
   }
-  
+
   voiceControls.classList.remove('ping-good', 'ping-warning', 'ping-bad');
   voiceControls.classList.add(color);
-  
+
   const bars = barsContainer.querySelectorAll('.ping-bar');
   bars.forEach((bar, index) => {
     bar.classList.toggle('active', index < activeBars);
   });
-}
-
-function stopPingMonitor() {
-  if (pingInterval) {
-    clearInterval(pingInterval);
-    pingInterval = null;
-  }
 }
 
 
@@ -7074,20 +7161,41 @@ function updateChannelBadge(channelName, count) {
 
 
 function switchChannel(channelName) {
+  window._currentForumPostId = null;
   currentChannel = channelName;
 
   document.querySelectorAll('.channel-item').forEach(ch => {
     ch.classList.remove('active');
     ch.style.background = 'transparent';
     ch.style.color = '#b9bbbe';
-    ch.style.borderLeft = '4px solid transparent';
   });
 
   const active = document.querySelector(`[data-channel="${channelName}"]`);
-  active.classList.add('active');
-  active.style.background = 'rgb(24, 24, 24)';
-  active.style.color = 'white';
-if (!document.getElementById("spinStyle")) {
+  if (active) {
+    active.classList.add('active');
+    active.style.background = 'rgb(24, 24, 24)';
+    active.style.color = 'white';
+  }
+
+  const channelData = dynamicChannels_client.find(c => c.id === channelName);
+
+  const inputBar = document.querySelector('.input-container') || inputField.closest('.chat-input-bar');
+
+if (channelData?.type === "forum") {
+  inputField.contentEditable = "false";
+  inputField.dataset.placeholder = "Forum channel - use posts to reply";
+  if (inputBar) inputBar.style.display = "none";
+
+  renderForumView(channelName);
+  socket.emit("getForumPosts", { channel: channelName });
+  return;
+} else {
+    if (!isCurrentlyMuted) inputField.contentEditable = "true";
+    inputField.dataset.placeholder = getInputPlaceholder();
+    if (inputBar) inputBar.style.display = "";
+  }
+
+  if (!document.getElementById("spinStyle")) {
     const style = document.createElement("style");
     style.id = "spinStyle";
     style.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`;
@@ -7108,6 +7216,33 @@ if (!document.getElementById("spinStyle")) {
   markReadBtn.style.display = count > 0 ? 'block' : 'none';
 }
 
+let forumUnseenPosts = new Map();
+
+function addForumUnseen(channel, postId, messageId) {
+  if (!forumUnseenPosts.has(channel)) forumUnseenPosts.set(channel, new Map());
+  const postMap = forumUnseenPosts.get(channel);
+  if (!postMap.has(postId)) postMap.set(postId, new Set());
+  const msgSet = postMap.get(postId);
+
+  if (!msgSet.has(messageId)) {
+    msgSet.add(messageId);
+    const count = (unreadCounts.get(channel) || 0) + 1;
+    unreadCounts.set(channel, count);
+    updateChannelBadge(channel, count);
+  }
+}
+
+function clearForumUnseen(channel, postId) {
+  const postMap = forumUnseenPosts.get(channel);
+  if (!postMap || !postMap.has(postId)) return;
+  const msgSet = postMap.get(postId);
+  const removed = msgSet.size;
+  postMap.delete(postId);
+
+  const count = Math.max(0, (unreadCounts.get(channel) || 0) - removed);
+  unreadCounts.set(channel, count);
+  updateChannelBadge(channel, count);
+}
 
 
 function formatStreamDuration(startTime) {
@@ -7732,8 +7867,9 @@ if (voicePanel && voicePanel.parentNode === voiceContainer) {
   textContainer.innerHTML = "";
   voiceContainer.innerHTML = "";
 
-  const textChannels = channels.filter(ch => ch.type !== "voice");
-  const voiceChannels = channels.filter(ch => ch.type === "voice");
+const textChannels = channels.filter(ch => ch.type === "text" || (!ch.type));
+const forumChannels = channels.filter(ch => ch.type === "forum");
+const voiceChannels = channels.filter(ch => ch.type === "voice");
 
   textChannels.forEach(ch => {
     const item = document.createElement("div");
@@ -7795,6 +7931,69 @@ if (voicePanel && voicePanel.parentNode === voiceContainer) {
     textContainer.appendChild(item);
   });
 
+
+  
+forumChannels.forEach(ch => {
+  const item = document.createElement("div");
+  item.className = "channel-item" + (ch.id === currentChannel ? " active" : "");
+  item.dataset.channel = ch.id;
+  item.style.cssText = `
+    position: relative; display: flex; align-items: center; padding: 6px 10px;
+    border-radius: 4px; cursor: pointer;
+    color: ${ch.id === currentChannel ? "#fff" : "#b9bbbe"};
+    background: ${ch.id === currentChannel ? "rgb(24,24,24)" : "transparent"};
+    user-select: none; gap: 6px; font-size: 15px; transition: background 0.15s;
+  `;
+
+ 
+const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+icon.setAttribute("viewBox", "0 0 24 24");
+icon.setAttribute("width", "18");
+icon.setAttribute("height", "18");
+icon.style.cssText = "flex-shrink:0; fill:#80848e;";
+icon.innerHTML = `<path d="M14.5 11c2.76 0 5 2.13 5 4.75 0 .96-.3 1.85-.81 2.6.1.24.25.46.44.7l.7 1a1 1 0 0 1-.82 1.57h-4.51c-2.76 0-5-2.13-5-4.87 0-2.62 2.24-4.75 5-4.75Z"/><path d="M9.5 2c4.7 0 8.5 3.36 8.5 7.5 0 .24-.01.47-.04.7a6.9 6.9 0 0 0-1.63-.2c-3.4 0-6.2 2.4-6.79 5.53A8.9 8.9 0 0 1 8 15.2c-.5 0-1-.04-1.47-.13l-.2-.02-3.53.9a1 1 0 0 1-1.22-1.25l.86-2.9A7.15 7.15 0 0 1 1 9.5C1 5.36 4.8 2 9.5 2Z"/>`;
+  const name = document.createElement("span");
+  name.style.cssText = "flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;";
+  name.textContent = ch.name;
+
+  item.appendChild(icon);
+  item.appendChild(name);
+  item.addEventListener("click", () => switchChannel(ch.id));
+  const bell = document.createElement("img");
+  bell.className = "channel-bell";
+  const bellEnabled = localStorage.getItem(`notif_${ch.id}`) !== "false";
+  bell.src = bellEnabled ? "/svgs/bell-on.svg" : "/svgs/bell-off.svg";
+  bell.style.cssText = `width:14px; height:14px; cursor:pointer; opacity:${bellEnabled ? "1" : "0.3"}; filter:brightness(0) invert(1); flex-shrink:0; transition:opacity 0.2s;`;
+  bell.onclick = (e) => {
+    e.stopPropagation();
+    const enabled = localStorage.getItem(`notif_${ch.id}`) !== "false";
+    localStorage.setItem(`notif_${ch.id}`, enabled ? "false" : "true");
+    bell.src = enabled ? "/svgs/bell-off.svg" : "/svgs/bell-on.svg";
+    bell.style.opacity = enabled ? "0.3" : "1";
+  };
+  item.appendChild(bell);
+  if (user.isAdmin || user.isDeveloper) {
+    const del = document.createElement("button");
+    del.textContent = "✕";
+    del.style.cssText = "background:none; border:none; color:#72767d; font-size:13px; cursor:pointer; padding:0 2px; line-height:1; flex-shrink:0; transition:color 0.15s;";
+    del.onmouseover = () => del.style.color = "#ff3333";
+    del.onmouseout = () => del.style.color = "#72767d";
+    del.onclick = (e) => {
+      e.stopPropagation();
+      showConfirmModal(
+        `All threads in #${ch.name} will be lost.`,
+        () => socket.emit("deleteChannel", { id: ch.id }),
+        { title: `Delete #${ch.name}?`, confirmLabel: "Delete" }
+      );
+    };
+    item.appendChild(del);
+  }
+
+  const count = unreadCounts.get(ch.id) || 0;
+  if (count > 0) updateChannelBadge(ch.id, count);
+  textContainer.appendChild(item);
+});
+
   if (user.isAdmin || user.isDeveloper) {
     const addText = document.createElement("button");
     addText.style.cssText = "display:flex; align-items:center; gap:6px; background:none; border:none; color:#72767d; font-size:13px; cursor:pointer; padding:6px 10px; border-radius:4px; width:100%; transition:color 0.15s, background 0.15s; margin-top:4px;";
@@ -7809,6 +8008,19 @@ if (voicePanel && voicePanel.parentNode === voiceContainer) {
     addText.onclick = () => openCreateChannelModal("text");
     textContainer.appendChild(addText);
   }
+
+
+ 
+
+if (user.isAdmin || user.isDeveloper) {
+  const addForum = document.createElement("button");
+  addForum.style.cssText = "display:flex; align-items:center; gap:6px; background:none; border:none; color:#72767d; font-size:13px; cursor:pointer; padding:6px 10px; border-radius:4px; width:100%; transition:color 0.15s, background 0.15s; margin-top:4px;";
+  addForum.innerHTML = `<span style="font-size:18px;line-height:1;">＋</span> Add Forum Channel`;
+  addForum.onmouseover = () => { addForum.style.color = "#fff"; addForum.style.background = "rgba(255,255,255,0.05)"; addForum.style.borderRadius = "9px"; };
+  addForum.onmouseout = () => { addForum.style.color = "#72767d"; addForum.style.background = "none"; };
+  addForum.onclick = () => openCreateChannelModal("forum");
+  textContainer.appendChild(addForum);
+}
 
 voiceChannels.forEach(ch => {
      const isEmbed = ch.embed === true || ch.id === "vc-embed";

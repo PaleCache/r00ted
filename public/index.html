@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self' https: wss: blob: data:;
   script-src 'self' https: 'unsafe-inline' 'unsafe-eval' blob:;
@@ -8,6 +9,8 @@
   style-src 'self' https: 'unsafe-inline';
   img-src 'self' https: blob: data: file:;
 ">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">   <!-- ADD THIS -->
+
   <script>
     if (!localStorage.getItem("chatToken")) {
       window.location.href = "/login";
@@ -23,11 +26,11 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 </head>
-<script id="jitsiLibScript"></script>
 <body>
-<meta charset="UTF-8">
+
 
 <div class="app">
+  <div class="drawer-backdrop" id="mobileBackdrop"></div>  
   <div class="sidebar">
       <img id="appIcon" src="icon.png" alt="App Icon" style="
       width: 75px;
@@ -324,7 +327,6 @@
     box-sizing: border-box;
     position: relative;
     overflow: hidden;
-    border-radius: 12px;
   ">
     <div style="
       position: absolute;
@@ -376,7 +378,7 @@
 
 <div class="sidebar2-bottom">
 
-  <div id="voiceControls" class="voice-controls" style="display:flex; flex-direction:column; gap:8px; padding:8px; width:100%; box-sizing:border-box;">
+  <div id="voiceControls" class="voice-controls" style="display:flex; flex-direction:column; gap:8px; padding:8px; width:100%; box-sizing:border-box; border-top: 2px solid rgb(1 1 1)">
 
     <div id="vcButtons" style="display:none; align-items:center; justify-content:center; gap:7px;">
       <button class="voice-btn" id="muteBtn" onclick="toggleMute()" title="Mute" style="width:55px; height:28px; border-radius:7px; background:#181818; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;">
@@ -454,6 +456,28 @@
   </div>
  
   <div class="chat">
+    <div class="mobile-topbar">                              
+<button class="icon-btn" id="openChannelsBtn" title="Channels">
+  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M4 6l16 0" />
+    <path d="M4 12l16 0" />
+    <path d="M4 18l16 0" />
+  </svg>
+</button>
+
+<div class="title" id="mobileChatTitle"># general</div>
+
+<button class="icon-btn" id="openUsersBtn" title="Members">
+  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
+    <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    <path d="M21 21v-2a4 4 0 0 0 -3 -3.85" />
+  </svg>
+</button>
+ </div>
     <div class="messages" id="messages"></div>
      <div id="screenContainer" style="margin-top:10px;"></div>
     <div id="typingIndicator" class="typing-indicator"></div>
@@ -1135,6 +1159,7 @@
 <script src="/games/towerclimb.js" defer></script>
 <script src="/games/darts.js" defer></script>
 <script src="/games/library.js" defer></script>
+<script src="/games/ChickenRunner.js" defer></script>
 <script src="/games/roulette.js" defer></script>
 <script src="/clientScripts/profilePopup.js" defer></script>
 <script src="/clientScripts/audioEmbed.js" defer></script>
@@ -1145,5 +1170,8 @@
 <script src="/clientScripts/jitsiStuff.js" defer></script>
 <script src="/clientScripts/reactions.js" defer></script>
 <script src="/clientScripts/Buildlinks.js" defer></script>
+<script src="/clientScripts/weatherWidget.js" defer></script>
+<script src="/clientScripts/forumChannels.js" defer></script>
+<script src="/clientScripts/mobileNav.js" defer></script>
 </body>
 </html>

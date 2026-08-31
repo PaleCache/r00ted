@@ -19,7 +19,6 @@ whispersLauncherBtn.style.cssText = `
   font-size: 18px;
   font-weight: 600;
   cursor: pointer;
-  z-index: 9999;
   display: flex;
   align-items: center;
   gap: 6px;

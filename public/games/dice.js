@@ -198,6 +198,17 @@
     return (100 / winChance) * 0.99;
   }
 
+function getMaxBonusWinChance() {
+  return 91;
+}
+
+function clampTargetForAccount() {
+  if (getAccount() !== "bonus") return;
+  const maxWinChance = getMaxBonusWinChance();
+  if (mode === "under" && target > maxWinChance) target = maxWinChance;
+  if (mode === "over" && (100 - target) > maxWinChance) target = 100 - maxWinChance;
+}
+
   function sanitizeAvatar(src) {
     if (typeof window.sanitizeAvatar === "function") return window.sanitizeAvatar(src);
     return src || "/avatars/default1.png";
@@ -386,17 +397,19 @@
 
     modalEl.querySelector("#diceTargetSlider").addEventListener("input", (e) => {
       target = Number(e.target.value);
+      clampTargetForAccount();
       render();
     });
-    modalEl.querySelector("#diceModeUnder").onclick = () => { mode = "under"; render(); };
-    modalEl.querySelector("#diceModeOver").onclick = () => { mode = "over"; render(); };
-    modalEl.querySelector("#diceRollBtn").onclick = rollDice;
+    modalEl.querySelector("#diceModeUnder").onclick = () => { mode = "under"; clampTargetForAccount(); render(); };
+    modalEl.querySelector("#diceModeOver").onclick = () => { mode = "over"; clampTargetForAccount(); render(); };
     modalEl.querySelector("#diceAccountBadge").onclick = () => {
       const next = getAccount() === "bonus" ? "normal" : "bonus";
       if (window.setSelectedAccount) window.setSelectedAccount(next);
       else window.selectedAccount = next;
+      clampTargetForAccount();
       refreshDisplayedBalance();
     };
+    modalEl.querySelector("#diceRollBtn").onclick = () => rollDice();
 
     const socket = getSocket();
     if (socket) {

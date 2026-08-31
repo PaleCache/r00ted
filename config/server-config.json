@@ -8,7 +8,6 @@
   "public": {
     "backgroundImageUrl": "/backgrounds/v.png",
     "loginImageUrl": "/backgrounds/v.png",
-    "pingdomain": "https://mydomain/ [domain for vc ping tests here] ",
     "servericon": "https://mydomain/ [dev badge icon]"
   },
   "jitsi": {

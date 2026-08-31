@@ -3,7 +3,7 @@
    const GROW_MS = 60 * 60 * 1000; 
     const DRY_OUT_MS = 15 * 60 * 1000; 
     const WATER_NEEDED_EVERY_MS = 20 * 60 * 1000; 
-    const HARVEST_XP = 30;
+    const HARVEST_XP = 100;
 
     function getSocket() {
         if (window.socket) return window.socket;
@@ -14,6 +14,8 @@
     }
 
     let pots = []; 
+    let wgBagsHeld = 0;
+    let wgSeedsHeld = { ditch: 0, kush: 0, lights: 0 };
     let listenersBound = false;
     let tickTimer = null;
     let els = {};
@@ -406,6 +408,191 @@
         box.style.height = "";
     }
 
+    function injectStoreStyles() {
+    if (document.getElementById("wgStoreStyles")) return;
+    const style = document.createElement("style");
+    style.id = "wgStoreStyles";
+    style.textContent = `
+    #wgStoreModal {
+        position: fixed; inset: 0; pointer-events: none;
+        display: none; align-items: center; justify-content: center;
+        z-index: 30600;
+    }
+    #wgStoreModal.show { display: flex; }
+    #wgStoreBox {
+        width: 420px; max-width: 92vw;
+        max-height: 80vh;
+        background: rgba(10, 12, 10, 0.95);
+        border: 1px solid #2f3a2f; border-radius: 14px;
+        display: flex; flex-direction: column; overflow: hidden;
+        pointer-events: auto;
+    }
+    #wgStoreHeader {
+        display:flex; align-items:center; justify-content:space-between;
+        padding: 14px 18px; border-bottom: 1px solid #2f3a2f;
+    }
+    #wgStoreHeader h3 { margin:0; color:#fff; font-size:16px; }
+    #wgStoreCloseBtn {
+        background:none; border:none; color:#72767d; font-size:20px; cursor:pointer;
+        transition: color .15s;
+    }
+    #wgStoreCloseBtn:hover { color:#fff; }
+    #wgStoreBalance {
+        padding: 10px 18px; color:#b9bbbe; font-size:12px;
+        border-bottom: 1px solid #2f3a2f;
+    }
+    #wgStoreBalance b { color:#ffd700; }
+    #wgStoreItems {
+        padding: 14px 18px; overflow-y: auto; display:flex; flex-direction:column; gap:12px;
+    }
+    .wg-store-item {
+        display:flex; align-items:center; gap:12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid #2f3a2f; border-radius: 10px;
+        padding: 12px;
+    }
+    .wg-store-icon {
+        font-size: 28px; width:44px; height:44px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        background: rgba(255,255,255,0.04); border-radius: 8px;
+    }
+    .wg-store-info { flex:1; min-width:0; }
+    .wg-store-name { color:#fff; font-size:13px; font-weight:700; margin-bottom:2px; }
+    .wg-store-desc { color:#8a8d93; font-size:11px; line-height:1.4; }
+    .wg-store-owned { color:#8fdc6a; font-size:11px; margin-top:4px; }
+    .wg-store-buy-group { display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
+    .wg-store-buy-btn {
+        background:#2f8f4e; border:none; color:#fff; padding:6px 12px;
+        border-radius:6px; cursor:pointer; font-size:12px; font-weight:700;
+        white-space:nowrap; transition: filter .15s, opacity .15s;
+    }
+    .wg-store-buy-btn:hover { filter:brightness(1.15); }
+    .wg-store-buy-btn:disabled { opacity:.4; cursor:not-allowed; }
+    `;
+    document.head.appendChild(style);
+}
+
+let wgStoreEls = {};
+
+function buildStoreModal() {
+    if (document.getElementById("wgStoreModal")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "wgStoreModal";
+    modal.innerHTML = `
+    <div id="wgStoreBox">
+        <div id="wgStoreHeader">
+            <h3>🛒 Grow Shop</h3>
+            <button id="wgStoreCloseBtn">✕</button>
+        </div>
+        <div id="wgStoreBalance">
+            Balance: <b id="wgStoreBalanceAmt">0</b> chips &nbsp;
+        </div>
+        <div id="wgStoreItems"></div>
+    </div>
+    `;
+    document.body.appendChild(modal);
+
+    wgStoreEls = {
+        modal,
+        closeBtn: document.getElementById("wgStoreCloseBtn"),
+        balanceAmt: document.getElementById("wgStoreBalanceAmt"),
+        items: document.getElementById("wgStoreItems"),
+    };
+
+    wgStoreEls.closeBtn.onclick = closeWgStore;
+    modal.addEventListener("click", (e) => { if (e.target === modal) closeWgStore(); });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && modal.classList.contains("show")) closeWgStore();
+    });
+
+    renderStoreItems();
+}
+
+let wgStrainsCache = [];
+
+function renderStoreItems() {
+    if (!wgStoreEls.items) return;
+
+    const strainRows = wgStrainsCache.map(strain => `
+    <div class="wg-store-item">
+        <div class="wg-store-icon">🌱</div>
+        <div class="wg-store-info">
+            <div class="wg-store-name">${strain.name}</div>
+            <div class="wg-store-desc">Grows in ~${strain.growMinutes} min. Harvest for ${strain.harvestChips} bonus chips.</div>
+            <div class="wg-store-owned">You own <span data-seed-owned="${strain.id}">0</span></div>
+        </div>
+        <div class="wg-store-buy-group">
+            <button class="wg-store-buy-btn" data-item="seed" data-strain="${strain.id}" data-amt="1">Buy 1 · ${strain.seedCostChips} chip${strain.seedCostChips > 1 ? "s" : ""}</button>
+            <button class="wg-store-buy-btn" data-item="seed" data-strain="${strain.id}" data-amt="5">Buy 5 · ${strain.seedCostChips * 5} chips</button>
+        </div>
+    </div>
+    `).join("");
+
+    wgStoreEls.items.innerHTML = `
+    ${strainRows}
+    <div class="wg-store-item">
+        <div class="wg-store-icon">🧪</div>
+        <div class="wg-store-info">
+            <div class="wg-store-name">Fertilizer bag</div>
+            <div class="wg-store-desc">Shaves 3 min off a plant's grow time. Max 10 bags per plant.</div>
+            <div class="wg-store-owned">You own <span id="wgStoreFertOwned">0</span></div>
+        </div>
+        <div class="wg-store-buy-group">
+            <button class="wg-store-buy-btn" data-item="fertilizer" data-amt="1">Buy 1 · 1 chip</button>
+            <button class="wg-store-buy-btn" data-item="fertilizer" data-amt="5">Buy 5 · 5 chips</button>
+            <button class="wg-store-buy-btn" data-item="fertilizer" data-amt="10">Buy 10 · 10 chips</button>
+        </div>
+    </div>
+    `;
+
+    wgStoreEls.items.querySelectorAll(".wg-store-buy-btn").forEach(btn => {
+        btn.onclick = () => {
+            const socket = getSocket();
+            if (!socket) return;
+
+            const amt = Number(btn.dataset.amt);
+            const item = btn.dataset.item;
+
+            if (item === "seed") {
+                const strainId = btn.dataset.strain;
+                wgSeedsHeld[strainId] = (wgSeedsHeld[strainId] || 0) + amt;
+                const el = wgStoreEls.items.querySelector(`[data-seed-owned="${strainId}"]`);
+                if (el) el.textContent = wgSeedsHeld[strainId];
+                renderPots();
+
+                btn.disabled = true;
+                socket.emit("seedBuy", { strainId, amount: amt });
+                setTimeout(() => { btn.disabled = false; }, 400);
+            } else {
+                wgBagsHeld += amt;
+                const fertOwnedEl = document.getElementById("wgStoreFertOwned");
+                if (fertOwnedEl) fertOwnedEl.textContent = wgBagsHeld;
+                renderPots();
+
+                btn.disabled = true;
+                socket.emit("fertilizerBuy", { amount: amt });
+                setTimeout(() => { btn.disabled = false; }, 400);
+            }
+        };
+    });
+}
+
+function openWgStore() {
+    injectStoreStyles();
+    buildStoreModal();
+    wgStoreEls.modal.classList.add("show");
+    const socket = getSocket();
+    if (socket) socket.emit("wgStoreGetState");
+}
+
+function closeWgStore() {
+    if (wgStoreEls.modal) wgStoreEls.modal.classList.remove("show");
+}
+
+window.openWgStore = openWgStore;
+window.closeWgStore = closeWgStore;
+
     function buildModal() {
         if (document.getElementById("wgModal")) return;
 
@@ -415,14 +602,26 @@
         <div id="wgBox">
         <div id="wgHeader">
         <h3>${wgLeafIconMarkup(22)} Grow Room</h3>
+        <div style="display:flex; align-items:center; gap:10px;">
+        <button id="wgFertilizerBtn" style="
+            background:#2b3a24; color:#8fdc6a;
+            padding:5px 10px; border-radius:8px; font-size:12px; cursor:pointer;
+            display:flex; align-items:center; gap:6px;
+            border: none; outline: none;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+            font-family: inherit;
+        ">🛒 Store</button>
         <button id="wgCloseBtn">✕</button>
+        </div>
         </div>
         <div id="wgRoomWrap"></div>
         <div id="wgLeaderboardWrap">
             <div id="wgLeaderboardTitle">🏆 Top Growers</div>
             <div id="wgLeaderboardList"><div class="wg-lb-empty">Loading…</div></div>
         </div>
-        <div id="wgFooter">Water each plant when it's thirsty. Full grow takes ~1 hour. Harvest for <b>${HARVEST_XP} XP</b>.</div>
+        <div id="wgFooter">Water each plant when it's thirsty. Harvest to earn bonus chips.</div>
         <div id="wgResizeHandle"></div>
         </div>
         `;
@@ -438,6 +637,13 @@
         closeWeedGrow();
         window.openGamesMenu();    
         }
+
+        els.fertilizerBtn = document.getElementById("wgFertilizerBtn");
+        els.fertilizerBtn.onclick = () => {
+            openWgStore();
+        };
+
+
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && modal.classList.contains("show")) closeWeedGrow();
         });
@@ -459,30 +665,44 @@
                 <div class="wg-progress-track"><div class="wg-progress-fill" data-role="fill" style="width:0%;"></div></div>
                 <div class="wg-status" data-role="status">Empty pot</div>
                 <button class="wg-harvest-btn" data-role="harvest" data-ready="false">Harvest</button>
+                <button class="wg-harvest-btn" data-role="fertilize" style="background:#8a5a2b; display:none;">🧪 Fertilize (<span data-role="fertCount">0</span>/<span data-role="fertMax">10</span>)</button>
             `;
-slot.querySelector('[data-role="pot"]').onclick = () => {
-    wgLogClick(i, "plant");
-    const socket = getSocket();
-    if (!socket) return;
-    const pot = pots[i];
-    if (!pot || pot.stage === "empty") {
-        socket.emit("weedPlant", { potIndex: i });
-    }
-};
-slot.querySelector('[data-role="water"]').onclick = (e) => {
-    e.stopPropagation();
-    wgLogClick(i, "water");
-    const socket = getSocket();
-    if (!socket) return;
-    socket.emit("weedWater", { potIndex: i });
-};
-slot.querySelector('[data-role="harvest"]').onclick = (e) => {
-    wgLogClick(i, "harvest");
-    const socket = getSocket();
-    if (!socket) return;
-    if (e.currentTarget.dataset.ready !== "true") return; 
-    socket.emit("weedHarvest", { potIndex: i });
-};
+
+            slot.querySelector('[data-role="fertilize"]').onclick = (e) => {
+                e.stopPropagation();
+                const socket = getSocket();
+                if (!socket) return;
+                e.currentTarget.disabled = true; 
+                socket.emit("fertilizerApply", { potIndex: i });
+            };
+            slot.querySelector('[data-role="pot"]').onclick = (e) => {
+            wgLogClick(i, "plant");
+            const socket = getSocket();
+            if (!socket) return;
+            const pot = pots[i];
+            if (!pot || pot.stage === "empty") {
+                const totalSeeds = Object.values(wgSeedsHeld).reduce((a, b) => a + b, 0);
+                if (totalSeeds <= 0) {
+                    openWgStore();
+                    return;
+                }
+                wgShowStrainPicker(i, e.currentTarget);
+            }
+        };
+            slot.querySelector('[data-role="water"]').onclick = (e) => {
+                e.stopPropagation();
+                wgLogClick(i, "water");
+                const socket = getSocket();
+                if (!socket) return;
+                socket.emit("weedWater", { potIndex: i });
+            };
+            slot.querySelector('[data-role="harvest"]').onclick = (e) => {
+                wgLogClick(i, "harvest");
+                const socket = getSocket();
+                if (!socket) return;
+                if (e.currentTarget.dataset.ready !== "true") return; 
+                socket.emit("weedHarvest", { potIndex: i });
+            };
             els.roomWrap.appendChild(slot);
         }
     }
@@ -628,7 +848,20 @@ slot.querySelector('[data-role="harvest"]').onclick = (e) => {
         const defs = svgDefs();
 
     
-        if (pot.stage === "empty") return "";
+        if (pot.stage === "empty") {
+        status.innerHTML = "Empty pot click to plant";
+        } else if (pot.stage === "ready") {
+        status.innerHTML = `<b>${pot.strainName || "Plant"} ready to harvest!</b>`;
+
+        } else if (pot.wilted) {
+            const mins = Math.max(0, Math.ceil((pot.deathInMs || 0) / 60000));
+            status.innerHTML = `${pot.strainName || "Plant"} wilting dies in <b>${mins}m</b> water it now!`;
+        } else if (pot.needsWater) {
+            status.innerHTML = `${pot.strainName || "Plant"} thirsty needs water`;
+        } else {
+            const mins = Math.ceil((pot.growMsLeft || 0) / 60000);
+            status.innerHTML = `${pot.strainName || "Growing"} <b>${mins}m</b> left`;
+        }
 
         if (progress < 0.15) {
          
@@ -722,34 +955,56 @@ slot.querySelector('[data-role="harvest"]').onclick = (e) => {
     }
 
     function renderPots() {
-        for (let i = 0; i < POT_COUNT; i++) {
-            const slot = els.roomWrap.querySelector(`.wg-pot-slot[data-idx="${i}"]`);
-            if (!slot) continue;
-            const pot = pots[i] || { stage: "empty" };
+    for (let i = 0; i < POT_COUNT; i++) {
+        const slot = els.roomWrap.querySelector(`.wg-pot-slot[data-idx="${i}"]`);
+        if (!slot) continue;
+        const pot = pots[i] || { stage: "empty" };
 
-            const light = slot.querySelector('[data-role="light"]');
-            const plantContainer = slot.querySelector('[data-role="plant"]');
-            const potEl = slot.querySelector('[data-role="pot"]');
-            const waterDrop = slot.querySelector('[data-role="water"]');
-            const fill = slot.querySelector('[data-role="fill"]');
-            const status = slot.querySelector('[data-role="status"]');
-            const harvestBtn = slot.querySelector('[data-role="harvest"]');
+        const light = slot.querySelector('[data-role="light"]');
+        const plantContainer = slot.querySelector('[data-role="plant"]');
+        const potEl = slot.querySelector('[data-role="pot"]');
+        const waterDrop = slot.querySelector('[data-role="water"]');
+        const fill = slot.querySelector('[data-role="fill"]');
+        const status = slot.querySelector('[data-role="status"]');
+        const harvestBtn = slot.querySelector('[data-role="harvest"]');
+        const fertBtn = slot.querySelector('[data-role="fertilize"]');
+        const fertCountEl = slot.querySelector('[data-role="fertCount"]');
+        const fertMaxEl = slot.querySelector('[data-role="fertMax"]');
 
-            light.classList.toggle("off", pot.stage === "empty");
-            plantContainer.innerHTML = pot.stage === "empty"
-                ? `<span class="wg-empty-plus">➕</span>`
-                : buildPlantSVG(pot);
-            potEl.classList.toggle("disabled", pot.stage !== "empty");
+        light.classList.toggle("off", pot.stage === "empty");
+        plantContainer.innerHTML = pot.stage === "empty"
+            ? `<span class="wg-empty-plus">➕</span>`
+            : buildPlantSVG(pot);
+        potEl.classList.toggle("disabled", pot.stage !== "empty");
 
-            const pct = Math.min(100, Math.round((pot.progress || 0) * 100));
-            fill.style.width = `${pct}%`;
-            fill.classList.toggle("wilted", !!pot.wilted);
+        const pct = Math.min(100, Math.round((pot.progress || 0) * 100));
+        fill.style.width = `${pct}%`;
+        fill.classList.toggle("wilted", !!pot.wilted);
 
-            waterDrop.style.display = (pot.stage !== "empty" && pot.stage !== "ready" && (pot.needsWater || pot.wilted)) ? "block" : "none";
+        waterDrop.style.display = (pot.stage !== "empty" && pot.stage !== "ready" && (pot.needsWater || pot.wilted)) ? "block" : "none";
 
-            const isReady = pot.stage === "ready";
-            harvestBtn.dataset.ready = isReady ? "true" : "false";
-            harvestBtn.classList.toggle("wg-btn-disabled-look", !isReady);
+        const isReady = pot.stage === "ready";
+        harvestBtn.dataset.ready = isReady ? "true" : "false";
+        harvestBtn.classList.toggle("wg-btn-disabled-look", !isReady);
+
+        const isGrowing = pot.stage !== "empty" && !isReady;
+        fertBtn.style.display = isGrowing ? "inline-block" : "none";
+
+        if (isGrowing) {
+            const count = pot.fertilizerCount || 0;
+            const max = pot.fertilizerMax || 10;
+            fertCountEl.textContent = count;
+            fertMaxEl.textContent = max;
+
+            const potMaxedOut = count >= max;
+            const noBagsLocally = wgBagsHeld <= 0;
+            fertBtn.disabled = potMaxedOut || noBagsLocally;
+            fertBtn.style.opacity = fertBtn.disabled ? "0.4" : "1";
+            fertBtn.style.cursor = fertBtn.disabled ? "not-allowed" : "pointer";
+            fertBtn.title = potMaxedOut
+                ? "This plant can't take any more fertilizer"
+                : (noBagsLocally ? "You don't have any fertilizer bags" : "");
+        }
 
         if (pot.stage === "empty") {
             status.innerHTML = "Empty pot click to plant";
@@ -764,8 +1019,8 @@ slot.querySelector('[data-role="harvest"]').onclick = (e) => {
             const mins = Math.ceil((pot.growMsLeft || 0) / 60000);
             status.innerHTML = `Growing <b>${mins}m</b> left`;
         }
-        }
     }
+}
 
     function renderLeaderboard(leaders) {
         const list = document.getElementById("wgLeaderboardList");
@@ -786,24 +1041,84 @@ slot.querySelector('[data-role="harvest"]').onclick = (e) => {
         `).join("");
     }
 
-function startLocalTicker() {
-    if (tickTimer) clearInterval(tickTimer);
-    tickTimer = setInterval(() => {
-        pots.forEach((pot) => {
-            if (!pot || pot.stage === "empty" || pot.stage === "ready") return;
-            if (pot.wilted) {
-                if (typeof pot.deathInMs === "number") {
-                    pot.deathInMs = Math.max(0, pot.deathInMs - 1000);
+    function startLocalTicker() {
+        if (tickTimer) clearInterval(tickTimer);
+        tickTimer = setInterval(() => {
+            pots.forEach((pot) => {
+                if (!pot || pot.stage === "empty" || pot.stage === "ready") return;
+                const potGrowMs = pot.growMs || (wgStrainsCache.find(s => s.id === pot.strainId)?.growMinutes * 60000) || GROW_MS;
+                if (pot.wilted) {
+                    if (typeof pot.deathInMs === "number") {
+                        pot.deathInMs = Math.max(0, pot.deathInMs - 1000);
+                    }
+                } else if (typeof pot.growMsLeft === "number") {
+                    pot.growMsLeft = Math.max(0, pot.growMsLeft - 1000);
+                    pot.progress = Math.min(1, 1 - (pot.growMsLeft / potGrowMs));
+                    if (pot.growMsLeft <= 0) pot.stage = "ready";
                 }
-                
-            } else if (typeof pot.growMsLeft === "number") {
-                pot.growMsLeft = Math.max(0, pot.growMsLeft - 1000);
-                pot.progress = Math.min(1, 1 - (pot.growMsLeft / GROW_MS));
-                if (pot.growMsLeft <= 0) pot.stage = "ready";
+            });
+            renderPots();
+        }, 1000);
+    }
+
+
+function wgShowStrainPicker(potIndex, anchorEl) {
+    document.getElementById("wgStrainPicker")?.remove();
+
+    const owned = Object.entries(wgSeedsHeld).filter(([id, count]) => count > 0);
+    if (owned.length === 0) {
+        openWgStore();
+        return;
+    }
+    if (owned.length === 1) {
+        const socket = getSocket();
+        if (socket) socket.emit("weedPlant", { potIndex, strainId: owned[0][0] });
+        return;
+    }
+
+    const picker = document.createElement("div");
+    picker.id = "wgStrainPicker";
+    picker.style.cssText = `
+        position: fixed; z-index: 30700;
+        background: #16201a; border: 1px solid #2f3a2f; border-radius: 10px;
+        padding: 8px; display: flex; flex-direction: column; gap: 4px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    `;
+    const rect = anchorEl.getBoundingClientRect();
+    picker.style.left = `${rect.left}px`;
+    picker.style.top = `${rect.bottom + 6}px`;
+
+    owned.forEach(([strainId, count]) => {
+        const strain = wgStrainsCache.find(s => s.id === strainId);
+        const btn = document.createElement("button");
+        btn.textContent = `${strain ? strain.name : strainId} (${count})`;
+        btn.style.cssText = `
+            background:#2b3a24; color:#8fdc6a;
+            padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;
+            text-align:left; white-space:nowrap;
+            border: none; outline: none;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+            font-family: inherit;
+        `;
+        btn.onclick = () => {
+            const socket = getSocket();
+            if (socket) socket.emit("weedPlant", { potIndex, strainId });
+            picker.remove();
+        };
+        picker.appendChild(btn);
+    });
+
+    document.body.appendChild(picker);
+    setTimeout(() => {
+        document.addEventListener("click", function closePicker(e) {
+            if (!picker.contains(e.target)) {
+                picker.remove();
+                document.removeEventListener("click", closePicker);
             }
         });
-        renderPots();
-    }, 1000);
+    }, 0);
 }
 
 let boundSocket = null; 
@@ -813,6 +1128,41 @@ function bindSocketListeners() {
     if (!socket || boundSocket === socket) return; 
     boundSocket = socket;
 
+    socket.on("wgStoreState", (data) => {
+    wgBagsHeld = data.bags || 0;
+    wgSeedsHeld = data.seeds || { ditch: 0, kush: 0, lights: 0 };
+    wgStrainsCache = data.strains || [];
+
+    if (wgStoreEls.balanceAmt) wgStoreEls.balanceAmt.textContent = data.balance ?? 0;
+    const fertOwnedEl = document.getElementById("wgStoreFertOwned");
+    if (fertOwnedEl) fertOwnedEl.textContent = wgBagsHeld;
+
+    if (wgStoreEls.items) {
+        renderStoreItems();
+        wgStrainsCache.forEach(s => {
+            const el = wgStoreEls.items.querySelector(`[data-seed-owned="${s.id}"]`);
+            if (el) el.textContent = wgSeedsHeld[s.id] || 0;
+        });
+    }
+    renderPots();
+});
+
+    socket.on("weedFertilized", (data) => {
+        if (pots[data.potIndex] !== undefined) pots[data.potIndex] = data.pot;
+        renderPots();
+    });
+
+    socket.on("seedError", (data) => {
+        console.warn("Seed error:", data?.msg);
+        const socket2 = getSocket();
+        if (socket2) socket2.emit("wgStoreGetState");
+    });
+
+    socket.on("fertilizerError", (data) => {
+        console.warn("Fertilizer error:", data?.msg);
+        const socket2 = getSocket();
+        if (socket2) socket2.emit("wgStoreGetState"); 
+    });
     socket.on("weedState", (state) => {
         pots = state.pots || [];
         renderPots();
@@ -860,7 +1210,7 @@ function bindSocketListeners() {
             wgClearWiltedNotified(data.potIndex);
             renderPots();
             const slot = els.roomWrap.querySelector(`.wg-pot-slot[data-idx="${data.potIndex}"] [data-role="status"]`);
-            if (slot) slot.innerHTML = `<b>+${data.xpAwarded} XP!</b> 🎉`;
+           if (slot) slot.innerHTML = `<b>${data.strainName || "Harvested"}! +${data.chipsAwarded} bonus chips!</b> 🎉`;
         });
 
         socket.on("weedError", (data) => {
@@ -889,6 +1239,7 @@ function bindSocketListeners() {
             bindSocketListeners();
             sock.emit("weedGetState");
             sock.emit("weedLeaderboardGet");
+            sock.emit("wgStoreGetState");
             return;
         }
         if (attemptsLeft <= 0) return;

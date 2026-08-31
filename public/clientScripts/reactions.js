@@ -183,8 +183,8 @@
       pill.className = "reaction-pill";
       pill.style.cssText = `
         display:inline-flex;align-items:center;gap:4px;
-        background:${mine ? "rgba(255,0,0,0.18)" : "rgba(255,255,255,0.06)"};
-        border:1px solid ${mine ? "#FF0000" : "#3a3c42"};
+        background: rgba(255,255,255,0.06);
+        border:1px solid #3a3c42;
         border-radius:10px;padding:2px 7px;cursor:pointer;
         transition:background .15s,border-color .15s;
       `;
@@ -195,7 +195,7 @@
 
       const count = document.createElement("span");
       count.textContent = String(userIds.length);
-      count.style.cssText = `font-size:11px;font-weight:700;color:${mine ? "#FF0000" : "#b9bbbe"};`;
+      count.style.cssText = `font-size:11px;font-weight:700;color: #b9bbbe;`;
       pill.appendChild(count);
       pill.title = buildReactorTooltip(userIds);
       pill.onclick = () => toggleReaction(messageId, key);

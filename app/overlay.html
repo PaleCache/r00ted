@@ -813,14 +813,14 @@ const pingTextEl = document.getElementById('pingText');
 const pingBarsIcon = document.getElementById('pingBarsIcon');
 
 function getPingColor(ping) {
-  if (ping === null || ping <= 0) return '#888888';
+  if (ping === null || ping === undefined) return '#888888';
   if (ping < 170) return '#23a559';
   if (ping < 190) return '#f0b232';
   return '#ff3333';
 }
 
 function getPingBarCount(ping) {
-  if (ping === null || ping <= 0) return 0;
+  if (ping === null || ping === undefined) return 0;
   if (ping < 100) return 4;
   if (ping < 170) return 3;
   if (ping < 190) return 2;
@@ -954,19 +954,18 @@ function applySpeakingState(el, p) {
 }
 
 
+let pingHideTimeout = null;
+
 window.overlayAPI.onPingUpdate((ping) => {
-  if (ping === null || ping === undefined) {
-    pingIndicator.style.display = 'none';
-    pingDivider.style.display = 'none';
-    return;
-  }
+  if (ping === null || ping === undefined) return;
+
   pingIndicator.style.display = 'flex';
   pingDivider.style.display = 'block';
 
   const color = getPingColor(ping);
   const activeBars = getPingBarCount(ping);
 
-  pingTextEl.textContent = ping > 0 ? `${ping}ms` : '--';
+  pingTextEl.textContent = `${ping}ms`; 
   pingTextEl.style.color = color;
   pingBarsIcon.style.color = color;
 
