@@ -28,7 +28,8 @@ const reactionRateLimit = new Map();
 const REACTION_RATE_LIMIT = 500;
 const DICE_BONUS_MAX_WIN_CHANCE = 91;
 const chickenSessions = new Map();
-
+require('dotenv').config({ path: './config/.env' });
+const webpush = require('web-push');
 const LIBRARY_ROOT = path.resolve(path.join(__dirname, "public", "library"));
 const LIBRARY_EXTS = [".zip", ".7z", ".bin", ".gba", ".gb", ".gbc", ".nes", ".sfc", ".smc", ".n64", ".z64", ".iso", ".chd"];
 
@@ -53,8 +54,56 @@ const ALLOWED_UPLOAD_EXT = {
   "application/json": ".json"
 };
 
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:you@yourdomain.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+  console.log("✅ VAPID keys loaded — push notifications enabled");
+} else {
+  console.warn("⚠️ VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY missing from .env — push notifications are DISABLED. Generate a pair with `npx web-push generate-vapid-keys` and add them to ./config/.env");
+}
 
 
+
+
+async function sendPushToUser(userId, { title, body, icon, tag, url }) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+  const user = allUsers.get(userId);
+  const sub = user?.pushSubscription;
+  if (!sub) return;
+  try {
+    await webpush.sendNotification(sub, JSON.stringify({ title, body, icon, tag, url }));
+    console.log(`✅ Push sent to ${userId}`);
+  } catch (err) {
+    console.error(`❌ Push failed for ${userId}:`, err.statusCode, err.body);
+    if (err.statusCode === 410 || err.statusCode === 404) {
+      user.pushSubscription = null;
+      allUsers.set(userId, user);
+      saveUsers();
+    }
+  }
+}
+
+function notifyStreamLive(stream, recipientUserIds) {
+  recipientUserIds.forEach(userId => {
+    const sockets = userSockets.get(userId);
+    const isOnline = sockets && sockets.size > 0;
+
+    if (isOnline) {
+      emitToUser(userId, 'streamLive', stream);
+    } else {
+      sendPushToUser(userId, {
+        title: `🔴 ${stream.name} is now LIVE!`,
+        body: stream.title || `Streaming on ${stream.platform}`,
+        icon: stream.logo,
+        tag: `stream-${stream.platform}-${stream.name}`,
+        url: '/'
+      });
+    }
+  });
+}
 const SESSION_SECRET_FILE = path.join(__dirname, "./data/session-secret.txt");
 let SESSION_SECRET;
 try {
@@ -355,7 +404,14 @@ function loadUsers() {
 
 function saveUsers() {
   const arr = Array.from(allUsers.values());
-  fs.writeFileSync(USERS_FILE, JSON.stringify(arr, null, 2));
+  const tmpPath = "./data/users.json.tmp";
+  try {
+    fs.writeFileSync(tmpPath, JSON.stringify(arr, null, 2));
+    fs.renameSync(tmpPath, USERS_FILE);
+  } catch (e) {
+    console.error("❌ Failed to save users.json:", e);
+    try { fs.unlinkSync(tmpPath); } catch {}
+  }
 }
 
 loadUsers();
@@ -2022,8 +2078,8 @@ const WG_HARVEST_XP = 100;
 const WG_LEADERBOARD_FILE = path.join(__dirname, "./data/weedLeaderboard.json");
 const WG_LEADERBOARD_TOP_N = 10;
 const WG_FERTILIZER_COST_CHIPS = 1;            
-const WG_FERTILIZER_REDUCTION_MS = 3 * 60 * 1000; 
-const WG_FERTILIZER_MAX_PER_POT = 10; 
+const WG_FERTILIZER_REDUCTION_MS = 6 * 60 * 1000;
+const WG_FERTILIZER_MAX_PER_POT = 5; 
 const WG_SEED_COST_CHIPS = 2;
 const WG_STRAINS = {
   ditch: {
@@ -2037,7 +2093,7 @@ const WG_STRAINS = {
     id: "kush",
     name: "OG Kush",
     growMs: 60 * 60 * 1000,
-    harvestXp: 100,
+    harvestXp: 160,
     seedCostChips: 2
   },
   lights: {
@@ -2058,6 +2114,14 @@ function wgEnsureSeedField(user) {
     if (user.seedsOwned[id] === undefined) user.seedsOwned[id] = 0;
   });
   return user;
+}
+
+function wgCanGrowDitch(userId) {
+  const dbUser = allUsers.get(userId);
+  if (!dbUser) return false;
+  const level = dbUser.level || 1;
+  const bonusChips = getBonusBalance(userId);
+  return level === 1 && bonusChips === 0;
 }
 
 function wgGetSeedsOwned(userId, strainId) {
@@ -3147,9 +3211,10 @@ function claimBonus(userId) {
 function adjustUserXp(userId, deltaXp) {
   const user = allUsers.get(userId);
   if (!user) return;
- 
+
+  const oldLevel = user.level || 1;
   user.xp = Math.max(0, (user.xp || 0) + deltaXp);
- 
+
   let level = 1;
   let xpRequired = 0;
   while (user.xp >= xpRequired + getXpForLevel(level)) {
@@ -3157,17 +3222,42 @@ function adjustUserXp(userId, deltaXp) {
     level++;
   }
   user.level = level;
- 
+
+  const prestigeBadges = emoteConfig.prestigeBadges || [];
+  const newlyUnlocked = prestigeBadges.filter(p => p.level > oldLevel && p.level <= user.level);
+  if (newlyUnlocked.length > 0) {
+    if (!user.unlockedPrestigeBadges) user.unlockedPrestigeBadges = [];
+    newlyUnlocked.forEach(p => {
+      if (!user.unlockedPrestigeBadges.includes(p.badge)) {
+        user.unlockedPrestigeBadges.push(p.badge);
+        console.log(`🏆 ${user.username} unlocked prestige badge: ${p.label}`);
+      }
+    });
+  }
+
   allUsers.set(userId, user);
   saveUsers();
- 
+
   const online = onlineUsers.get(userId);
   if (online) {
     online.xp = user.xp;
     online.level = user.level;
   }
- 
-  io.emit("userData", { id: userId, xp: user.xp, level: user.level });
+
+  io.emit("userData", {
+    id: userId,
+    xp: user.xp,
+    level: user.level,
+    unlockedPrestigeBadges: user.unlockedPrestigeBadges || []
+  });
+
+  if (newlyUnlocked.length > 0) {
+    io.sockets.sockets.forEach(sock => {
+      if (sock.userId === userId) {
+        sock.emit("prestigeUnlocked", { badges: newlyUnlocked });
+      }
+    });
+  }
 }
 
 
@@ -3307,7 +3397,7 @@ const KICK_ACCESS_TOKEN = loadTokenFromFile();
 if (KICK_ACCESS_TOKEN) {
   try {
     const allSlugs = streamersConfig.kick.map(k => (typeof k === 'string' ? k : k.slug));
-    const slugChunks = chunkArray(allSlugs, 50);
+    const slugChunks = chunkArray(allSlugs, 45);
 
     const list = [];
     let anyChunkFailed = false;
@@ -3345,7 +3435,7 @@ for (const chunk of slugChunks) {
 
     let userProfiles = {};
     if (liveChannels.length > 0) {
-      const userIdChunks = chunkArray(liveChannels.map(c => c.broadcaster_user_id), 50);
+      const userIdChunks = chunkArray(liveChannels.map(c => c.broadcaster_user_id), 45);
 
       for (const idChunk of userIdChunks) {
         try {
@@ -4012,6 +4102,24 @@ function loadPlaylistsFromDisk() {
   return {};
 }
 
+const BOT_TOKENS_FILE = path.join(__dirname, "./data/botTokens.json");
+
+function loadBotTokens() {
+  if (fs.existsSync(BOT_TOKENS_FILE)) {
+    try { return JSON.parse(fs.readFileSync(BOT_TOKENS_FILE, "utf8")); }
+    catch (e) { console.error("❌ botTokens.json load failed", e); }
+  }
+  return [];
+}
+function saveBotTokens(tokens) {
+  fs.writeFileSync(BOT_TOKENS_FILE, JSON.stringify(tokens, null, 2));
+}
+let botTokens = loadBotTokens();
+
+function isValidBotToken(token) {
+  return botTokens.some(t => t.token === token);
+}
+
 
 const ROLES_FILE = path.join(__dirname, "./data/roles.json");
 
@@ -4534,7 +4642,7 @@ app.post("/upload-image", requireAuth, upload.single("image"), async (req, res) 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
   if (token === CHAT_PASSWORD) return next();
-  if (token === serverConfig.botPassword) {
+  if (isValidBotToken(token)) {
     socket.isBotToken = true;
     return next();
   }
@@ -4570,11 +4678,259 @@ function computeUnseenCount(channel, userId) {
 }
 
 
+const MOON_MAX_BET_CHIPS = 20000;
+const MOON_HOUSE_EDGE = 0.01;
+const MOON_MAX_LEVERAGE = 1000;
+const MOON_MIN_LEVERAGE = 1;
+const MOON_COINS = ["ZEC", "ETH", "SOL", "DOGE"];
+const MOON_COINBASE_PRODUCT = { ZEC: "ZEC-USD", ETH: "ETH-USD", SOL: "SOL-USD", DOGE: "DOGE-USD" };
+const MOON_COINGECKO_ID = { ZEC: "zcash", ETH: "ethereum", SOL: "solana", DOGE: "dogecoin" };
+const MOON_LEADERBOARD_FILE = path.join(__dirname, "./data/moonLeaderboard.json");
+const MOON_LEADERBOARD_TOP_N = 10;
+const MOON_PRICE_POLL_MS = 500;  
+const MOON_POSITION_MIN_HOLD_MS = 3000;     
+                                      
+const MOON_HISTORY_MAX_POINTS = 3000;
+ 
+let moonLeaderboard = new Map();
+const moonSessions = new Map();
+const moonPrices = new Map();
+const moonPriceHistory = new Map();
+let moonPriceInterval = null;
+let moonConsecutiveFailures = 0;
+ 
+MOON_COINS.forEach(c => {
+  moonPrices.set(c, { price: 0, lastUpdate: 0 });
+  moonPriceHistory.set(c, []);
+});
+ 
+function moonLoadLeaderboard() {
+  if (fs.existsSync(MOON_LEADERBOARD_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(MOON_LEADERBOARD_FILE, "utf8"));
+      moonLeaderboard = new Map(Object.entries(data));
+      console.log(`✅ Loaded moon leaderboard (${moonLeaderboard.size} players)`);
+    } catch (e) { console.error("❌ moonLeaderboard.json load failed", e); }
+  }
+}
+function moonSaveLeaderboard() {
+  try {
+    fs.writeFileSync(MOON_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(moonLeaderboard), null, 2));
+  } catch (e) { console.error("❌ Failed to save moonLeaderboard.json:", e); }
+}
+moonLoadLeaderboard();
+ 
+function moonRecordResult(userId, multiplier, payoutChips, coinId, leverage) {
+  const current = moonLeaderboard.get(userId);
+  if (!current || payoutChips > current.payout) {
+    moonLeaderboard.set(userId, { multiplier, payout: payoutChips, ts: Date.now() });
+    moonSaveLeaderboard();
+  }
+  
+ 
+  const user = onlineUsers.get(userId) || allUsers.get(userId);
+  moonRecentWins.unshift({
+    userId,
+    username: user?.username || "Unknown",
+    avatar: user?.avatar || "/avatars/default1.png",
+    multiplier,
+    payout: payoutChips,
+    coinId,
+    leverage,
+    ts: Date.now()
+  });
+  if (moonRecentWins.length > MOON_RECENT_WINS_MAX) moonRecentWins.pop();
+}
+
+function moonBuildPublicFeedPayload() {
+  return moonRecentWins.slice(0, 12).map(w => ({
+    userId: w.userId,
+    username: w.username,
+    avatar: w.avatar,
+    multiplier: w.multiplier,
+    payout: w.payout,
+    coinId: w.coinId,
+    leverage: w.leverage
+  }));
+}
+ 
+function moonBuildLeaderboardPayload() {
+  return Array.from(moonLeaderboard.entries())
+    .map(([userId, entry]) => {
+      const online = onlineUsers.get(userId);
+      const db = allUsers.get(userId);
+      return {
+        userId,
+        username: online?.username || db?.username || "Unknown",
+        avatar: online?.avatar || db?.avatar || "/avatars/default1.png",
+        multiplier: entry.multiplier,
+        payout: entry.payout
+      };
+    })
+    .sort((a, b) => b.payout - a.payout)
+    .slice(0, MOON_LEADERBOARD_TOP_N);
+}
+ 
+function moonBroadcastLeaderboard() {
+  io.emit("moonLeaderboardState", {
+    leaders: moonBuildLeaderboardPayload(),
+    publicFeed: moonBuildPublicFeedPayload()
+  });
+}
+ 
+function moonCurrentPrice(coinId) {
+  return moonPrices.get(coinId)?.price || 0;
+}
+ 
+function moonCalcBustPrice(entryPrice, leverage, direction) {
+  const move = 1 / leverage;
+  if (direction === "long") return entryPrice * (1 - move);
+  return entryPrice * (1 + move);
+}
+ 
+function moonCalcEquity(session, currentPrice) {
+  if (!session || !session.active) return 0;
+  const { entryPrice, leverage, direction, wager } = session;
+  let priceMove;
+  if (direction === "long") priceMove = (currentPrice - entryPrice) / entryPrice;
+  else priceMove = (entryPrice - currentPrice) / entryPrice;
+  const equity = wager * (1 + leverage * priceMove);
+  return Math.max(0, equity);
+}
+ 
+function moonCalcMultiplier(session, currentPrice) {
+  const equity = moonCalcEquity(session, currentPrice);
+  return session.wager > 0 ? equity / session.wager : 0;
+}
+ 
+
+async function moonFetchLivePrices() {
+  try {
+    const now = Date.now();
+    const payload = {};
+    const results = await Promise.allSettled(
+      MOON_COINS.map(coin =>
+        fetch(`https://api.exchange.coinbase.com/products/${MOON_COINBASE_PRODUCT[coin]}/ticker`, {
+          signal: AbortSignal.timeout(3000),
+          headers: { "User-Agent": "moon-price-feed" } 
+        }).then(r => {
+          if (!r.ok) throw new Error(`Coinbase ${r.status}`);
+          return r.json();
+        }).then(d => ({
+          coin,
+          price: parseFloat(d.price),
+          bid: parseFloat(d.bid),
+          ask: parseFloat(d.ask)
+        }))
+      )
+    );
+ 
+ 
+    results.forEach(r => {
+      if (r.status !== "fulfilled") return;
+      const { coin, price, bid, ask } = r.value;
+      if (!Number.isFinite(price) || price <= 0) return;
+ 
+      const low = Number.isFinite(bid) && bid > 0 ? Math.min(bid, price) : price;
+      const high = Number.isFinite(ask) && ask > 0 ? Math.max(ask, price) : price;
+ 
+      moonPrices.set(coin, { price, lastUpdate: now });
+      const hist = moonPriceHistory.get(coin);
+      hist.push({ t: now, price, low, high });
+      if (hist.length > MOON_HISTORY_MAX_POINTS) hist.shift();
+      payload[coin] = { price, low, high }; 
+                                             
+    });
+ 
+    const failCount = results.filter(r => r.status === "rejected").length;
+    if (failCount === MOON_COINS.length) {
+      moonConsecutiveFailures++;
+      if (moonConsecutiveFailures === 1 || moonConsecutiveFailures % 20 === 0) {
+        console.error("❌ Moon: all Coinbase price fetches failed", results.find(r => r.status === "rejected")?.reason?.message);
+      }
+      return; 
+    }
+    moonConsecutiveFailures = 0;
+ 
+    if (Object.keys(payload).length) io.emit("moonPriceUpdate", payload);
+ 
+    moonSessions.forEach((session, userId) => {
+      if (!session.active) return;
+      const price = moonCurrentPrice(session.coinId);
+      if (!price) return;
+      const busted = session.direction === "long"
+        ? price <= session.bustPrice
+        : price >= session.bustPrice;
+ 
+      if (busted) {
+        session.active = false;
+        session.closedAt = Date.now();
+        emitToUser(userId, "moonPositionClosed", {
+          reason: "bust",
+          equity: 0,
+          multiplier: 0,
+          payoutChips: 0,
+          account: session.useBonus ? "bonus" : "normal",
+          balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId),
+          finalPrice: price
+        });
+        moonSessions.delete(userId);
+      } else {
+        emitToUser(userId, "moonPositionUpdate", {
+          currentPrice: price,
+          equity: Math.floor(moonCalcEquity(session, price) * 100) / 100,
+          multiplier: Math.floor(moonCalcMultiplier(session, price) * 100) / 100,
+          bustPrice: session.bustPrice
+        });
+      }
+    });
+  } catch (e) {
+    console.error("❌ Moon live price fetch failed:", e.message);
+  }
+}
+ 
+
+const moonDailyKlines = new Map();
+ const moonRecentWins = [];
+const MOON_RECENT_WINS_MAX = 50;
+async function moonSeedHistory() {
+  for (const coin of MOON_COINS) {
+    try {
+      const id = MOON_COINGECKO_ID[coin];
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/coins/${id}/ohlc?vs_currency=usd&days=1`,
+        { signal: AbortSignal.timeout(6000), headers: { "User-Agent": "moon-price-feed" } }
+      );
+      if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
+      const rows = await res.json();
+      const klines = rows.map(r => ({ t: r[0], o: r[1], h: r[2], l: r[3], c: r[4] }));
+      moonDailyKlines.set(coin, klines);
+      const last = klines[klines.length - 1];
+      if (last) moonPrices.set(coin, { price: last.c, lastUpdate: Date.now() });
+      console.log(`✅ Seeded ${klines.length} real OHLC candles for ${coin} (1D view)`);
+      await new Promise(r => setTimeout(r, 1500));
+    } catch (e) {
+      console.error(`❌ Failed to seed OHLC for ${coin}:`, e.message);
+    }
+  }
+}
+ 
+if (!moonPriceInterval) {
+  moonSeedHistory()
+    .catch(e => console.error("❌ moonSeedHistory failed:", e.message))
+    .finally(() => {
+      moonPriceInterval = setInterval(moonFetchLivePrices, MOON_PRICE_POLL_MS);
+      moonFetchLivePrices();
+    });
+}
 
 io.on("connection", (socket) => {
-  socket.emit('serverConfig', {
+socket.emit('serverConfig', {
     jitsi: serverConfig.jitsi,
-    server:serverConfig.public,
+    server: {
+      ...serverConfig.public,
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY || null
+    },
     serverBanner: currentServerBanner,
     pepeList: emoteConfig.pepeList,
     profileEffects: emoteConfig.profileEffects || [],
@@ -4591,10 +4947,297 @@ socket.on("getChannels", () => {
   socket.emit("channelList", dynamicChannels);
 });
 
+
+
+socket.on('registerPushSubscription', (sub) => {
+  const userId = socket.userId;
+  if (!userId || !sub) return;
+  const user = allUsers.get(userId);
+  if (!user) return;
+  user.pushSubscription = sub;
+  allUsers.set(userId, user);
+  saveUsers();
+  console.log(`📬 Push subscription saved for userId: ${userId}`);
+});
+
+socket.on('unregisterPushSubscription', (sub) => {
+  const userId = socket.userId;
+  if (!userId) return;
+  const user = allUsers.get(userId);
+  if (!user) return;
+  if (!sub || !user.pushSubscription || user.pushSubscription.endpoint === sub.endpoint) {
+    user.pushSubscription = null;
+    allUsers.set(userId, user);
+    saveUsers();
+    console.log(`📭 Push subscription removed for userId: ${userId}`);
+  }
+});
+
 socket.emit("roleList", customRoles);
 
 socket.on("getRoles", () => {
   socket.emit("roleList", customRoles);
+});
+
+
+socket.on("moonGetState", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = moonSessions.get(userId);
+ 
+  const prices = {};
+  const history = {};
+  const klines = {};
+  MOON_COINS.forEach(c => {
+    prices[c] = moonCurrentPrice(c);
+    history[c] = moonPriceHistory.get(c) || [];   
+    klines[c] = moonDailyKlines.get(c) || [];      
+  });
+ 
+  if (!session || !session.active) {
+    socket.emit("moonState", {
+      active: false,
+      balance: getChipBalance(userId),
+      bonusBalance: getBonusBalance(userId),
+      prices,
+      history,
+      klines,
+      coins: MOON_COINS,
+      maxLeverage: MOON_MAX_LEVERAGE,
+      maxBet: MOON_MAX_BET_CHIPS
+    });
+    return;
+  }
+ 
+  const price = moonCurrentPrice(session.coinId);
+  socket.emit("moonState", {
+    active: true,
+    coinId: session.coinId,
+    direction: session.direction,
+    leverage: session.leverage,
+    wager: session.wager,
+    entryPrice: session.entryPrice,
+    bustPrice: session.bustPrice,
+    currentPrice: price,
+    equity: Math.floor(moonCalcEquity(session, price) * 100) / 100,
+    multiplier: Math.floor(moonCalcMultiplier(session, price) * 100) / 100,
+    account: session.useBonus ? "bonus" : "normal",
+    balance: getChipBalance(userId),
+    bonusBalance: getBonusBalance(userId),
+    prices,
+    history,
+    klines,
+    coins: MOON_COINS,
+    maxLeverage: MOON_MAX_LEVERAGE,
+    maxBet: MOON_MAX_BET_CHIPS
+  });
+});
+ 
+socket.on("moonOpen", (data) => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+
+  const session = moonSessions.get(userId);
+  
+  if (session && session.active) {
+    socket.emit("moonError", { msg: "You already have an open position." });
+    return;
+  }
+
+  if (session && !session.active && session.closedAt) {
+    const timeSinceClosed = Date.now() - session.closedAt;
+    if (timeSinceClosed < MOON_POSITION_MIN_HOLD_MS) {
+      const remainingMs = MOON_POSITION_MIN_HOLD_MS - timeSinceClosed;
+      socket.emit("moonError", { 
+        msg: `Wait ${Math.ceil(remainingMs / 1000)}s before opening another position.` 
+      });
+      return;
+    }
+  }
+  
+  if (session && !session.active) {
+    moonSessions.delete(userId);
+  }
+
+  const coinId = String(data?.coinId || "").toUpperCase();
+  const direction = data?.direction === "short" ? "short" : "long";
+  const leverage = Math.floor(Number(data?.leverage));
+  const amount = Math.floor(Number(data?.amount));
+  const useBonus = data?.account === "bonus";
+ 
+  if (!MOON_COINS.includes(coinId)) {
+    socket.emit("moonError", { msg: "Invalid market." });
+    return;
+  }
+  if (!Number.isFinite(leverage) || leverage < MOON_MIN_LEVERAGE || leverage > MOON_MAX_LEVERAGE) {
+    socket.emit("moonError", { msg: `Leverage must be between ${MOON_MIN_LEVERAGE}x and ${MOON_MAX_LEVERAGE}x.` });
+    return;
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    socket.emit("moonError", { msg: "Invalid wager." });
+    return;
+  }
+  if (amount > MOON_MAX_BET_CHIPS) {
+    socket.emit("moonError", { msg: `Max wager is ${MOON_MAX_BET_CHIPS} chips.` });
+    return;
+  }
+ 
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+  if (amount > balance) {
+    socket.emit("moonError", { msg: "Insufficient balance." });
+    return;
+  }
+ 
+  const entryPrice = moonCurrentPrice(coinId);
+  if (!entryPrice) {
+    socket.emit("moonError", { msg: "Market data not ready yet, try again in a second." });
+    return;
+  }
+ 
+  const fee = Math.floor(amount * MOON_HOUSE_EDGE);
+  const netWager = amount - fee;
+  if (useBonus) placeBonusBet(userId, amount);
+  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+  const bustPrice = moonCalcBustPrice(entryPrice, leverage, direction);
+  const newSession = {
+    active: true,
+    coinId,
+    direction,
+    leverage,
+    wager: netWager,
+    originalWager: amount,
+    entryPrice,
+    bustPrice,
+    openedAt: Date.now(),
+    useBonus
+  };
+  moonSessions.set(userId, newSession);
+ 
+  socket.emit("moonPositionOpened", {
+    coinId,
+    direction,
+    leverage,
+    wager: netWager,
+    originalWager: amount,
+    fee,
+    entryPrice,
+    bustPrice,
+    account: useBonus ? "bonus" : "normal",
+    balance: useBonus ? getBonusBalance(userId) : getChipBalance(userId)
+  });
+ 
+  console.log(`🚀 Moon open: ${onlineUsers.get(userId)?.username || userId} ${direction.toUpperCase()} ${coinId} ${leverage}x for ${amount}`);
+});
+ 
+const MOON_MIN_CLOSE_HOLD_MS = 3000;
+
+socket.on("moonClose", () => {
+  if (!socket.userId || socket.isBot) return;
+  const userId = socket.userId;
+  const session = moonSessions.get(userId);
+  if (!session || !session.active) {
+    socket.emit("moonError", { msg: "No open position." });
+    return;
+  }
+
+  const heldMs = Date.now() - session.openedAt;
+  if (heldMs < MOON_MIN_CLOSE_HOLD_MS) {
+    socket.emit("moonError", { msg: `Hold your position for at least ${Math.ceil((MOON_MIN_CLOSE_HOLD_MS - heldMs) / 1000)}s before closing.` });
+    return;
+  }
+
+  const price = moonCurrentPrice(session.coinId);
+
+  if (price === session.entryPrice) {
+    socket.emit("moonError", { msg: "Waiting for a live price update before you can close." });
+    return;
+  }
+
+  const equity = moonCalcEquity(session, price);
+  const multiplier = moonCalcMultiplier(session, price);
+  const payoutChips = Math.floor(equity);
+
+  session.active = false;
+  session.closedAt = Date.now();
+  moonSessions.delete(userId);
+
+  if (payoutChips > 0) {
+    if (session.useBonus) creditBonusWin(userId, payoutChips);
+    else adjustUserXp(userId, payoutChips * BJ_XP_PER_CHIP);
+  }
+
+  moonRecordResult(userId, multiplier, payoutChips, session.coinId, session.leverage);
+  moonBroadcastLeaderboard();
+
+  socket.emit("moonPositionClosed", {
+    reason: "manual",
+    equity: payoutChips,
+    multiplier: Math.floor(multiplier * 100) / 100,
+    payoutChips,
+    account: session.useBonus ? "bonus" : "normal",
+    balance: session.useBonus ? getBonusBalance(userId) : getChipBalance(userId),
+    finalPrice: price
+  });
+
+  console.log(`💰 Moon close: ${onlineUsers.get(userId)?.username || userId} → ${multiplier.toFixed(2)}x (${payoutChips})`);
+});
+ 
+socket.on("moonLeaderboardGet", () => {
+  if (socket.isBot) return;
+  socket.emit("moonLeaderboardState", {
+    leaders: moonBuildLeaderboardPayload(),
+    publicFeed: moonBuildPublicFeedPayload()
+  });
+});
+
+socket.on("getBotTokens", () => {
+  if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
+  socket.emit("botTokenList", botTokens.map(t => ({
+    id: t.id,
+    name: t.name,
+    token: t.token,
+    createdAt: t.createdAt,
+    createdBy: t.createdBy
+  })));
+});
+
+socket.on("createBotToken", (data) => {
+  if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
+
+  const name = sanitizeString((data?.name || "").trim(), 40) || "Unnamed Bot";
+  const newToken = {
+    id: crypto.randomUUID(),
+    token: crypto.randomBytes(24).toString("hex"),
+    name,
+    createdAt: Date.now(),
+    createdBy: onlineUsers.get(socket.userId)?.username || "Admin"
+  };
+
+  botTokens.push(newToken);
+  saveBotTokens(botTokens);
+
+  socket.emit("botTokenCreated", newToken);
+  console.log(`🤖 Bot token created: "${name}" by ${newToken.createdBy}`);
+});
+
+socket.on("deleteBotToken", (data) => {
+  if (!socket.isAdmin) { socket.emit("error", { msg: "❌ Admin only." }); return; }
+  const { id } = data || {};
+  const idx = botTokens.findIndex(t => t.id === id);
+  if (idx === -1) { socket.emit("error", { msg: "❌ Token not found." }); return; }
+
+  const removed = botTokens[idx];
+  botTokens.splice(idx, 1);
+  saveBotTokens(botTokens);
+
+  io.sockets.sockets.forEach(sock => {
+    if (sock.isBotToken && sock.handshake.auth?.token === removed.token) {
+      sock.disconnect(true);
+    }
+  });
+
+  socket.emit("botTokenDeleted", { id });
+  console.log(`🗑️ Bot token "${removed.name}" deleted by ${onlineUsers.get(socket.userId)?.username}`);
 });
 
 socket.on("createRole", (data) => {
@@ -5346,6 +5989,18 @@ socket.emit("userData", {
 
 if (!socket.isBot && !isReconnect && !wasAlreadyOnline) {
     socket.broadcast.emit("userOnline", serverUser);
+    allUsers.forEach((u, uid) => {
+    if (uid === clientData.id) return;
+    if (onlineUsers.has(uid)) return;
+    if (!u.pushSubscription) return;
+    sendPushToUser(uid, {
+      title: `${serverUser.username} is online`,
+      body: serverUser.customStatus || '',
+      icon: serverUser.avatar || '/avatars/default1.png',
+      tag: `online-${clientData.id}`,
+      url: '/'
+    });
+  });
   }
 
 
@@ -5764,7 +6419,24 @@ socket.on("whisperSend", (data) => {
    groupWhispers.push(msg);
     saveWhispers();
 
-    group.memberIds.forEach(uid => emitToUser(uid, "whisperMessage", msg));
+     group.memberIds.forEach(uid => {
+      if (uid === fromId) return;
+      const sockets = userSockets.get(uid);
+      const isOnline = sockets && sockets.size > 0;
+
+      if (isOnline) {
+        emitToUser(uid, "whisperMessage", msg);
+      } else if (!isEncrypted) {
+        sendPushToUser(uid, {
+          title: `💬 ${msg.fromUsername} (${group.name})`,
+          body: text.slice(0, 120),
+          icon: msg.fromAvatar,
+          tag: `group-${group.id}`,
+          url: '/'
+        });
+      }
+    });
+    emitToUser(fromId, "whisperMessage", msg); 
     return;
   }
 
@@ -5792,8 +6464,22 @@ socket.on("whisperSend", (data) => {
 
   whispers.push(msg);
   saveWhispers();
+   const recipientSockets = userSockets.get(toId);
+  const recipientOnline = recipientSockets && recipientSockets.size > 0;
 
-  emitToUser(toId, "whisperMessage", msg);
+  if (recipientOnline) {
+    emitToUser(toId, "whisperMessage", msg);
+  } else {
+    sendPushToUser(toId, {
+      title: `💬 ${msg.fromUsername}`,
+      body: isEncrypted ? "Sent you a message" : text.slice(0, 120),
+      icon: msg.fromAvatar,
+      tag: `whisper-${fromId}`,
+      url: '/'
+    });
+  }
+
+
   emitToUser(fromId, "whisperMessage", msg);
 });
 
@@ -6143,6 +6829,7 @@ io.to(targetSocket).emit('receivePrivateYoutube', {
     }
 
    
+   
     if (data.type === "text" && typeof data.text === "string") {
       if (data.text.includes("@room")) {
         data.isRoomMention = true;
@@ -6173,6 +6860,24 @@ io.to(targetSocket).emit('receivePrivateYoutube', {
   reactions: data.reactions || {},
   reactionCounts: data.reactionCounts || {}
 });
+
+if (!socket.isBot && (data.type === "text" || data.type === "image" || data.type === "gif")) {
+    allUsers.forEach((u, uid) => {
+      if (uid === userId) return;
+      const sockets = userSockets.get(uid);
+      const isOnline = sockets && sockets.size > 0;
+      if (!isOnline) {
+        const body = data.type === "text" ? data.text.slice(0, 120) : `${data.username} sent a ${data.type}`;
+        sendPushToUser(uid, {
+          title: `#${channel} · ${data.username}`,
+          body,
+          icon: data.avatar,
+          tag: `channel-${channel}`,
+          url: '/'
+        });
+      }
+    });
+  }
   });
 
  socket.on("voiceStateChange", (data) => {
@@ -6211,8 +6916,6 @@ socket.on("botUpdateStatus", (data) => {
   botUser.lastActive = Date.now();
   onlineUsers.set(socket.userId, botUser);
   broadcastOnlineUsers();
-
-  console.log(`🤖 Bot "${botUser.username}" updated status: ${botUser.customStatus || botUser.status || ""}`);
 });
 
 
@@ -6755,6 +7458,7 @@ if (socket.isBot) {
     }
 
     console.log(`⏰ Grace period ended - removing ${user.username} from online`);
+    
 
     let clearedStatus = user.customStatus;
     if (clearedStatus && clearedStatus.startsWith("🎮 Playing")) {
@@ -7951,7 +8655,14 @@ socket.on("seedBuy", (data) => {
     return;
   }
 
+
+  if (strainId === "ditch" && !wgCanGrowDitch(userId)) {
+    socket.emit("seedError", { msg: "Ditch Weed seeds are only available to level 1 players with 0 bonus credits." });
+    return;
+  }
+
   const amount = Math.floor(Number(data?.amount));
+
   if (!Number.isInteger(amount) || amount <= 0 || amount > 100) {
     socket.emit("seedError", { msg: "Invalid amount." });
     return;
@@ -8192,6 +8903,12 @@ socket.on("weedPlant", (data) => {
   const strain = WG_STRAINS[strainId];
   if (!strain) {
     emitToUser(userId, "weedError", { msg: "Invalid strain selected." });
+    return;
+  }
+
+ 
+  if (strainId === "ditch" && !wgCanGrowDitch(userId)) {
+    emitToUser(userId, "weedError", { msg: "Ditch Weed can only be grown by level 1 players with 0 bonus credits." });
     return;
   }
 
@@ -9340,8 +10057,12 @@ function persistAllMessages() {
       whisperGroups: whisperGroups,
       hiddenWhispers: hiddenObj
     };
-    fs.writeFile("./data/messages.json", JSON.stringify(combined, null, 2), (err) => {
-      if (err) console.error("❌ Failed to save messages.json:", err);
+    const tmpPath = "./data/messages.json.tmp";
+    fs.writeFile(tmpPath, JSON.stringify(combined, null, 2), (err) => {
+      if (err) { console.error("❌ Failed to save messages.json:", err); return; }
+      fs.rename(tmpPath, "./data/messages.json", (renameErr) => {
+        if (renameErr) console.error("❌ Failed to finalize messages.json:", renameErr);
+      });
     });
   } catch (err) {
     console.error("❌ Failed to persist messages:", err);

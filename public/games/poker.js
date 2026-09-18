@@ -42,7 +42,7 @@
         position: absolute; width: 110px; text-align: center; transform: translate(-50%, -50%);
       }
       .poker-seat-avatar {
-        width: 40px; height: 40px; border-radius: 50%; border: 2px solid #40444b;
+        width: 40px; height: 40px; border-radius: 50%; border: 2px solid #40444b; -webkit-user-drag: none;
         object-fit: cover; margin: 0 auto 2px; display:block;
       }
         #pokerBuyInBox input[type="number"] {
@@ -167,7 +167,7 @@
     modalEl.id = "pokerModalBox";
     modalEl.innerHTML = `
       <div id="pokerHeader">
-        <h3>♠️ Poker Table <span id="pokerHeaderBalance" style="color:#ffd166; font-size:13px; font-weight:400;"></span></h3>
+        <h3>Poker Table <span id="pokerHeaderBalance" style="color:#ffd166; font-size:13px; font-weight:400;"></span></h3>
         <button id="pokerCloseBtn">✕</button>
       </div>
 

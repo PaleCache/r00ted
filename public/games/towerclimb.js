@@ -181,7 +181,7 @@
         .dt-lb-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
         .dt-lb-rank { width: 20px; text-align:center; font-size:12px; font-weight:700; color:#72767d; flex-shrink:0; }
         .dt-lb-rank.gold { color:#ffd700; } .dt-lb-rank.silver { color:#c9c9c9; } .dt-lb-rank.bronze { color:#cd7f32; }
-        .dt-lb-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink:0; background:#2b2d31; }
+        .dt-lb-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink:0; background:#2b2d31; -webkit-user-drag: none; }
         .dt-lb-name { flex:1; color:#dcddde; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .dt-lb-mult { color:#FF0000; font-size:12px; font-weight:700; flex-shrink:0; }
         .dt-lb-empty { color:#72767d; font-size:12px; text-align:center; padding: 8px 0; }

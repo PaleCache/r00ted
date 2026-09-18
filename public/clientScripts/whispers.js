@@ -3,6 +3,7 @@ let whisperConversations = new Map();
 let activeWhisperKey = null;
 let whispersModalOpen = false;
 let whisperTypingUsers = new Map();
+let whisperSavedRange = null;
 function convoKeyForDM(userId) { return userId; }
 function convoKeyForGroup(groupId) { return `g:${groupId}`; }
 
@@ -218,14 +219,30 @@ const inputRow = document.createElement('div');
 inputRow.id = 'whisperInputRow';
 inputRow.style.cssText = 'display:none; gap:8px;';
 
-const threadInput = document.createElement('input');
+const threadInput = document.createElement('div');
 threadInput.id = 'whisperThreadInput';
-threadInput.type = 'text';
-threadInput.placeholder = 'Select a conversation.....';
-threadInput.disabled = true;
+threadInput.contentEditable = 'false';
+threadInput.dataset.placeholder = 'Select a conversation.....';
+if (!document.getElementById('whisperInputStyle')) {
+  const s = document.createElement('style');
+  s.id = 'whisperInputStyle';
+  s.textContent = `
+    #whisperThreadInput:empty:before {
+      content: attr(data-placeholder);
+      color: #72767d;
+      pointer-events: none;
+    }
+    #whisperThreadInput .inline-emote {
+      width: 28px; height: 28px;
+      object-fit: contain; vertical-align: middle; margin: 0 2px;
+    }
+  `;
+  document.head.appendChild(s);
+}
 threadInput.style.cssText = `
   flex:1; box-sizing:border-box; padding:8px 10px; background:#1e1f22;
   border:1px solid #3a3c42; border-radius:6px; color:#fff; font-size:13px; outline:none;
+  min-height:36px; max-height:120px; overflow-y:auto; cursor:text;
 `;
 
 
@@ -246,10 +263,27 @@ threadInput.addEventListener('input', () => {
   }, 3000);
 });
 
+
+
+threadInput.addEventListener('keyup', () => {
+  const sel = window.getSelection();
+  if (sel.rangeCount && threadInput.contains(sel.anchorNode)) {
+    whisperSavedRange = sel.getRangeAt(0).cloneRange();
+  }
+});
+
+threadInput.addEventListener('mouseup', () => {
+  const sel = window.getSelection();
+  if (sel.rangeCount && threadInput.contains(sel.anchorNode)) {
+    whisperSavedRange = sel.getRangeAt(0).cloneRange();
+  }
+});
+
 threadInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && threadInput.value.trim() && activeWhisperKey) {
-    sendWhisper(activeWhisperKey, threadInput.value.trim());
-    threadInput.value = '';
+  if (e.key === 'Enter' && getWhisperInputText() && activeWhisperKey) {
+    e.preventDefault();
+    sendWhisper(activeWhisperKey, getWhisperInputText());
+    clearWhisperInput();
   }
 });
 
@@ -260,22 +294,16 @@ sendBtn.style.cssText = `
   border-radius:6px; cursor:pointer; font-size:13px; font-weight:600; flex-shrink:0;
 `;
 sendBtn.onclick = () => {
-  if (threadInput.value.trim() && activeWhisperKey) {
-    sendWhisper(activeWhisperKey, threadInput.value.trim());
-    threadInput.value = '';
+  if (getWhisperInputText() && activeWhisperKey) {
+    sendWhisper(activeWhisperKey, getWhisperInputText());
+    clearWhisperInput();
   }
 };
 
-inputRow.appendChild(threadInput);
-inputRow.appendChild(sendBtn);
-threadInputWrap.appendChild(toolbar);
-threadInputWrap.appendChild(inputRow);
-
-
-
-
-
-
+  inputRow.appendChild(threadInput);
+  inputRow.appendChild(sendBtn);
+  threadInputWrap.appendChild(toolbar);
+  threadInputWrap.appendChild(inputRow);
   threadPane.appendChild(threadHeader);
   threadPane.appendChild(threadMessages);
   threadPane.appendChild(threadInputWrap);
@@ -312,6 +340,23 @@ threadInputWrap.appendChild(inputRow);
   wireWhisperGifPicker(whisperGifBtn);
 }
 
+function getWhisperInputText() {
+  const el = document.getElementById('whisperThreadInput');
+  if (!el) return '';
+  let out = '';
+  el.childNodes.forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) out += node.textContent;
+    else if (node.tagName === 'IMG' && node.dataset.emoteFile) {
+      out += `${window.location.origin}/avatars/${node.dataset.emoteFile} `;
+    } else out += node.textContent || '';
+  });
+  return out.trim();
+}
+
+function clearWhisperInput() {
+  const el = document.getElementById('whisperThreadInput');
+  if (el) el.innerHTML = '';
+}
 
 function getLastReadTime(key) {
   try { return parseInt(localStorage.getItem(`whisper_read_${key}`) || '0', 10); }
@@ -532,7 +577,7 @@ function openNewGroupModal() {
       <div style="padding:20px 22px 14px;  flex-shrink:0;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
           <h3 style="margin:0; color:#fff; font-size:17px; display:flex; align-items:center; gap:8px;">
-            <span style="font-size:19px;">👥</span> New Group
+            <span style="font-size:19px;"></span> New Group
           </h3>
           <button id="whisperGroupClose" style="
             background:none; border:none; color:#72767d; font-size:20px;
@@ -560,12 +605,12 @@ function openNewGroupModal() {
         padding:10px 22px 4px; display:flex; align-items:center; justify-content:space-between;
         flex-shrink:0;
       ">
-        <span style="font-size:11px; color:#72767d; text-transform:uppercase; font-weight:700; letter-spacing:0.4px;">
+        <span style="font-size:11px; color: white; text-transform:uppercase; font-weight:700; letter-spacing:0.4px;">
           Members
         </span>
         <span id="whisperGroupSelectedCount" style="
-          font-size:11px; color:#FF0000; font-weight:700;
-          background:rgba(255,0,0,0.12); border:1px solid rgba(255,0,0,0.35);
+          font-size:11px; color: white; font-weight:700;
+          background: #FF0000;
           padding:2px 9px; border-radius:10px;
         ">0 selected</span>
       </div>
@@ -589,7 +634,7 @@ function openNewGroupModal() {
         <button id="whisperGroupCreate" style="
           background:#FF0000; border:none; color:#fff; padding:9px 20px;
           border-radius:8px; cursor:pointer; font-size:13px; font-weight:700;
-          transition:background 0.15s; box-shadow:0 2px 10px rgba(255,0,0,0.3);
+          transition:background 0.15s;
         ">Create Group</button>
       </div>
     </div>
@@ -634,8 +679,8 @@ function openNewGroupModal() {
 
   function updateSelectedCount() {
     selectedCountEl.textContent = `${selected.size} selected`;
-    selectedCountEl.style.color = selected.size > 0 ? '#fff' : '#FF0000';
-    selectedCountEl.style.background = selected.size > 0 ? 'rgba(255,0,0,0.85)' : 'rgba(255,0,0,0.12)';
+    selectedCountEl.style.color = selected.size > 0 ? '#fff' : 'white';
+    selectedCountEl.style.background = selected.size > 0 ? 'rgba(255,0,0,0.85)' : '#FF0000';
     selectedCountEl.style.borderColor = selected.size > 0 ? '#FF0000' : 'rgba(255,0,0,0.35)';
   }
 
@@ -653,8 +698,7 @@ function openNewGroupModal() {
 
     const applyRowState = () => {
       if (isSelected()) {
-        row.style.background = 'rgba(255,0,0,0.12)';
-        row.style.borderColor = 'rgba(255,0,0,0.4)';
+        row.style.background = 'rgb(24, 24, 24)';
       } else {
         row.style.background = 'transparent';
         row.style.borderColor = 'transparent';
@@ -707,17 +751,24 @@ function openNewGroupModal() {
     const textCol = document.createElement('div');
     textCol.style.cssText = 'flex:1; min-width:0; display:flex; flex-direction:column; gap:1px;';
 
+    const nameWrap = document.createElement('div');
+    nameWrap.style.cssText = 'white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+
     const nameSpan = document.createElement('span');
     nameSpan.className = `username-wrapper ${u.usernameColor || 'username-cyan'}`;
-    nameSpan.style.cssText = 'font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+    nameSpan.style.cssText = 'font-size:13px; font-weight:700;';
     nameSpan.textContent = u.username;
+
+
 
     const statusSpan = document.createElement('span');
     const status = u.status || 'online';
     statusSpan.style.cssText = `font-size:11px; color:${status === 'online' ? '#23a559' : '#72767d'};`;
     statusSpan.textContent = status.charAt(0).toUpperCase() + status.slice(1);
 
-    textCol.appendChild(nameSpan);
+    nameWrap.appendChild(nameSpan);
+
+    textCol.appendChild(nameWrap); 
     textCol.appendChild(statusSpan);
 
     row.appendChild(checkWrap);
@@ -821,7 +872,7 @@ function renderWhisperConvoList() {
     row.style.cssText = `
       display:flex; align-items:center; gap:8px; padding:8px; border-radius:8px;
       cursor:pointer; margin-bottom:2px; transition:background 0.12s;
-      background: ${convo.key === activeWhisperKey ? 'rgba(255,0,0,0.15)' : 'transparent'};
+      background: ${convo.key === activeWhisperKey ? 'rgb(24, 24, 24)' : 'transparent'};
       border-left: 3px solid ${convo.key === activeWhisperKey ? '#FF0000' : 'transparent'};
     `;
     row.onmouseover = () => { if (convo.key !== activeWhisperKey) row.style.background = 'rgba(255,255,255,0.05)'; };
@@ -846,10 +897,16 @@ function renderWhisperConvoList() {
     const textCol = document.createElement('div');
     textCol.style.cssText = 'flex:1; min-width:0; display:flex; flex-direction:column; gap:1px;';
 
-    const nameSpan = document.createElement('span');
-    if (!convo.isGroup) nameSpan.className = `username-wrapper ${convo.usernameColor || 'username-cyan'}`;
-    nameSpan.style.cssText = 'font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
-    nameSpan.textContent = convo.name;
+const nameWrap = document.createElement('div');
+nameWrap.style.cssText = 'white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+
+const nameSpan = document.createElement('span');
+if (!convo.isGroup) nameSpan.className = `username-wrapper ${convo.usernameColor || 'username-cyan'}`;
+nameSpan.style.cssText = 'font-size:13px; font-weight:700;';
+nameSpan.textContent = convo.name;
+
+nameWrap.appendChild(nameSpan);
+textCol.appendChild(nameWrap);
     const lastMsg = convo.messages[convo.messages.length - 1];
     const preview = document.createElement('span');
     preview.style.cssText = 'font-size:11px; color:#72767d; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
@@ -863,8 +920,7 @@ function renderWhisperConvoList() {
       preview.textContent = prefix + (lastMsg.text || '');
     }
 
-    textCol.appendChild(nameSpan);
-    textCol.appendChild(preview);
+   
 
     row.appendChild(avatarEl);
     row.appendChild(textCol);
@@ -932,8 +988,8 @@ function openAddMembersModal(groupId) {
           Add Members
         </span>
         <span id="whisperAddSelectedCount" style="
-          font-size:11px; color:#FF0000; font-weight:700;
-          background:rgba(255,0,0,0.12); border:1px solid rgba(255,0,0,0.35);
+          font-size:11px; color: white; font-weight:700;
+          background:#FF0000;
           padding:2px 9px; border-radius:10px;
         ">0 selected</span>
       </div>
@@ -983,8 +1039,8 @@ function openAddMembersModal(groupId) {
 
   function updateSelectedCount() {
     selectedCountEl.textContent = `${selected.size} selected`;
-    selectedCountEl.style.color = selected.size > 0 ? '#fff' : '#FF0000';
-    selectedCountEl.style.background = selected.size > 0 ? 'rgba(255,0,0,0.85)' : 'rgba(255,0,0,0.12)';
+    selectedCountEl.style.color = selected.size > 0 ? '#fff' : 'white';
+    selectedCountEl.style.background = selected.size > 0 ? 'rgba(255,0,0,0.85)' : '#FF0000';
     selectedCountEl.style.borderColor = selected.size > 0 ? '#FF0000' : 'rgba(255,0,0,0.35)';
   }
 
@@ -1160,7 +1216,7 @@ if (!convo) {
     messagesWrap.appendChild(bigEmoji);
     messagesWrap.appendChild(label);
 
-    input.disabled = true;
+    input.contentEditable = 'false';
     return;
 }
 
@@ -1207,11 +1263,15 @@ messagesWrap.style.cssText = 'flex:1; overflow-y:auto; padding:10px 14px; displa
     const img = document.createElement('img');
     img.src = sanitizeAvatar(convo.avatar);
     img.style.cssText = 'width:22px; height:22px; border-radius:50%; flex-shrink:0;';
+    const nameWrap = document.createElement('div');
+    nameWrap.style.cssText = 'flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+
     const nameSpan = document.createElement('span');
     nameSpan.className = `username-wrapper ${convo.usernameColor || 'username-cyan'}`;
-    nameSpan.style.cssText = 'font-weight:700; font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+    nameSpan.style.cssText = 'font-weight:700; font-size:13px;';
     nameSpan.textContent = convo.name;
 
+    nameWrap.appendChild(nameSpan);
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = '❌';
     deleteBtn.title = 'Remove conversation';
@@ -1224,91 +1284,119 @@ messagesWrap.style.cssText = 'flex:1; overflow-y:auto; padding:10px 14px; displa
     deleteBtn.onclick = () => deleteWhisperConvo(convo.key);
 
     header.appendChild(img);
-    header.appendChild(nameSpan);
+    header.appendChild(nameWrap); 
     header.appendChild(deleteBtn);
 }
 
-  messagesWrap.innerHTML = '';
+ messagesWrap.innerHTML = '';
 convo.messages.forEach(m => {
   const row = document.createElement('div');
-  row.style.cssText = `display:flex; flex-direction:${m.outgoing ? 'row-reverse' : 'row'}; align-items:flex-end; gap:8px;`;
+  row.style.cssText = `display:flex; flex-direction:${m.outgoing ? 'row-reverse' : 'row'}; align-items:flex-start; gap:10px;`;
+
   const avatarSrc = m.outgoing
     ? user.avatar
     : (convo.isGroup ? (m.fromAvatar || '/avatars/default1.png') : convo.avatar);
-  const avatarImg = document.createElement('img');
-  avatarImg.src = sanitizeAvatar(avatarSrc);
-  avatarImg.style.cssText = 'width:28px; height:28px; border-radius:50%; flex-shrink:0; object-fit:cover;';
-  row.appendChild(avatarImg);
 
-  const bubbleCol = document.createElement('div');
-  bubbleCol.style.cssText = `display:flex; flex-direction:column; align-items:${m.outgoing ? 'flex-end' : 'flex-start'}; max-width:75%;`;
-
+  let avatarColorClass;
   if (m.outgoing) {
-    const youLabel = document.createElement('span');
-    youLabel.style.cssText = 'font-size:11px; font-weight:700; color:#72767d; margin-bottom:2px;';
-    youLabel.textContent = 'You';
-    bubbleCol.appendChild(youLabel);
+    avatarColorClass = user.usernameColor || 'username-cyan';
   } else if (convo.isGroup) {
-    const senderLabel = document.createElement('span');
-    senderLabel.style.cssText = `font-size:11px; font-weight:700; color:${colorClassToHex?.[m.fromUsernameColor] || '#00f2ff'}; margin-bottom:2px;`;
-    senderLabel.textContent = m.fromUsername;
-    bubbleCol.appendChild(senderLabel);
+    avatarColorClass = m.fromUsernameColor || 'username-cyan';
+  } else {
+    avatarColorClass = convo.usernameColor || 'username-cyan';
   }
 
+  const avatarImg = document.createElement('img');
+  avatarImg.src = sanitizeAvatar(avatarSrc);
+  avatarImg.style.cssText = 'width:34px; height:34px; border-radius:50%; flex-shrink:0; object-fit:cover;';
+  applyAvatarBorder(avatarImg, avatarColorClass, 3);
+  row.appendChild(avatarImg);
+
+  const contentCol = document.createElement('div');
+  contentCol.style.cssText = `display:flex; flex-direction:column; max-width:75%; align-items:${m.outgoing ? 'flex-end' : 'flex-start'};`;
+
+  const headerLine = document.createElement('div');
+  headerLine.style.cssText = `display:flex; flex-direction:${m.outgoing ? 'row-reverse' : 'row'}; align-items:baseline; gap:6px; margin-bottom:3px;`;
+
+const nameLabel = document.createElement('span');
+nameLabel.style.cssText = 'font-size:13px; font-weight:700;';
+
+let labelText, labelColorClass;
+if (m.outgoing) {
+  labelText = user.username;
+  labelColorClass = user.usernameColor || 'username-cyan';
+} else if (convo.isGroup) {
+  labelText = m.fromUsername;
+  labelColorClass = m.fromUsernameColor || 'username-cyan';
+} else {
+  labelText = convo.name;
+  labelColorClass = convo.usernameColor || 'username-cyan';
+}
+
+nameLabel.className = `username-wrapper ${labelColorClass}`;
+nameLabel.textContent = labelText;
+
+  const timeSpan = document.createElement('span');
+  timeSpan.style.cssText = 'font-size:10px; color:#72767d;';
+  timeSpan.textContent = formatTime(m.time);
+
+  headerLine.appendChild(nameLabel);
+  headerLine.appendChild(timeSpan);
+  contentCol.appendChild(headerLine);
   const bubble = document.createElement('div');
   bubble.style.cssText = `
-      max-width:75%; padding:7px 10px; border-radius:10px; font-size:13px; line-height:1.4;
-      background: rgba(0, 0, 0, 0.6);
-      color: #fff; word-break: break-word;
-    `;
-    if (m.encrypted && m.encPayload) {
-      bubble.textContent = activeEncryptionPassword ? "🔓 Decrypting..." : "🔒 Encrypted (enter this messages password in settings)";
-      decryptText(m.encPayload).then(plain => {
-        bubble.innerHTML = '';
-        if (plain !== null) {
-          bubble.appendChild(parseContent(plain));
-        } else {
-          bubble.textContent = "🔒 Wrong password for this message";
-        }
-      });
-      row.appendChild(bubble);
-    } else {
-      const looksLikeUrl = /^https?:\/\/\S+$/i.test((m.text || '').trim());
+    padding:7px 10px; border-radius:10px; font-size:13px; line-height:1.4;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff; word-break: break-word; max-width:100%;
+  `;
 
-      if (looksLikeUrl) {
-        const img = document.createElement('img');
-        img.src = m.text.trim();
-        img.loading = 'lazy';
-        img.style.cssText = 'max-width:220px; max-height:220px; border-radius:8px; display:block; cursor:pointer;';
-        img.onclick = () => openImageModal(m.text.trim());
-
-        img.onerror = () => {
-          img.remove();
-          bubble.style.padding = '7px 10px';
-          bubble.style.background = '#2b2d31';
-          bubble.appendChild(parseContent(m.text || ''));
-        };
-
-        bubble.style.padding = '4px';
-        bubble.style.background = 'transparent';
-        bubble.appendChild(img);
+  if (m.encrypted && m.encPayload) {
+    bubble.textContent = activeEncryptionPassword ? "🔓 Decrypting..." : "🔒 Encrypted (enter this messages password in settings)";
+    decryptText(m.encPayload).then(plain => {
+      bubble.innerHTML = '';
+      if (plain !== null) {
+        bubble.appendChild(parseContent(plain));
       } else {
-        bubble.appendChild(parseContent(m.text || ''));
+        bubble.textContent = "🔒 Wrong password for this message";
       }
-      row.appendChild(bubble);
+    });
+  } else {
+    const looksLikeUrl = /^https?:\/\/\S+$/i.test((m.text || '').trim());
+
+        if (looksLikeUrl) {
+      const src = m.text.trim();
+      const isGif = src.toLowerCase().includes('.gif') || src.includes('media.giphy.com') || src.includes('media.tenor.com');
+      const img = document.createElement('img');
+      img.src = src;
+      img.loading = 'lazy';
+      img.style.cssText = isGif
+        ? 'max-width:220px; max-height:220px; border-radius:8px; display:block; cursor:pointer;'
+        : 'max-width:80px; max-height:80px; border-radius:8px; display:block; cursor:pointer;';
+      img.onclick = () => openImageModal(src);
+
+      img.onerror = () => {
+        img.remove();
+        bubble.style.padding = '7px 10px';
+        bubble.style.background = 'rgba(0, 0, 0, 0.6)';
+        bubble.appendChild(parseContent(m.text || ''));
+      };
+
+      bubble.style.padding = '4px';
+      bubble.style.background = 'transparent';
+      bubble.appendChild(img);
+    } else {
+      bubble.appendChild(parseContent(m.text || ''));
     }
+  }
 
-    const timeSpan = document.createElement('span');
-    timeSpan.style.cssText = 'font-size:10px; color:#72767d; margin-top:2px;';
-    timeSpan.textContent = formatTime(m.time);
+  contentCol.appendChild(bubble);
+  row.appendChild(contentCol);
+  messagesWrap.appendChild(row);
+});
+messagesWrap.scrollTop = messagesWrap.scrollHeight;
 
-    row.appendChild(timeSpan);
-    messagesWrap.appendChild(row);
-  });
-  messagesWrap.scrollTop = messagesWrap.scrollHeight;
-
-  input.disabled = false;
-  input.placeholder = convo.isGroup ? `Message ${convo.name}...` : `Whisper to ${convo.name}...`;
+input.contentEditable = 'true';
+input.dataset.placeholder = convo.isGroup ? `Message ${convo.name}...` : `Whisper to ${convo.name}...`;
 }
 
 function showWhisperNotificationBanner(data, key, convo) {
@@ -1498,9 +1586,10 @@ function renderWhisperEmojiGrid(query, input) {
     pageItems.forEach(({ emoji, name }) => {
       const item = document.createElement("div");
       item.style.cssText = `
-        position: relative; aspect-ratio: 1; border-radius: 6px;
+        position: relative; border-radius: 6px;
         background: #1e1f22; display: flex; align-items: center; justify-content: center;
-        cursor: pointer; transition: background 0.15s, transform 0.1s; font-size: 20px;
+        cursor: pointer; transition: background 0.15s, transform 0.1s;
+        width: 80px; height: 80px;
       `;
       item.onmouseover = () => { item.style.background = "#2a2c31"; item.style.transform = "scale(1.1)"; };
       item.onmouseout = () => { item.style.background = "#1e1f22"; item.style.transform = "scale(1)"; };
@@ -1741,15 +1830,64 @@ function renderWhisperEmoteGrid(query) {
 
       const img = document.createElement("img");
       img.src = `/avatars/${filename}`;
-      img.style.cssText = "width:78%; height:78%; object-fit:contain; pointer-events:none;";
+      img.style.cssText = "width:80px; height:80px; object-fit:contain; pointer-events:none;";
       item.appendChild(img);
 
-      item.onclick = () => {
-        if (!activeWhisperKey) { showToast('Select a conversation first'); return; }
-        sendWhisper(activeWhisperKey, `${window.location.origin}/avatars/${filename}`);
-        document.getElementById('whisperEmotePopover')?.remove();
-      };
+     item.onclick = () => {
+  const now = Date.now();
+  const isDoubleClick = lastEmoteClick.filename === filename && (now - lastEmoteClick.time) < 350;
+  const threadEl = document.getElementById('whisperThreadInput');
 
+  if (isDoubleClick) {
+    const imgs = threadEl?.querySelectorAll(`img[data-emote-file="${CSS.escape(filename)}"]`);
+    const lastImg = imgs?.[imgs.length - 1];
+    if (lastImg) lastImg.remove();
+    lastEmoteClick = { filename: null, time: 0 };
+    if (!activeWhisperKey) { showToast('Select a conversation first'); return; }
+    sendWhisper(activeWhisperKey, `${window.location.origin}/avatars/${filename}`);
+    document.getElementById('whisperEmotePopover')?.remove();
+    return;
+  }
+
+if (threadEl) {
+  const img = document.createElement('img');
+  img.src = `/avatars/${filename}`;
+  img.className = 'inline-emote';
+  img.contentEditable = 'false';
+  img.dataset.emoteFile = filename;
+
+  threadEl.focus();
+
+  const rangeToUse = (whisperSavedRange && threadEl.contains(whisperSavedRange.startContainer))
+    ? whisperSavedRange
+    : (() => {
+        const r = document.createRange();
+        r.selectNodeContents(threadEl);
+        r.collapse(false);
+        return r;
+      })();
+
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(rangeToUse);
+
+  rangeToUse.deleteContents();
+  rangeToUse.insertNode(img);
+
+  const space = document.createTextNode(' ');
+  img.after(space);
+  const after = document.createRange();
+  after.setStartAfter(space);
+  after.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(after);
+  whisperSavedRange = after.cloneRange();
+}
+
+  lastEmoteClick = { filename, time: now };
+  item.style.background = '#FF0000';
+  setTimeout(() => item.style.background = '#1e1f22', 150);
+};
       grid.appendChild(item);
     });
   }
@@ -1893,6 +2031,12 @@ async function loadWhisperCategoryThumbnails(categoryRow) {
       const thumb = first?.images?.fixed_height_small?.url || first?.images?.original?.url;
       if (!thumb) return;
       whisperCategoryThumbCache.set(cat.query, thumb);
+
+    
+      const tile = categoryRow.querySelector(`[data-cat-query="${cat.query}"]`);
+      if (tile) {
+        tile.style.background = `url('${thumb}') center/cover`;
+      }
     } catch (err) {
       console.warn(`Whisper thumbnail fetch failed for "${cat.query}":`, err);
     }
@@ -2011,6 +2155,7 @@ function wireWhisperGifPicker(btn) {
       allTiles.forEach(cat => {
         const thumb = whisperCategoryThumbCache.get(cat.query);
         const tile = document.createElement("div");
+        tile.dataset.catQuery = cat.query;
         tile.style.cssText = `
           position: relative; height: 70px; border-radius: 8px; overflow: hidden;
           cursor: pointer; background: ${thumb ? `url('${thumb}') center/cover` : "#1e1f22"};
@@ -2085,7 +2230,6 @@ function wireWhisperGifPicker(btn) {
 
         const img = document.createElement("img");
         img.src = previewUrl;
-        img.loading = "lazy";
         img.style.cssText = "width:100%; height:100%; object-fit:cover; display:block; pointer-events:none;";
         item.appendChild(img);
 

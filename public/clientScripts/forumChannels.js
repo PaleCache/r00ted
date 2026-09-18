@@ -315,6 +315,8 @@ function openCreateChannelModal(type = "text") {
       
       ${type === "forum" ? `
       <label style="display:flex; align-items:center; gap:8px; margin-top:14px; color:#b9bbbe; font-size:13px; cursor:pointer;">
+        <input id="newChannelSlowModeCheckbox" type="checkbox" style="cursor:pointer; width:16px; height:16px; accent-color:#FF0000;">
+        Enable Slow Mode (rate limit posts)
       </label>` : ``}
       
       <p id="createChannelError" style="color:#ff3333; font-size:13px; min-height:18px; margin:8px 0 0;"></p>

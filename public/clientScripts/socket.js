@@ -42,6 +42,7 @@ socket.on("serverConfig", (data) => {
   serverConfigReceived = true;
   pepeList = data.pepeList || [];
   SERVER_CONFIG.prestigeBadges = data.prestigeBadges || [];
+  VAPID_PUBLIC_KEY = SERVER_CONFIG.server?.vapidPublicKey || null;
   initializePepePicker();
   initializeEmojiPicker();
 
@@ -495,7 +496,9 @@ if (data.level && data.level > oldLevel && !window.plinkoOpen) {
 
 socket.on("connect", () => {
 
-  
+    socket.emit("weedGetState");
+    socket.emit("weedLeaderboardGet");
+    socket.emit("wgStoreGetState");
 
   if (socket.io.engine.readyState === "open" && window.wasConnected) {
     console.log("🔄 This is a RECONNECT");
@@ -1434,3 +1437,14 @@ function markForumThreadRead(postId) {
 
   markReadBtn.style.display = 'none';
 }
+
+socket.on("botTokenList", (tokens) => renderBotTokenList(tokens));
+
+socket.on("botTokenCreated", (data) => {
+  showBotTokenModal(data.name, data.token);
+  socket.emit("getBotTokens");
+});
+
+socket.on("botTokenDeleted", () => {
+  socket.emit("getBotTokens");
+});

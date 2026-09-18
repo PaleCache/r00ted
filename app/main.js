@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, shell, desktopCapturer, dialog, screen, ipcMain, nativeImage, Notification, net } = require('electron');
+const { app, BrowserWindow, Menu, Tray, shell, desktopCapturer, dialog, screen, ipcMain, nativeImage, Notification, net, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -225,6 +225,15 @@ ipcMain.on('update-badge', (event, count) => {
 }
 });
 
+ipcMain.handle('copy-to-clipboard', (event, text) => {
+  try {
+    clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    console.error('Clipboard write failed:', e);
+    return false;
+  }
+});
 
 ipcMain.on('overlay-music-update', (event, musicData) => {
   lastMusicData = musicData; 
@@ -305,7 +314,7 @@ ipcMain.on('show-notification', async (event, { title, body, icon, url, tag, sil
   });
 
   mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
-    const allowedPermissions = ['display-capture', 'media', 'microphone', 'camera', 'screen-wake-lock', 'notifications', 'fullscreen'];
+    const allowedPermissions = ['display-capture', 'media', 'microphone', 'camera', 'screen-wake-lock', 'notifications', 'fullscreen', 'clipboard-read', 'clipboard-write'];
     callback(allowedPermissions.includes(permission));
   });
 
@@ -519,7 +528,7 @@ async function getLinuxNowPlaying() {
 
     const players = [...listOut.matchAll(/"(org\.mpris\.MediaPlayer2\.[^"]+)"/g)].map(m => m[1]);
     if (players.length === 0) return null;
-    const BROWSER_HINTS = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera'];
+    const BROWSER_HINTS = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'librewolf'];
     const isBrowser = (dest) => BROWSER_HINTS.some(h => dest.toLowerCase().includes(h));
     const externalPlayers = players.filter(dest => {
       const pidMatch = dest.match(/instance(\d+)/i);
@@ -579,7 +588,7 @@ async function getLinuxNowPlaying() {
       }
     }
 
-return { isPlaying: true, title, artist: artist || null, artUrl: artUrl || null, source };
+
 
     return { isPlaying: true, title, artist: artist || null, artUrl: artUrl || null, source };
   } catch {
@@ -604,7 +613,7 @@ Function Await($WinRtTask, $ResultType) {
     $netTask.Result
 }
 
-$browserHints = @('chrome', 'brave', 'edge', 'firefox', 'vivaldi', 'opera', 'msedge')
+$browserHints = @('chrome', 'brave', 'edge', 'firefox', 'vivaldi', 'opera', 'msedge', 'librewolf')
 $selfHints = @('r00ted', 'electron')
 
 function Is-Browser($appId) {

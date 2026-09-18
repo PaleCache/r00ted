@@ -20,7 +20,8 @@
     let tickTimer = null;
     let els = {};
     function wgLeafIconInnerSVG() {
-        return `${svgDefs()}${buildLeafSVG(50, 92, 3.4, 0, false)}`;
+        const suffix = `-${wgSvgIdCounter++}`;
+        return `${svgDefs(suffix)}${buildLeafSVG(50, 92, 3.4, 0, false, suffix)}`;
     }
 
 
@@ -233,28 +234,29 @@
         transition: color .15s;
         }
         #wgCloseBtn:hover { color:#fff; }
-        #wgRoomWrap {
-        padding: 24px 18px;
-        background: radial-gradient(ellipse at top, #14251a 0%, #0a0f0a 100%);
-        display:flex; gap:18px; justify-content:center;
-        }
-        .wg-pot-slot {
-        width: 180px; display:flex; flex-direction:column; align-items:center; gap:8px;
-        }
+#wgRoomWrap {
+    padding: 24px 18px;
+    background: radial-gradient(ellipse at top, #14251a 0%, #0a0f0a 100%);
+    display: flex; gap: 18px; justify-content: center; align-items: stretch;
+}
         .wg-light {
         width: 40px; height: 14px; border-radius: 3px;
         background: linear-gradient(180deg, #fff6c9, #e0c34f);
         box-shadow: 0 0 18px 6px rgba(255, 240, 150, 0.55);
         }
         .wg-light.off { background:#333; box-shadow:none; }
-        .wg-plant-area {
-        width: 140px; height: 110px; display:flex; align-items:flex-end; justify-content:center;
-        position: relative; margin-top: 14px;
-        }
-        .wg-plant {
-        font-size: 10px; text-align:center; line-height:1.1; user-select:none;
-        transition: font-size .3s;
-        }
+ .wg-plant-area {
+    width: 100%; height: 180px; position: relative;
+    display: flex; align-items: flex-end; justify-content: center;
+}
+  .wg-plant-svg {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; align-items: flex-end; justify-content: center;
+    width: 100%; height: 100%;
+}
+.wg-pot-slot {
+    flex: 1; max-width: 180px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
         .wg-pot {
         width: 66px; height: 44px;
         background: linear-gradient(180deg, #8a5a2b, #6b4420);
@@ -267,13 +269,10 @@
         }
         .wg-pot:hover { transform: scale(1.03); }
         .wg-pot.disabled { cursor:default; }
-        .wg-pot-rim {
-        position:absolute; top:-6px; left:-4px; right:-4px; height:12px;
-        background:#7a4c25; border-radius: 6px; border: 1px solid #4a2f16;
-        }
+
         .wg-plant-svg {
-        position:absolute; bottom:44px; display:flex; align-items:flex-end; justify-content:center;
-        transition: transform .3s ease;
+            position:absolute; bottom:0; left:0; right:0;
+            display:flex; align-items:flex-end; justify-content:center;
         }
         .wg-plant-svg svg { display:block; overflow: visible; }
         .wg-empty-plus { font-size: 30px; color:#3a4a3a; }
@@ -327,7 +326,7 @@
         .wg-lb-rank.silver { color:#c9c9c9; }
         .wg-lb-rank.bronze { color:#cd7f32; }
         .wg-lb-avatar {
-        width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink:0;
+        width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink:0; -webkit-user-drag: none;
         background: #2b2d31;
         }
         .wg-lb-name {
@@ -535,7 +534,7 @@ function renderStoreItems() {
         <div class="wg-store-icon">🧪</div>
         <div class="wg-store-info">
             <div class="wg-store-name">Fertilizer bag</div>
-            <div class="wg-store-desc">Shaves 3 min off a plant's grow time. Max 10 bags per plant.</div>
+            <div class="wg-store-desc">Shaves 6 min off a plant's grow time. Max 5 bags per plant.</div>
             <div class="wg-store-owned">You own <span id="wgStoreFertOwned">0</span></div>
         </div>
         <div class="wg-store-buy-group">
@@ -660,7 +659,7 @@ window.closeWgStore = closeWgStore;
                 <div class="wg-plant-area">
                     <div class="wg-water-drop" data-role="water" style="display:none;">💧</div>
                     <div class="wg-plant-svg" data-role="plant"><span class="wg-empty-plus">➕</span></div>
-                    <div class="wg-pot" data-role="pot"><div class="wg-pot-rim"></div></div>
+                
                 </div>
                 <div class="wg-progress-track"><div class="wg-progress-fill" data-role="fill" style="width:0%;"></div></div>
                 <div class="wg-status" data-role="status">Empty pot</div>
@@ -668,15 +667,7 @@ window.closeWgStore = closeWgStore;
                 <button class="wg-harvest-btn" data-role="fertilize" style="background:#8a5a2b; display:none;">🧪 Fertilize (<span data-role="fertCount">0</span>/<span data-role="fertMax">10</span>)</button>
             `;
 
-            slot.querySelector('[data-role="fertilize"]').onclick = (e) => {
-                e.stopPropagation();
-                const socket = getSocket();
-                if (!socket) return;
-                e.currentTarget.disabled = true; 
-                socket.emit("fertilizerApply", { potIndex: i });
-            };
-            slot.querySelector('[data-role="pot"]').onclick = (e) => {
-            wgLogClick(i, "plant");
+            slot.querySelector('[data-role="plant"]').onclick = (e) => {
             const socket = getSocket();
             if (!socket) return;
             const pot = pots[i];
@@ -689,6 +680,15 @@ window.closeWgStore = closeWgStore;
                 wgShowStrainPicker(i, e.currentTarget);
             }
         };
+
+            slot.querySelector('[data-role="fertilize"]').onclick = (e) => {
+                e.stopPropagation();
+                const socket = getSocket();
+                if (!socket) return;
+                e.currentTarget.disabled = true; 
+                socket.emit("fertilizerApply", { potIndex: i });
+            };
+
             slot.querySelector('[data-role="water"]').onclick = (e) => {
                 e.stopPropagation();
                 wgLogClick(i, "water");
@@ -708,26 +708,28 @@ window.closeWgStore = closeWgStore;
     }
 
     let svgDefsInjected = false;
-    function svgDefs() {
-        return `
-        <defs>
-            <linearGradient id="wgLeafGrad" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stop-color="#1f5c26"/>
-                <stop offset="55%" stop-color="#3d8c3f"/>
-                <stop offset="100%" stop-color="#5fae52"/>
-            </linearGradient>
-            <linearGradient id="wgLeafGradWilt" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stop-color="#4a3a1f"/>
-                <stop offset="55%" stop-color="#7a6234"/>
-                <stop offset="100%" stop-color="#93794a"/>
-            </linearGradient>
-            <radialGradient id="wgBudGrad" cx="35%" cy="30%" r="75%">
-                <stop offset="0%" stop-color="#e8f0c0"/>
-                <stop offset="45%" stop-color="#b9d17e"/>
-                <stop offset="100%" stop-color="#6f8f3f"/>
-            </radialGradient>
-        </defs>`;
-    }
+    let wgSvgIdCounter = 0;
+
+function svgDefs(suffix) {
+    return `
+    <defs>
+        <linearGradient id="wgLeafGrad${suffix}" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#1f5c26"/>
+            <stop offset="55%" stop-color="#3d8c3f"/>
+            <stop offset="100%" stop-color="#5fae52"/>
+        </linearGradient>
+        <linearGradient id="wgLeafGradWilt${suffix}" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#4a3a1f"/>
+            <stop offset="55%" stop-color="#7a6234"/>
+            <stop offset="100%" stop-color="#93794a"/>
+        </linearGradient>
+        <radialGradient id="wgBudGrad${suffix}" cx="35%" cy="30%" r="75%">
+            <stop offset="0%" stop-color="#e8f0c0"/>
+            <stop offset="45%" stop-color="#b9d17e"/>
+            <stop offset="100%" stop-color="#6f8f3f"/>
+        </radialGradient>
+    </defs>`;
+}
 
     function makeResizable(box, handle) {
     if (!box || !handle) return;
@@ -777,7 +779,7 @@ window.closeWgStore = closeWgStore;
 }
 
 
-    function leafletPath(len, wilted) {
+    function leafletPath(len, wilted, suffix) {
         const w = len * 0.085; 
         const teeth = 8;
         let left = [];
@@ -792,7 +794,7 @@ window.closeWgStore = closeWgStore;
             right.push(`${jag.toFixed(2)},${y.toFixed(2)}`);
         }
         const pts = [`0,0`, ...left, `0,${-len}`, ...right.reverse(), `0,0`];
-        const fill = wilted ? "url(#wgLeafGradWilt)" : "url(#wgLeafGrad)";
+         const fill = wilted ? `url(#wgLeafGradWilt${suffix})` : `url(#wgLeafGrad${suffix})`;
         const stroke = wilted ? "#3a2c15" : "#132e17";
         return `<g>
             <polygon points="${pts.join(" ")}" fill="${fill}" stroke="${stroke}" stroke-width="0.4" stroke-linejoin="round"/>
@@ -801,15 +803,14 @@ window.closeWgStore = closeWgStore;
     }
 
 
-    function buildLeafSVG(cx, cy, scale, rotationDeg, wilted) {
-        const bladeAngles = [-78, -52, -27, 0, 27, 52, 78];
-        const lens =        [12,  17,  22,  26, 22,  17,  12];
-        const blades = bladeAngles.map((angle, i) =>
-            `<g transform="rotate(${angle})">${leafletPath(lens[i], wilted)}</g>`
-        ).join("");
-        return `<g transform="translate(${cx},${cy}) scale(${scale}) rotate(${rotationDeg})">${blades}</g>`;
-    }
-
+        function buildLeafSVG(cx, cy, scale, rotationDeg, wilted, suffix) {
+            const bladeAngles = [-78, -52, -27, 0, 27, 52, 78];
+            const lens =        [12,  17,  22,  26, 22,  17,  12];
+            const blades = bladeAngles.map((angle, i) =>
+                `<g transform="rotate(${angle})">${leafletPath(lens[i], wilted, suffix)}</g>`
+            ).join("");
+            return `<g transform="translate(${cx},${cy}) scale(${scale}) rotate(${rotationDeg})">${blades}</g>`;
+        }
 
     function budCluster(cx, cy, scale, wilted, tall) {
         if (wilted) return "";
@@ -840,121 +841,50 @@ window.closeWgStore = closeWgStore;
         return `<line x1="${fromX}" y1="${fromY}" x2="${toX}" y2="${toY}" stroke="${stemColor}" stroke-width="${widthPx}" stroke-linecap="round"/>`;
     }
 
-    function buildPlantSVG(pot) {
-        const progress = pot.progress || 0;
-        const wilted = !!pot.wilted;
-        const stemColor = wilted ? "#6b5233" : "#3f7a2e";
-        const leafScale = wilted ? 0.7 : 1;
-        const defs = svgDefs();
+const WG_PLANT_IMGS = {
+    ditch: {
+        stage1: "/games/plants/ditchStage1.png",
+        stage2: "/games/plants/ditchStage2.png",
+        stage3: "/games/plants/ditchStage3.png",
+        stage4: "/games/plants/ditchStage4.png",
+    },
+    kush: {
+        stage1: "/games/plants/ogKushStage1.png",
+        stage2: "/games/plants/ogKushStage2.png",
+        stage3: "/games/plants/ogKushStage3.png",
+        stage4: "/games/plants/ogKushStage4.png",
+    },
+    lights: {
+        stage1: "/games/plants/nlStage1.png",
+        stage2: "/games/plants/nlStage2.png",
+        stage3: "/games/plants/nlStage3.png",
+        stage4: "/games/plants/nlStage4.png",
+    },
+};
 
-    
-        if (pot.stage === "empty") {
-        status.innerHTML = "Empty pot click to plant";
-        } else if (pot.stage === "ready") {
-        status.innerHTML = `<b>${pot.strainName || "Plant"} ready to harvest!</b>`;
+function buildPlantSVG(pot) {
+    const progress = pot.progress || 0;
+    const strainId = pot.strainId || "kush";
+    const strainImgs = WG_PLANT_IMGS[strainId] || WG_PLANT_IMGS.kush;
 
-        } else if (pot.wilted) {
-            const mins = Math.max(0, Math.ceil((pot.deathInMs || 0) / 60000));
-            status.innerHTML = `${pot.strainName || "Plant"} wilting dies in <b>${mins}m</b> water it now!`;
-        } else if (pot.needsWater) {
-            status.innerHTML = `${pot.strainName || "Plant"} thirsty needs water`;
-        } else {
-            const mins = Math.ceil((pot.growMsLeft || 0) / 60000);
-            status.innerHTML = `${pot.strainName || "Growing"} <b>${mins}m</b> left`;
-        }
-
-        if (progress < 0.15) {
-         
-            return `
-            <svg viewBox="0 0 100 100" width="48" height="48">
-                ${defs}
-                <line x1="50" y1="94" x2="50" y2="64" stroke="${stemColor}" stroke-width="4" stroke-linecap="round"/>
-                ${buildLeafSVG(50, 60, 0.55 * leafScale, 0, wilted)}
-            </svg>`;
-        }
-
-        if (progress < 0.4) {
-         
-            return `
-            <svg viewBox="0 0 100 100" width="58" height="58">
-                ${defs}
-                <line x1="50" y1="96" x2="50" y2="58" stroke="${stemColor}" stroke-width="4.5" stroke-linecap="round"/>
-                ${branchLine(50, 78, 36, 68, stemColor, 2)}
-                ${branchLine(50, 78, 64, 68, stemColor, 2)}
-                ${buildLeafSVG(36, 66, 0.45 * leafScale, -20, wilted)}
-                ${buildLeafSVG(64, 66, 0.45 * leafScale, 20, wilted)}
-                ${buildLeafSVG(50, 56, 0.55 * leafScale, 0, wilted)}
-            </svg>`;
-        }
-
-        if (progress < 0.65) {
-         
-            return `
-            <svg viewBox="0 0 100 100" width="68" height="68">
-                ${defs}
-                <line x1="50" y1="98" x2="50" y2="48" stroke="${stemColor}" stroke-width="5" stroke-linecap="round"/>
-                ${branchLine(50, 84, 32, 72, stemColor, 2.4)}
-                ${branchLine(50, 84, 68, 72, stemColor, 2.4)}
-                ${branchLine(50, 64, 36, 54, stemColor, 2)}
-                ${branchLine(50, 64, 64, 54, stemColor, 2)}
-                ${buildLeafSVG(32, 70, 0.5 * leafScale, -25, wilted)}
-                ${buildLeafSVG(68, 70, 0.5 * leafScale, 25, wilted)}
-                ${buildLeafSVG(36, 52, 0.45 * leafScale, -18, wilted)}
-                ${buildLeafSVG(64, 52, 0.45 * leafScale, 18, wilted)}
-                ${buildLeafSVG(50, 46, 0.5 * leafScale, 0, wilted)}
-            </svg>`;
-        }
-
-        if (progress < 0.9) {
-           
-            const buds = `
-                ${budCluster(50, 36, 0.35, wilted, false)}
-                ${budCluster(34, 52, 0.25, wilted, false)}
-                ${budCluster(66, 52, 0.25, wilted, false)}
-            `;
-            return `
-            <svg viewBox="0 0 100 100" width="76" height="76">
-                ${defs}
-                <line x1="50" y1="98" x2="50" y2="40" stroke="${stemColor}" stroke-width="5.5" stroke-linecap="round"/>
-                ${branchLine(50, 86, 28, 72, stemColor, 2.6)}
-                ${branchLine(50, 86, 72, 72, stemColor, 2.6)}
-                ${branchLine(50, 66, 32, 54, stemColor, 2.2)}
-                ${branchLine(50, 66, 68, 54, stemColor, 2.2)}
-                ${buildLeafSVG(28, 70, 0.55 * leafScale, -28, wilted)}
-                ${buildLeafSVG(72, 70, 0.55 * leafScale, 28, wilted)}
-                ${buildLeafSVG(32, 52, 0.5 * leafScale, -18, wilted)}
-                ${buildLeafSVG(68, 52, 0.5 * leafScale, 18, wilted)}
-                ${buildLeafSVG(50, 38, 0.5 * leafScale, 0, wilted)}
-                ${buds}
-            </svg>`;
-        }
-
-  
-        const buds = `
-            ${budCluster(50, 32, 0.55, wilted, true)}
-            ${budCluster(30, 50, 0.4, wilted, true)}
-            ${budCluster(70, 50, 0.4, wilted, true)}
-            ${budCluster(40, 60, 0.3, wilted, false)}
-            ${budCluster(60, 60, 0.3, wilted, false)}
-        `;
-        return `
-        <svg viewBox="0 0 100 100" width="84" height="84">
-            ${defs}
-            <line x1="50" y1="98" x2="50" y2="36" stroke="${stemColor}" stroke-width="6" stroke-linecap="round"/>
-            ${branchLine(50, 88, 24, 74, stemColor, 3)}
-            ${branchLine(50, 88, 76, 74, stemColor, 3)}
-            ${branchLine(50, 68, 30, 56, stemColor, 2.4)}
-            ${branchLine(50, 68, 70, 56, stemColor, 2.4)}
-            ${buildLeafSVG(24, 72, 0.62 * leafScale, -30, wilted)}
-            ${buildLeafSVG(76, 72, 0.62 * leafScale, 30, wilted)}
-            ${buildLeafSVG(30, 54, 0.5 * leafScale, -18, wilted)}
-            ${buildLeafSVG(70, 54, 0.5 * leafScale, 18, wilted)}
-            ${buildLeafSVG(50, 34, 0.5 * leafScale, 0, wilted)}
-            ${buds}
-        </svg>`;
+    let src;
+    if (progress < 0.15) {
+        src = strainImgs.stage1;
+    } else if (progress < 0.4) {
+        src = strainImgs.stage2;
+    } else if (progress < 0.65) {
+        src = strainImgs.stage3;
+    } else {
+        src = strainImgs.stage4;
     }
 
+    return `<img src="${src}" style="width:100%; height:100%; object-fit:contain; object-position: bottom center; display:block;">`;
+}
+
+
+
     function renderPots() {
+    if (!els.roomWrap) return;
     for (let i = 0; i < POT_COUNT; i++) {
         const slot = els.roomWrap.querySelector(`.wg-pot-slot[data-idx="${i}"]`);
         if (!slot) continue;
@@ -962,7 +892,6 @@ window.closeWgStore = closeWgStore;
 
         const light = slot.querySelector('[data-role="light"]');
         const plantContainer = slot.querySelector('[data-role="plant"]');
-        const potEl = slot.querySelector('[data-role="pot"]');
         const waterDrop = slot.querySelector('[data-role="water"]');
         const fill = slot.querySelector('[data-role="fill"]');
         const status = slot.querySelector('[data-role="status"]');
@@ -975,7 +904,7 @@ window.closeWgStore = closeWgStore;
         plantContainer.innerHTML = pot.stage === "empty"
             ? `<span class="wg-empty-plus">➕</span>`
             : buildPlantSVG(pot);
-        potEl.classList.toggle("disabled", pot.stage !== "empty");
+   
 
         const pct = Math.min(100, Math.round((pot.progress || 0) * 100));
         fill.style.width = `${pct}%`;
@@ -992,7 +921,7 @@ window.closeWgStore = closeWgStore;
 
         if (isGrowing) {
             const count = pot.fertilizerCount || 0;
-            const max = pot.fertilizerMax || 10;
+            const max = pot.fertilizerMax || 5;
             fertCountEl.textContent = count;
             fertMaxEl.textContent = max;
 
@@ -1125,8 +1054,14 @@ let boundSocket = null;
 
 function bindSocketListeners() {
     const socket = getSocket();
-    if (!socket || boundSocket === socket) return; 
+    if (!socket || boundSocket === socket) return;
     boundSocket = socket;
+
+    socket.on("connect", () => {
+        socket.emit("weedGetState");
+        socket.emit("weedLeaderboardGet");
+        socket.emit("wgStoreGetState");
+    });
 
     socket.on("wgStoreState", (data) => {
     wgBagsHeld = data.bags || 0;
@@ -1134,8 +1069,6 @@ function bindSocketListeners() {
     wgStrainsCache = data.strains || [];
 
     if (wgStoreEls.balanceAmt) wgStoreEls.balanceAmt.textContent = data.balance ?? 0;
-    const fertOwnedEl = document.getElementById("wgStoreFertOwned");
-    if (fertOwnedEl) fertOwnedEl.textContent = wgBagsHeld;
 
     if (wgStoreEls.items) {
         renderStoreItems();
@@ -1144,6 +1077,11 @@ function bindSocketListeners() {
             if (el) el.textContent = wgSeedsHeld[s.id] || 0;
         });
     }
+
+    
+    const fertOwnedEl = document.getElementById("wgStoreFertOwned");
+    if (fertOwnedEl) fertOwnedEl.textContent = wgBagsHeld;
+
     renderPots();
 });
 
@@ -1154,6 +1092,9 @@ function bindSocketListeners() {
 
     socket.on("seedError", (data) => {
         console.warn("Seed error:", data?.msg);
+        if (data?.msg) {
+            wgNotify("Can't buy that", data.msg, "/sounds/message-new-email.oga");
+        }
         const socket2 = getSocket();
         if (socket2) socket2.emit("wgStoreGetState");
     });
@@ -1213,9 +1154,12 @@ function bindSocketListeners() {
            if (slot) slot.innerHTML = `<b>${data.strainName || "Harvested"}! +${data.chipsAwarded} bonus chips!</b> 🎉`;
         });
 
-        socket.on("weedError", (data) => {
-            console.warn("Weed grow error:", data?.msg);
-        });
+    socket.on("weedError", (data) => {
+        console.warn("Weed grow error:", data?.msg);
+        if (data?.msg) {
+            wgNotify("Can't do that", data.msg, "/sounds/message-new-email.oga");
+        }
+    });
 
         socket.on("weedLeaderboardState", (data) => {
             renderLeaderboard(data?.leaders || []);
@@ -1266,14 +1210,15 @@ function bindSocketListeners() {
     window.openWeedGrow = openWeedGrow;
     window.closeWeedGrow = closeWeedGrow;
 
-    document.addEventListener("DOMContentLoaded", () => {
-        const btn = document.getElementById("weedGrowBtn");
-        if (btn) btn.addEventListener("click", openWeedGrow);
-    });
-    if (document.readyState !== "loading") {
-        const btn = document.getElementById("weedGrowBtn");
-        if (btn) btn.addEventListener("click", openWeedGrow);
-    }
-
+document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("weedGrowBtn");
+    if (btn) btn.addEventListener("click", openWeedGrow);
+    waitForSocketAndInit(); 
+});
+if (document.readyState !== "loading") {
+    const btn = document.getElementById("weedGrowBtn");
+    if (btn) btn.addEventListener("click", openWeedGrow);
+    waitForSocketAndInit(); 
+}
 
 })();

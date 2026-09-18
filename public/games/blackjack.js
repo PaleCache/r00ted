@@ -28,7 +28,7 @@
 
       .bj-seat-avatar {
   width: 36px; height: 36px; border-radius: 50%; border: 2px solid #40444b;
-  object-fit: cover; margin: 4px auto 2px; display:block;
+  object-fit: cover; margin: 4px auto 2px; display:block; -webkit-user-drag: none;
 }
 .bj-seat.turn .bj-seat-avatar { border-color: #FF0000; box-shadow: 0 0 8px #FF0000; }
       #bjHeader { display:flex; align-items:center; justify-content:space-between; cursor: move; margin-bottom: 10px; }
@@ -185,7 +185,7 @@
     modalEl.id = "bjModalBox";
     modalEl.innerHTML = `
       <div id="bjHeader">
-        <h3>🃏 Blackjack <span id="bjHeaderBalance"></span></h3>
+        <h3>Blackjack <span id="bjHeaderBalance"></span></h3>
         <button id="bjCloseBtn">✕</button>
       </div>
 

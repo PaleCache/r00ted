@@ -62,7 +62,7 @@
       .pr-lb-rank.silver { color:#c9c9c9; }
       .pr-lb-rank.bronze { color:#cd7f32; }
       .pr-lb-avatar {
-        width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink:0;
+        width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink:0; -webkit-user-drag: none;
         background: #2b2d31;
       }
       .pr-lb-name {
@@ -124,7 +124,7 @@
     modalEl.id = "pepeRunnerModalBox";
     modalEl.innerHTML = `
       <div id="pepeRunnerHeader">
-        <h3>🐸 Pepe Runner</h3>
+        <h3>Pepe Runner</h3>
         <button id="pepeRunnerCloseBtn">✕</button>
       </div>
       <div id="pepeRunnerScoreRow">

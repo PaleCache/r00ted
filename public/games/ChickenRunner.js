@@ -262,7 +262,7 @@
         .cc-lb-row:nth-child(1) .cc-lb-rank { color:#ffd700; }
         .cc-lb-row:nth-child(2) .cc-lb-rank { color:#c0c0c0; }
         .cc-lb-row:nth-child(3) .cc-lb-rank { color:#cd7f32; }
-        .cc-lb-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; object-fit:cover; }
+        .cc-lb-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; object-fit:cover; -webkit-user-drag: none; }
         .cc-lb-namecol { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
         .cc-lb-name { font-size:12px; color:#e6e6e7; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .cc-lb-mult { font-size:10.5px; color:#72767d; font-weight:600; }
@@ -368,7 +368,7 @@
           <div id="ccResizeHandle"></div>
           <div id="ccMain">
             <div id="ccHeader">
-              <h3>🐔 Chicken Runner</h3>
+              <h3>Chicken Runner</h3>
               <button id="ccCloseBtn">✕</button>
             </div>
             <div id="ccBalanceRow">

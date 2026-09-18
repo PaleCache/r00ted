@@ -1,4 +1,4 @@
-var debugmode = false;
+var debugmode = true;
 let currentProfileUser = null;
 let lastKnownStatus = new Map();
 let currentVoiceRoom = null;
@@ -133,6 +133,66 @@ const ADMIN_COMMANDS = [
   { cmd: '/unlockstatus', desc: 'Unlock a user\'s status', usage: '/unlockstatus <username>' },
   { cmd: '/resetaccounts', desc: 'Clear account creation limits', usage: '/resetaccounts' },
 ];
+
+
+let VAPID_PUBLIC_KEY = null;
+
+
+async function subscribeToPush(reg) {
+  console.log('🔔 subscribeToPush called');
+  if (!('PushManager' in window)) {
+    console.log('❌ PushManager not supported');
+    return;
+  }
+  if (!VAPID_PUBLIC_KEY) {
+    console.log('❌ No VAPID_PUBLIC_KEY yet');
+    return;
+  }
+
+  let sub = await reg.pushManager.getSubscription();
+  console.log('existing sub:', sub);
+  if (!sub) {
+    const keyArray = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+    console.log('decoded key byte length:', keyArray.length);
+
+    try {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: keyArray
+      });
+      console.log('✅ new sub created:', sub);
+    } catch (err) {
+      console.error('❌ subscribe() failed:', err.name, err.message);
+      return;
+    }
+  }
+
+  if (typeof socket !== "undefined" && socket?.connected) {
+    console.log('📤 emitting registerPushSubscription');
+    socket.emit("registerPushSubscription", sub.toJSON());
+  } else {
+    console.log('❌ socket not connected, cannot emit');
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function initPWA() {
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.register('/sw.js');
+  const saved = JSON.parse(localStorage.getItem("notifSettings") || "{}");
+  if (Notification.permission === 'granted' && saved.push === true) {
+    await subscribeToPush(reg);
+  }
+}
+
+
+window.addEventListener('load', initPWA);
 
 
 
@@ -2010,9 +2070,9 @@ function renderUsers(users) {
   const valid = users.filter(u => u);
 
   const priorityList = [
-    { key: "admin", label: "Admin", test: u => u.isAdmin, badge: () => createCrownBadge(14), color: "#f0b232" },
-    { key: "developer", label: "Developer", test: u => u.isDeveloper, badge: () => createDeveloperBadge(16), color: "#f25858" },
-    { key: "promptEngineer", label: "Prompt Engineer", test: u => u.isPromptEngineer, badge: () => createPromptEngineerBadge(14), color: "#10a37f" },
+    { key: "admin", label: "Admin", test: u => u.isAdmin, badge: () => createCrownBadge(14), color: "rgb(185, 187, 190)" },
+    { key: "developer", label: "Developer", test: u => u.isDeveloper, badge: () => createDeveloperBadge(16), color: "rgb(185, 187, 190)" },
+    { key: "promptEngineer", label: "Prompt Engineer", test: u => u.isPromptEngineer, badge: () => createPromptEngineerBadge(14), color: "rgb(185, 187, 190)" },
     ...[...customRoles].reverse().map(r => ({
       key: `role-${r.id}`,
       label: r.name,
@@ -2470,11 +2530,14 @@ if (isImageUrl(part)) {
           `;
 
           const wrapper = document.createElement("div");
+          wrapper.className = "yt-embed-wrapper";
           wrapper.style.cssText = `
-            display: inline-flex;
+            display: flex;
             flex-direction: column;
-            width: 550px;
-            max-width: 100%;
+            width: 100%;
+            max-width: 550px;
+            min-width: 0;
+            box-sizing: border-box;
             border-radius: 4px;
             overflow: hidden;
             background: #1e1f22;
@@ -2501,17 +2564,19 @@ if (isImageUrl(part)) {
           meta.appendChild(ytIcon);
           meta.appendChild(ytLabel);
 
-          title.style.cssText = `
-            color: #f40000;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 0 12px 8px;
-            text-decoration: none;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: block;
-          `;
+         title.style.cssText = `
+          color: #f40000;
+          font-size: 14px;
+          font-weight: 600;
+          padding: 0 12px 8px;
+          box-sizing: border-box;
+          min-width: 0;
+          text-decoration: none;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: block;
+        `;
           title.onmouseover = () => title.style.textDecoration = "underline";
           title.onmouseout = () => title.style.textDecoration = "none";
 
@@ -2618,6 +2683,66 @@ if (isImageUrl(part)) {
         return;
       }
 
+      if (isKickUrl(part)) {
+  const kickInfo = extractKickInfo(part);
+  if (kickInfo) {
+    const isClip = kickInfo.type === "clip";
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "kick-link-wrapper";
+    wrapper.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 550px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.9);
+      border-left: 4px solid #2c2b2b;
+      margin: 4px 0;
+      padding: 10px 14px;
+    `;
+
+    const kickIcon = document.createElement("img");
+    kickIcon.src = "https://kick.com/favicon.ico";
+    kickIcon.style.cssText = "width:20px; height:20px; border-radius:4px; flex-shrink:0;";
+
+    const textCol = document.createElement("div");
+    textCol.style.cssText = "display:flex; flex-direction:column; min-width:0;";
+
+    const label = document.createElement("span");
+    label.textContent = "Kick";
+    label.style.cssText = "color:#53fc18; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;";
+
+    const link = document.createElement("a");
+    link.href = part;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = `${kickInfo.channel} · ${isClip ? "Clip" : "VOD"}`;
+    link.style.cssText = `
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    `;
+    link.onmouseover = () => link.style.textDecoration = "underline";
+    link.onmouseout = () => link.style.textDecoration = "none";
+
+    textCol.appendChild(label);
+    textCol.appendChild(link);
+
+    wrapper.appendChild(kickIcon);
+    wrapper.appendChild(textCol);
+
+    container.appendChild(wrapper);
+    return;
+  }
+}
+
 
     if (isSafeUrl(part)) {
       container.appendChild(buildSimpleRichLink(part));
@@ -2715,7 +2840,20 @@ function extractYouTubeId(url) {
 }
 
 
+function isKickUrl(url) {
+  return /^https?:\/\/(www\.)?kick\.com\/[^/]+\/(videos|clips)\/[^/?#]+/.test(url);
+}
 
+function extractKickInfo(url) {
+  const match = url.match(/kick\.com\/([^/]+)\/(videos|clips)\/([^/?#]+)/);
+  if (!match) return null;
+  const [, channel, type, id] = match;
+  return {
+    channel,
+    type: type === "videos" ? "vod" : "clip",
+    id,
+  };
+}
 
 function createSafeText(text) {
   return document.createTextNode(text);
@@ -5495,6 +5633,11 @@ settingsBtn.onclick = () => {
   if (overlayTabBtn) {
     overlayTabBtn.style.display = isElectron ? '' : 'none';
   }
+
+  const mediaStatusRow = document.getElementById('toggleBrowserMediaStatus')?.closest('.setting-item');
+  if (mediaStatusRow) {
+    mediaStatusRow.style.display = isElectron ? '' : 'none';
+  }
 };
 
 document.querySelectorAll('.channel-item').forEach(channel => {
@@ -6169,6 +6312,8 @@ function playNotificationSound() {
 }
 
 
+
+
 function makeDraggableAndResizable(element, dragHandle, resizeHandleEl) {
   let isResizing = false;
   let isDragging = false;
@@ -6264,10 +6409,11 @@ function makeDraggableAndResizable(element, dragHandle, resizeHandleEl) {
 
 
 let notifSettings = {
-  browser: true,
+  browser: false,
   liveBanner: true,
   sound: true,
-  browserMediaStatus: true 
+  browserMediaStatus: true,
+  push: false
 };
 
 
@@ -6288,19 +6434,99 @@ window.addEventListener('load', () => {
     saveNotifSettings();
   });
 
-  document.getElementById("toggleBrowserMediaStatus").addEventListener("change", saveNotifSettings);
+  document.getElementById("toggleBrowserMediaStatus").addEventListener("change", (e) => {
+  notifSettings.browserMediaStatus = e.target.checked;
+  saveNotifSettings();
 
-  document.getElementById("requestNotifPermissionBtn").addEventListener("click", () => {
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission();
-    } else if (Notification.permission === "granted") {
-     showToast("Notifications are already enabled.");
-    } else {
-     showToast("❌ Notifications are blocked. Please enable them in your browser settings.");
+  if (!notifSettings.browserMediaStatus) {
+    const lastSource = window.__lastNativeNowPlaying?.source?.toLowerCase() || "";
+    const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge'];
+    const isBrowser = BROWSER_SOURCES.some(b => lastSource.includes(b));
+    if (isBrowser) {
+      if (typeof socket !== "undefined" && socket?.connected) {
+        socket.emit("setMusicStatus", { musicStatus: null, musicArtUrl: null });
+      }
+      window.electronAPI?.overlayMusicUpdate?.(null);
     }
-  });
+  }
 });
 
+  document.getElementById("requestNotifPermissionBtn").addEventListener("click", async () => {
+  if (Notification.permission === "granted") {
+    showToast("Notifications are already enabled.");
+    if (notifSettings.push !== false) {
+      const reg = await navigator.serviceWorker.ready;
+      await subscribeToPush(reg);
+    }
+    return;
+  }
+
+  if (Notification.permission === "denied") {
+    showToast("❌ Notifications are blocked. Please enable them in your browser settings.");
+    return;
+  }
+
+  const result = await Notification.requestPermission();
+  if (result === "granted") {
+    if (notifSettings.push !== false) {
+      const reg = await navigator.serviceWorker.ready;
+      await subscribeToPush(reg);
+    }
+    showToast("Notifications enabled.");
+  } else {
+    showToast("❌ Notifications are blocked. Please enable them in your browser settings.");
+  }
+});
+
+
+
+document.getElementById("togglePushNotif").addEventListener("change", async (e) => {
+  notifSettings.push = e.target.checked;
+  saveNotifSettings();
+
+  if (!e.target.checked) {
+    const reg = await navigator.serviceWorker?.ready;
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) {
+      const subJson = sub.toJSON();
+      await sub.unsubscribe();
+      if (socket?.connected) socket.emit("unregisterPushSubscription", subJson);
+    }
+    showToast("Push notifications disabled");
+    return;
+  }
+
+  if (Notification.permission === "denied") {
+    showToast("❌ Notifications are blocked in your browser settings.");
+    e.target.checked = false;
+    notifSettings.push = false;
+    saveNotifSettings();
+    return;
+  }
+
+  if (Notification.permission !== "granted") {
+    const result = await Notification.requestPermission();
+    if (result !== "granted") {
+      showToast("❌ Push notifications weren't enabled.");
+      e.target.checked = false;
+      notifSettings.push = false;
+      saveNotifSettings();
+      return;
+    }
+  }
+
+  const reg = await navigator.serviceWorker.ready;
+  const ok = await subscribeToPush(reg);
+  if (ok === false) {
+    showToast("❌ Couldn't enable push notifications. Try again later.");
+    e.target.checked = false;
+    notifSettings.push = false;
+    saveNotifSettings();
+  } else {
+    showToast("Push notifications enabled");
+  }
+});
+});
 
 
  GIFS_PER_PAGE = 36;
@@ -9784,3 +10010,180 @@ function pauseOffscreenMedia() {
     if (!img.isConnected || img.dataset.isEmote === "1") return;
   });
 }
+
+let botTokensData = []; 
+
+function maskToken(token) {
+  return "•".repeat(Math.min(token.length, 40));
+}
+
+function renderBotTokenList(tokens) {
+  botTokensData = tokens;
+  const container = document.getElementById("botTokenList");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (tokens.length === 0) {
+    container.innerHTML = `<p style="color:#72767d; font-size:13px;">No bot tokens yet.</p>`;
+    return;
+  }
+
+  tokens.forEach(t => {
+    const row = document.createElement("div");
+    row.style.cssText = `
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background:#1e1f22; border:1px solid #3a3c42; border-radius:8px; padding:10px 14px;
+    `;
+    row.innerHTML = `
+      <div style="min-width:0; flex:1;">
+        <div style="color:#fff; font-weight:600; font-size:14px;">${t.name}</div>
+        <div style="margin-top:4px;">
+          <code class="botTokenValue" data-id="${t.id}" data-revealed="false" style="
+            color:#72767d; font-size:12px; font-family:monospace;
+            word-break:break-all; display:block; line-height:1.5;
+          ">${maskToken(t.token)}</code>
+        </div>
+        <div style="color:#72767d; font-size:11px; margin-top:4px;">created by ${t.createdBy} · ${new Date(t.createdAt).toLocaleDateString()}</div>
+      </div>
+      <div style="display:flex; gap:6px; flex-shrink:0; align-self:flex-start;">
+        <button class="revealBotTokenBtn" data-id="${t.id}" title="Reveal" style="background:#40444b; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">👁</button>
+        <button class="copyBotTokenBtn" data-id="${t.id}" title="Copy" style="background:#40444b; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; min-width:34px;">📋</button>
+        <button class="deleteBotTokenBtn" data-id="${t.id}" title="Delete" style="background:#ed4245; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">🗑</button>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll(".revealBotTokenBtn").forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      const codeEl = container.querySelector(`.botTokenValue[data-id="${id}"]`);
+      const tokenObj = botTokensData.find(t => t.id === id);
+      if (!codeEl || !tokenObj) return;
+
+      const isRevealed = codeEl.dataset.revealed === "true";
+      if (isRevealed) {
+        codeEl.textContent = maskToken(tokenObj.token);
+        codeEl.dataset.revealed = "false";
+        btn.textContent = "👁";
+      } else {
+        codeEl.textContent = tokenObj.token;
+        codeEl.dataset.revealed = "true";
+        btn.textContent = "🙈";
+      }
+    };
+  });
+
+  container.querySelectorAll(".copyBotTokenBtn").forEach(btn => {
+    btn.onclick = async () => {
+      const tokenObj = botTokensData.find(t => t.id === btn.dataset.id);
+      if (!tokenObj) return;
+      await copyWithFeedback(btn, tokenObj.token);
+    };
+  });
+
+container.querySelectorAll(".deleteBotTokenBtn").forEach(btn => {
+  btn.onclick = async () => {
+    const tokenObj = botTokensData.find(t => t.id === btn.dataset.id);
+    const confirmed = await showConfirmModal(
+      "Delete Bot Token",
+      `Delete the token for "${tokenObj?.name || "this bot"}"? Any connected bot using it will be disconnected immediately.`,
+      { confirmLabel: "Delete" }
+    );
+    if (confirmed) {
+      socket.emit("deleteBotToken", { id: btn.dataset.id });
+    }
+  };
+});
+}
+
+async function copyToClipboard(text) {
+  if (window.electronAPI?.copyToClipboard) {
+    return await window.electronAPI.copyToClipboard(text);
+  }
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {}
+  }
+  return false;
+}
+
+async function copyWithFeedback(button, text) {
+  const original = button.textContent;
+  const originalBg = button.style.background;
+  const success = await copyToClipboard(text);
+  button.textContent = success ? "✅" : "❌";
+  button.style.background = success ? "#3ba55c" : "#ed4245";
+  setTimeout(() => {
+    button.textContent = original;
+    button.style.background = originalBg;
+  }, 1200);
+}
+
+function showBotTokenModal(name, token) {
+  document.getElementById("botTokenModalName").textContent = name;
+  document.getElementById("botTokenModalValue").value = token;
+  document.getElementById("botTokenModal").style.display = "flex";
+}
+
+function showConfirmModal(title, message, { confirmLabel = "Confirm", danger = true } = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("confirmModal");
+    const titleEl = document.getElementById("confirmModalTitle");
+    const msgEl = document.getElementById("confirmModalMessage");
+    const confirmBtn = document.getElementById("confirmModalConfirmBtn");
+    const cancelBtn = document.getElementById("confirmModalCancelBtn");
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.style.background = danger ? "#ed4245" : "#FF0000";
+
+    modal.style.display = "flex";
+
+    const cleanup = (result) => {
+      modal.style.display = "none";
+      confirmBtn.onclick = null;
+      cancelBtn.onclick = null;
+      modal.onclick = null;
+      resolve(result);
+    };
+
+    confirmBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    modal.onclick = (e) => {
+      if (e.target === modal) cleanup(false);
+    };
+  });
+}
+
+document.getElementById("botTokenModalCopyBtn")?.addEventListener("click", (e) => {
+  const val = document.getElementById("botTokenModalValue").value;
+  copyWithFeedback(e.currentTarget, val);
+});
+
+document.getElementById("botTokenModalCloseBtn")?.addEventListener("click", () => {
+  document.getElementById("botTokenModal").style.display = "none";
+});
+
+document.getElementById("botTokenModal")?.addEventListener("click", (e) => {
+  if (e.target.id === "botTokenModal") {
+    document.getElementById("botTokenModal").style.display = "none";
+  }
+});
+
+document.getElementById("createBotTokenBtn")?.addEventListener("click", () => {
+  const nameInput = document.getElementById("newBotTokenName");
+  const name = nameInput.value.trim();
+  if (!name) return;
+  socket.emit("createBotToken", { name });
+  nameInput.value = "";
+});
+
+
+
+document.querySelector('[data-tab="adminPanel"]')?.addEventListener("click", () => {
+  socket.emit("getBotTokens");
+});

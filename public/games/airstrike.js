@@ -50,7 +50,6 @@
         max-height: 92vh;
         min-width: 480px;
         min-height: 360px;
-        resize: both;
         pointer-events: auto;
         position: relative;            
         }
@@ -156,11 +155,21 @@
         display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px;
         background:#1e1f22; border:1px solid #2b2d31;
         }
+
+        #asResizeHandle {
+        position: absolute;
+        bottom: 0; right: 0;
+        width: 18px; height: 18px;
+        background: linear-gradient(135deg, transparent 50%, rgba(73,73,73,1) 50%);
+        cursor: nwse-resize;
+        z-index: 100;
+        border-radius: 0 0 14px 0;
+        }
         .as-lb-rank { width:16px; font-size:11px; font-weight:800; color:#72767d; flex-shrink:0; text-align:center; }
         .as-lb-row:nth-child(1) .as-lb-rank { color:#ffd700; }
         .as-lb-row:nth-child(2) .as-lb-rank { color:#c0c0c0; }
         .as-lb-row:nth-child(3) .as-lb-rank { color:#cd7f32; }
-        .as-lb-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; object-fit:cover; }
+        .as-lb-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; object-fit:cover; -webkit-user-drag: none; }
         .as-lb-name { flex:1; min-width:0; font-size:12px; color:#e6e6e7; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .as-lb-mult { font-size:12px; font-weight:800; color:#23d160; flex-shrink:0; }
         #asLeaderboardEmpty { color:#72767d; font-size:12px; text-align:center; padding:20px 10px; }
@@ -182,9 +191,10 @@
         modal.id = "asModal";
         modal.innerHTML = `
         <div id="asBox">
+          <div id="asResizeHandle"></div>
           <div id="asMain">
             <div id="asHeader">
-              <h3>✈️ Airstrike</h3>
+              <h3>Airstrike</h3>
               <button id="asCloseBtn">✕</button>
             </div>
             <div id="asBalanceRow">
@@ -294,6 +304,35 @@
             else window.selectedAccount = next;
             refreshDisplayedBalance();
         };
+
+            (function makeResizable() {
+        const handle = document.getElementById("asResizeHandle");
+        const box = document.getElementById("asBox");
+        if (!handle || !box) return;
+
+        let resizing = false, sx, sy, sw, sh;
+
+        handle.addEventListener("mousedown", (e) => {
+            resizing = true;
+            const rect = box.getBoundingClientRect();
+            sx = e.clientX; sy = e.clientY;
+            sw = rect.width; sh = rect.height;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!resizing) return;
+            const rect = box.getBoundingClientRect();
+            const maxW = Math.max(480, window.innerWidth - rect.left);
+            const maxH = Math.max(360, window.innerHeight - rect.top);
+            box.style.width = Math.max(480, Math.min(sw + (e.clientX - sx), maxW)) + "px";
+            box.style.height = Math.max(360, Math.min(sh + (e.clientY - sy), maxH)) + "px";
+            resizeCanvas();
+        });
+
+        document.addEventListener("mouseup", () => { resizing = false; });
+    })();
 
       
     (function makeDraggable() {

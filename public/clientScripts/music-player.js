@@ -2794,7 +2794,7 @@ if (useVideo) {
   try {
     if (currentIndex !== -1 && !audio.paused) return;
 
-        const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge'];
+        const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge', 'librewolf'];
         if (np?.source && BROWSER_SOURCES.some(b => np.source.toLowerCase().includes(b)) && notifSettings.browserMediaStatus === false) {
           np = null;
         }

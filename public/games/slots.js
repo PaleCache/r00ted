@@ -158,7 +158,7 @@
         modal.innerHTML = `
         <div id="slotsBox">
           <div id="slotsHeader">
-            <h3>🎰 Slots</h3>
+            <h3>Slots</h3>
             <button id="slotsCloseBtn">✕</button>
           </div>
           <div id="slotsBalanceRow">

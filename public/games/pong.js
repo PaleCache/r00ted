@@ -72,7 +72,7 @@
         color:#fff; font-size: 14px;
         }
         #pongScoreRow .pong-player { display:flex; align-items:center; gap:8px; }
-        #pongScoreRow img { width:26px; height:26px; border-radius:50%; }
+        #pongScoreRow img { width:26px; height:26px; border-radius:50%; -webkit-user-drag: none; }
         #pongScoreRow b { font-size: 22px; color: #ffd700; }
         #pongCanvasWrap {
         padding: 16px; display:flex; justify-content:center; align-items:center;
@@ -172,7 +172,7 @@
         <div id="pongBox">
           <div id="pongResizeHandle"></div>
           <div id="pongHeader">
-            <h3>🏓 Pong</h3>
+            <h3>Pong</h3>
             <button id="pongCloseBtn">✕</button>
           </div>
           <div id="pongScoreRow">

@@ -132,7 +132,7 @@
         .darts-lb-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
         .darts-lb-rank { width: 20px; text-align:center; font-size:12px; font-weight:700; color:#72767d; flex-shrink:0; }
         .darts-lb-rank.gold { color:#ffd700; } .darts-lb-rank.silver { color:#c9c9c9; } .darts-lb-rank.bronze { color:#cd7f32; }
-        .darts-lb-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink:0; background:#2b2d31; }
+        .darts-lb-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink:0; background:#2b2d31; -webkit-user-drag: none; }
         .darts-lb-name { flex:1; color:#dcddde; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .darts-lb-count { color:#e63946; font-size:12px; font-weight:700; flex-shrink:0; }
         .darts-lb-empty { color:#72767d; font-size:12px; text-align:center; padding: 8px 0; }
@@ -232,7 +232,7 @@
         modal.id = "dartsModal";
         modal.innerHTML = `
         <div id="dartsBox">
-            <div id="dartsHeader"><h3>🎯 Darts</h3><button id="dartsCloseBtn">✕</button></div>
+            <div id="dartsHeader"><h3>Darts</h3><button id="dartsCloseBtn">✕</button></div>
             <div id="dartsBody">
                 <div id="dartsBoardWrap">
                     <div id="dartsBoardSvgWrap">

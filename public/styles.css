@@ -11,6 +11,13 @@
   background-size: cover;
 }
 
+select:focus,
+button:focus,
+input:focus,
+textarea:focus {
+  outline: none;
+}
+
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: #1e1f22; }
   ::-webkit-scrollbar-thumb { background: #3a3c42; border-radius: 8px; }
@@ -6981,11 +6988,6 @@ filter: brightness(0) saturate(100%) invert(36%) sepia(80%) saturate(3000%) hue-
 }
 
 
-
-
-
-
-
 #vcPanelUsername {
   align-self: flex-start;
   width: fit-content;
@@ -7237,3 +7239,400 @@ filter: brightness(0) saturate(100%) invert(36%) sepia(80%) saturate(3000%) hue-
 }
 
 
+
+
+@media (max-width: 768px) {
+
+  #pkModalOverlay,
+  #pkModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #pkBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #pkMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #pkBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #pkControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #pkSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+  #ccModalOverlay,
+  #ccModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #ccBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #ccMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #ccBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #ccControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #ccSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+  #msModalOverlay,
+  #msModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #msBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #msMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #msBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #msControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #msSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+  #wgModalOverlay,
+  #wgModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #wgBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #wgMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #wgBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #wgControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #wgSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+  #avModalOverlay,
+  #avModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #avBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #avMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #avBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #avControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #avSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+  #dartsModalOverlay,
+  #dartsModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #dartsBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #dartsMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #dartsBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #dartsControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #dartsSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+  #bjModalOverlay,
+  #bjModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #bjBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #bjMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #bjBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #bjControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #bjSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+  #pokerModalOverlay,
+  #pokerModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #pokerBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #pokerMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #pokerBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #pokerControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #pokerSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+  #asModalOverlay,
+  #asModal { 
+    height: 100dvh; 
+    overflow: hidden !important; 
+  }
+
+  #asBox {
+    height: 100dvh !important;
+    width: 100vw !important;
+    max-height: unset !important;
+    min-height: unset !important;
+    min-width: unset !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    display: flex !important;
+    position: fixed !important;
+    border-radius: 0 !important;
+  }
+
+  #asMain {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+  #asBoard { height: 45dvh !important; flex-shrink: 0 !important; }
+  #asControls { flex-shrink: 0 !important; overflow: visible !important; }
+  #asSidebar { width: 100% !important; max-height: 25dvh !important; flex-shrink: 0 !important; overflow-y: auto !important; order: 3 !important; }
+
+ #dtModal { height: 100dvh; }
+  #dtBox {
+    max-height: 92dvh !important;
+    min-height: unset !important;
+  }
+  #dtBody {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  #dtControls { width: 100% !important; }
+  #dtTowerWrap {
+    overflow-y: visible !important;
+    flex: none !important;
+  }
+
+  #rlModalBox { max-height: 94dvh !important; }
+  #wheelModalOverlay { height: 100dvh; }
+  #pepeRunnerModalBox { max-height: 90dvh !important; }
+
+  #ccResizeHandle { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  .yt-embed-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+.message, .message > div {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  #mpModal { align-items: stretch; justify-content: stretch; }
+
+  #mpWindow {
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    min-width: unset !important;
+    min-height: unset !important;
+    border-radius: 0 !important;
+    flex-direction: column !important;
+  }
+
+  #mpResizeHandle,
+  #mpPipResizeHandle,
+  #mpPipToggleBtn,
+  #mpPipFullscreenBtn,
+  #mpPipExitBtn {
+    display: none !important;
+  }
+
+  #mpBody {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+
+  #mpMain {
+    padding: 10px 16px 16px !important;
+    flex: none !important;
+  }
+
+  #mpArtWrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 9;
+  }
+
+  #mpTitle, #mpArtist {
+    max-width: 100% !important;
+  }
+
+  #mpProgressRow, #mpVolRow, #mpEqRow {
+    max-width: 100% !important;
+  }
+
+  #mpEqRow {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  #mpControls {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 10px !important;
+  }
+
+  #mpSide {
+    width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    flex: none !important;
+    max-height: 50dvh;
+  }
+
+  #mpSideHeader > div {
+    flex-wrap: wrap;
+  }
+
+  #mpMini {
+    width: 90vw !important;
+    max-width: 340px;
+    left: 5vw !important;
+    top: 12px !important;
+  }
+}

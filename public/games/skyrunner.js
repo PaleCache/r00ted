@@ -137,7 +137,7 @@
         .av-lb-rank.r2 { color:#c7cbd1; }
         .av-lb-rank.r3 { color:#cd7f32; }
         .av-lb-avatar {
-        width:24px; height:24px; border-radius:50%; object-fit:cover; flex-shrink:0;
+        width:24px; height:24px; border-radius:50%; object-fit:cover; flex-shrink:0; -webkit-user-drag: none;
         background:#23262d; border:1px solid #3a3c42;
         }
         .av-lb-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
@@ -270,7 +270,7 @@
         <div id="avBox">
           <div id="avResizeHandle"></div>
           <div id="avHeader">
-            <h3>✈️ SKY RUNNER</h3>
+            <h3>SKY RUNNER</h3>
             <div id="avHeaderBtns">
               <button id="avLeaderboardBtn">🏆 <span>Leaders</span></button>
               <button id="avCloseBtn">✕</button>

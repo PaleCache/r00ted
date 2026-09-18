@@ -570,20 +570,24 @@ if (mediaUrl) {
 }
 
 
-function sendNotification(title, body, options = {}) {
+async function sendNotification(title, body, options = {}) {
   const processedOptions = { ...options };
-  if (processedOptions.icon) {
-    if (!processedOptions.icon.startsWith('http') && !processedOptions.icon.startsWith('data:')) {
-      processedOptions.icon = `${window.location.origin}${processedOptions.icon}`;
-    }
+  if (processedOptions.icon && !processedOptions.icon.startsWith('http') && !processedOptions.icon.startsWith('data:')) {
+    processedOptions.icon = `${window.location.origin}${processedOptions.icon}`;
   }
 
   if (window.electronAPI?.notify) {
     window.electronAPI.notify({ title, body, ...processedOptions });
+    return;
+  }
+
+  if (Notification.permission !== 'granted') return;
+
+  if ('serviceWorker' in navigator) {
+    const reg = await navigator.serviceWorker.ready;
+    reg.showNotification(title, { body, ...processedOptions });
   } else {
-    if (Notification.permission === 'granted') {
-      new Notification(title, { body, ...processedOptions });
-    }
+    new Notification(title, { body, ...processedOptions });
   }
 }
 
@@ -593,26 +597,13 @@ function loadNotifSettings() {
     notifSettings = JSON.parse(saved);
   }
 
-  document.getElementById("toggleBrowserNotif").checked = notifSettings.browser;
-  document.getElementById("toggleLiveBanner").checked = notifSettings.liveBanner;
-  document.getElementById("toggleNotifSound").checked = notifSettings.sound;
+  document.getElementById("toggleBrowserNotif").checked = notifSettings.browser === true;
+  document.getElementById("toggleLiveBanner").checked = notifSettings.liveBanner !== false;
+  document.getElementById("toggleNotifSound").checked = notifSettings.sound !== false;
   document.getElementById("toggleBrowserMediaStatus").checked = notifSettings.browserMediaStatus !== false;
+  document.getElementById("togglePushNotif").checked = notifSettings.push === true;
 }
 
-function saveNotifSettings(e) {
-  notifSettings.browserMediaStatus = e.target.checked;
+function saveNotifSettings() {
   localStorage.setItem("notifSettings", JSON.stringify(notifSettings));
-
-  if (!notifSettings.browserMediaStatus) {
-    const lastSource = window.__lastNativeNowPlaying?.source?.toLowerCase() || "";
-    const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge'];
-    const isBrowser = BROWSER_SOURCES.some(b => lastSource.includes(b));
-    window.notifSettings = window.notifSettings || JSON.parse(localStorage.getItem("notifSettings") || "{}");
-    if (isBrowser) {
-      if (typeof socket !== "undefined" && socket?.connected) {
-        socket.emit("setMusicStatus", { musicStatus: null, musicArtUrl: null });
-      }
-      window.electronAPI?.overlayMusicUpdate?.(null);
-    }
-  }
 }

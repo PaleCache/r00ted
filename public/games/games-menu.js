@@ -104,6 +104,12 @@
                 icon: `<path stroke="none" d="M0 0h24v24H0z" fill="none" /><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="1" fill="currentColor" /><line x1="12" y1="3" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="21" /><line x1="3" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="21" y2="12" /><line x1="5.64" y1="5.64" x2="7.76" y2="7.76" /><line x1="16.24" y1="16.24" x2="18.36" y2="18.36" /><line x1="18.36" y1="5.64" x2="16.24" y2="7.76" /><line x1="7.76" y1="16.24" x2="5.64" y2="18.36" />`,
                 open: () => window.openRoulette && window.openRoulette()
             },
+
+            {
+                label: "Moon",
+                icon: `<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 A6.5 6.5 0 0 0 21 12.8Z" />`,
+                open: () => window.openMoon && window.openMoon()
+            },
         ]
     };
 

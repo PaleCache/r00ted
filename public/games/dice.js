@@ -103,7 +103,7 @@
       .dice-lb-row:nth-child(1) .dice-lb-rank { color:#ffd700; }
       .dice-lb-row:nth-child(2) .dice-lb-rank { color:#c0c0c0; }
       .dice-lb-row:nth-child(3) .dice-lb-rank { color:#cd7f32; }
-      .dice-lb-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; object-fit:cover; }
+      .dice-lb-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; object-fit:cover; -webkit-user-drag: none; }
       .dice-lb-name { flex:1; min-width:0; font-size:12px; color:#e6e6e7; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .dice-lb-payout { font-size:11px; font-weight:800; color:#23d160; flex-shrink:0; }
       .dice-empty { color:#72767d; font-size:12px; text-align:center; padding:20px 10px; }
@@ -343,7 +343,7 @@ function clampTargetForAccount() {
       <div id="diceModalBox">
         <div id="diceBetToastWrap"></div>
         <div id="diceDragHandle">
-          <h3>🎲 Dice</h3>
+          <h3>Dice</h3>
           <p class="dice-sub">Pick a target, bet, and roll - 0.00 to 99.99.</p>
         </div>
         <div id="diceBalanceRow">

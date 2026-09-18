@@ -9,8 +9,10 @@
   style-src 'self' https: 'unsafe-inline';
   img-src 'self' https: blob: data: file:;
 ">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">   <!-- ADD THIS -->
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">   
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#111214">
+<link rel="apple-touch-icon" href="icon-192.png">
   <script>
     if (!localStorage.getItem("chatToken")) {
       window.location.href = "/login";
@@ -739,7 +741,7 @@
     <button id="bgUrlBtn" type="button">Set URL</button>
   </div>
 </div>
-  <div class="setting-item">
+    <div class="setting-item">
     <label>Enable Browser Notifications</label>
     <label class="toggle-switch">
       <input type="checkbox" id="toggleBrowserNotif" checked>
@@ -747,6 +749,17 @@
     </label>
     <p style="font-size:13px; color:#b9bbbe; margin-top:4px;">
       Shows desktop notifications when mentioned or someone goes live
+    </p>
+  </div>
+
+  <div class="setting-item">
+    <label>Enable Push Notifications</label>
+    <label class="toggle-switch">
+      <input type="checkbox" id="togglePushNotif" checked>
+      <span class="slider"></span>
+    </label>
+    <p style="font-size:13px; color:#b9bbbe; margin-top:4px;">
+      Sends push notifications to this device even when the app is closed (mobile and supported browsers only)
     </p>
   </div>
 
@@ -769,7 +782,7 @@
     <div class="setting-item">
     <label>Show Status From Browser Media</label>
     <label class="toggle-switch">
-      <input type="checkbox" id="toggleBrowserMediaStatus" checked>
+      <input type="checkbox" id="toggleBrowserMediaStatus">
       <span class="slider"></span>
     </label>
     <p style="font-size:13px; color:#b9bbbe; margin-top:4px;">
@@ -827,6 +840,22 @@
       Manage Roles
     </button>
   </div>
+
+  <div class="setting-item">
+  <label>Bot Tokens</label>
+  <p style="font-size:13px; color:#b9bbbe; margin-bottom:12px;">
+    Create tokens bots use to authenticate. Click the eye icon to reveal a token.
+  </p>
+
+  <div style="display:flex; gap:8px; margin-bottom:14px;">
+    <input id="newBotTokenName" placeholder="Bot name (e.g. Aira)" style="flex:1;">
+    <button id="createBotTokenBtn" style="background:#FF0000; border:none; color:white; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:600;">
+      Create
+    </button>
+  </div>
+
+  <div id="botTokenList" style="display:flex; flex-direction:column; gap:8px;"></div>
+</div>
 
 </div>
   </div>
@@ -939,6 +968,33 @@
     </div>
   </div>
 
+</div>
+
+<div id="botTokenModal" style="display:none; position:fixed; inset:0; z-index:99999; align-items:center; justify-content:center; background:rgba(0,0,0,0.75);">
+  <div style="background:#2b2d31; border-radius:12px; width:420px; max-width:90vw; padding:24px; border:1px solid #3a3c42; box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+    <h3 style="margin:0 0 8px; color:#fff; font-size:16px;">Bot Token Created</h3>
+    <p style="margin:0 0 14px; color:#b9bbbe; font-size:13px;">
+      Token for <strong id="botTokenModalName" style="color:#fff;"></strong>:
+    </p>
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+      <input id="botTokenModalValue" readonly style="flex:1; padding:10px 12px; background:#1e1f22; border:1px solid #40444b; border-radius:8px; color:#fff; font-family:monospace; font-size:13px;">
+      <button id="botTokenModalCopyBtn" style="background:#40444b; border:none; color:#fff; padding:8px 14px; border-radius:8px; cursor:pointer; min-width:70px;">Copy</button>
+    </div>
+    <div style="text-align:right;">
+      <button id="botTokenModalCloseBtn" style="background:#FF0000; border:none; color:#fff; padding:9px 18px; border-radius:8px; cursor:pointer; font-weight:600;">Done</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmModal" style="display:none; position:fixed; inset:0; z-index:100000; align-items:center; justify-content:center; background:rgba(0,0,0,0.75);">
+  <div style="background:#2b2d31; border-radius:12px; width:380px; max-width:90vw; padding:24px; border:1px solid #3a3c42; box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+    <h3 id="confirmModalTitle" style="margin:0 0 10px; color:#fff; font-size:16px;"></h3>
+    <p id="confirmModalMessage" style="margin:0 0 20px; color:#b9bbbe; font-size:13px; line-height:1.5;"></p>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button id="confirmModalCancelBtn" style="background:#40444b; border:none; color:#fff; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px;">Cancel</button>
+      <button id="confirmModalConfirmBtn" style="background:#ed4245; border:none; color:#fff; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;">Confirm</button>
+    </div>
+  </div>
 </div>
 
 <div id="avatarEditorModal" class="modal" style="
@@ -1161,6 +1217,7 @@
 <script src="/games/library.js" defer></script>
 <script src="/games/ChickenRunner.js" defer></script>
 <script src="/games/roulette.js" defer></script>
+<script src="/games/moon.js" defer></script>
 <script src="/clientScripts/profilePopup.js" defer></script>
 <script src="/clientScripts/audioEmbed.js" defer></script>
 <script src="/clientScripts/streamStuff.js" defer></script>

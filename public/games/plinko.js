@@ -162,7 +162,7 @@
         .pk-lb-row:nth-child(1) .pk-lb-rank { color:#ffd700; }
         .pk-lb-row:nth-child(2) .pk-lb-rank { color:#c0c0c0; }
         .pk-lb-row:nth-child(3) .pk-lb-rank { color:#cd7f32; }
-        .pk-lb-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; object-fit:cover; }
+        .pk-lb-avatar { width:26px; height:26px; border-radius:50%; flex-shrink:0; object-fit:cover; -webkit-user-drag: none; }
         .pk-lb-namecol { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
         .pk-lb-name { font-size:12px; color:#e6e6e7; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .pk-lb-mult { font-size:10.5px; color:#72767d; font-weight:600; }
@@ -291,7 +291,7 @@
           <div id="pkResizeHandle"></div>
           <div id="pkMain">
             <div id="pkHeader">
-              <h3>🎯 Plinko</h3>
+              <h3>Plinko</h3>
               <button id="pkCloseBtn">✕</button>
             </div>
             <div id="pkBalanceRow">

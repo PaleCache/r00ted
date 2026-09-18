@@ -188,7 +188,7 @@
       .rl-lb-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
       .rl-lb-rank { width: 20px; text-align:center; font-size:12px; font-weight:700; color:#72767d; flex-shrink:0; }
       .rl-lb-rank.gold { color:#ffd700; } .rl-lb-rank.silver { color:#c9c9c9; } .rl-lb-rank.bronze { color:#cd7f32; }
-      .rl-lb-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink:0; background:#2b2d31; }
+      .rl-lb-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink:0; background:#2b2d31; -webkit-user-drag: none;}
       .rl-lb-name { flex:1; color:#dcddde; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .rl-lb-net { color:#4ade80; font-size:12px; font-weight:700; flex-shrink:0; }
       #rlErrorText { color:#ed4245; font-size: 12px; min-height: 16px; margin-top: 8px; text-align:center; }
@@ -359,7 +359,7 @@
     modalEl.id = "rlModalBox";
     modalEl.innerHTML = `
       <div id="rlHeader">
-        <h3>🎡 Roulette <span id="rlHeaderBalance"></span></h3>
+        <h3>Roulette <span id="rlHeaderBalance"></span></h3>
         <button id="rlCloseBtn">✕</button>
       </div>
 

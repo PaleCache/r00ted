@@ -168,7 +168,7 @@
         <div id="msBox">
         <div id="msResizeHandle"></div>
         <div id="msHeader">
-        <h3>💣 Minesweeper</h3>
+        <h3>Minesweeper</h3>
         <button id="msCloseBtn">✕</button>
         </div>
         <div id="msBalanceRow">

@@ -118,7 +118,7 @@
     modalEl.id = "wheelModalOverlay";
     modalEl.innerHTML = `
       <div id="wheelModalBox">
-        <h3>🎡 Daily XP Wheel</h3>
+        <h3>Daily XP Wheel</h3>
         <p class="wheel-sub">Spin for a chance at bonus XP - resets daily.</p>
         <div id="wheelCanvasWrap">
           <div id="wheelPointer"></div>
@@ -194,7 +194,7 @@
       const resultEl = modalEl.querySelector("#wheelResultText");
       resultEl.textContent = data.xpWon > 0
         ? `🎉 You won ${data.xpWon} XP!`
-        : `😬 No XP this time - try again tomorrow's spins.`;
+        : `😬 No XP this time - try again on tomorrow's spins.`;
       resultEl.style.color = data.xpWon > 0 ? "#3ba55d" : "#b9bbbe";
           const audio = new Audio('/sounds/battery-caution.oga');
           audio.volume = 0.5;
