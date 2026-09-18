@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="icon" type="image/svg+xml" href="r00ted.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>R00TED Docs: setup, config, bots</title>
@@ -285,6 +286,7 @@
     <a href="#desktop">Desktop App</a>
     <a href="#bots">Bots</a>
     <a href="#xp">XP System</a>
+    <a href="#pwa">PWA</a>
     <a href="#support">Support Development</a>
   </nav>
 
@@ -599,6 +601,10 @@ node index.js</pre>
       </div>
     </div>
 
+
+
+
+
         <div id="xp" class="doc-section">
       <h2><span class="num">09</span> XP System</h2>
       <p class="lede">How leveling works in chat: chips first, then wager, then claim XP.</p>
@@ -613,6 +619,32 @@ node index.js</pre>
       </ul>
       <div class="note"><strong>Note:</strong> XP is not granted automatically when chips are earned. You must clear the bonus wallet through casino wagering before you can claim the XP.</div>
     </div>
+
+<div id="pwa" class="doc-section">
+  <h2><span class="num">10</span> Progressive Web App (PWA)</h2>
+  <p class="lede">Access the app on mobile with push notifications through a Progressive Web App (PWA). Game support is currently a work in progress.</p>
+
+  <div class="note">
+    <strong>Privacy Warning:</strong> Chromium based browsers such as Google Chrome will route push notifications through Google's push notification infrastructure. Web Push payloads are encrypted between the application and the browser, so the push service cannot read the notification payload itself. However, the push service may still receive metadata required to deliver the notification. Keep this in mind when deciding whether to enable push notifications.
+  </div>
+
+  <p>To enable push notifications for mobile, generate VAPID keys using:</p>
+
+  <div class="code-block">
+    <div class="bar"><span>bash</span></div>
+    <pre>npx web-push generate-vapid-keys</pre>
+  </div>
+
+  <p>Create a <strong>.env</strong> file in <strong>./config/env</strong> and add the generated VAPID keys:</p>
+
+  <div class="code-block">
+    <div class="bar"><span>./config/env/.env</span></div>
+    <pre>VAPID_PRIVATE_KEY=
+VAPID_PUBLIC_KEY=</pre>
+  </div>
+</div>
+
+
 
     <div id="support" class="doc-section">
       <h2><span class="num">09</span> Support Development</h2>
