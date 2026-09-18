@@ -1,4 +1,4 @@
-var debugmode = true;
+var debugmode = false;
 let currentProfileUser = null;
 let lastKnownStatus = new Map();
 let currentVoiceRoom = null;
@@ -10085,7 +10085,7 @@ function renderBotTokenList(tokens) {
 container.querySelectorAll(".deleteBotTokenBtn").forEach(btn => {
   btn.onclick = async () => {
     const tokenObj = botTokensData.find(t => t.id === btn.dataset.id);
-    const confirmed = await showConfirmModal(
+    const confirmed = await showConfirmModalAsync(
       "Delete Bot Token",
       `Delete the token for "${tokenObj?.name || "this bot"}"? Any connected bot using it will be disconnected immediately.`,
       { confirmLabel: "Delete" }
@@ -10128,7 +10128,7 @@ function showBotTokenModal(name, token) {
   document.getElementById("botTokenModal").style.display = "flex";
 }
 
-function showConfirmModal(title, message, { confirmLabel = "Confirm", danger = true } = {}) {
+function showConfirmModalAsync(title, message, { confirmLabel = "Confirm", danger = true } = {}) {
   return new Promise((resolve) => {
     const modal = document.getElementById("confirmModal");
     const titleEl = document.getElementById("confirmModalTitle");
