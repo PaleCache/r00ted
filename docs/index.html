@@ -116,41 +116,11 @@
     pointer-events:none;
   }
   .hero-inner{position:relative; z-index:1;}
-  .terminal{
-    background:#080808;
-    border:1px solid var(--border-bright);
-    max-width:580px;
-    margin:0 0 36px;
-    box-shadow:0 0 0 1px #111, 0 24px 50px rgba(0,0,0,0.65);
-    overflow:hidden;
-  }
-  .terminal-bar{
-    display:flex; align-items:center; gap:7px;
-    padding:9px 13px;
-    background:#111;
-    border-bottom:1px solid var(--border);
-  }
+
   .dot{width:9px; height:9px; border-radius:50%;}
-  .dot.r{background:#ff5f57;} .dot.y{background:#febc2e;} .dot.g{background:#28c840;}
-  .terminal-title{
-    margin-left:7px; font-family:var(--mono); font-size:11px; color:var(--text-dim);
-  }
-  .terminal-body{
-    padding:16px 18px 20px;
-    font-family:var(--mono); font-size:13px; color:#c8ffd0;
-    min-height:145px;
-  }
-  .terminal-body .dim{color:var(--text-dimmer);}
-  .terminal-body .red{color:var(--red); font-weight:700;}
-  .terminal-body .ok{color:var(--green);}
-  .terminal-line{white-space:pre; opacity:0; animation:fadeIn .2s forwards;}
+
+
   .type-cursor{display:inline-block; width:7px; height:13px; background:#c8ffd0; vertical-align:-2px; animation:blink 0.9s steps(1) infinite;}
-  @keyframes fadeIn{ to{opacity:1;} }
-  .eyebrow{
-    font-family:var(--mono); font-size:11px; letter-spacing:1.8px;
-    color:var(--red); text-transform:uppercase; margin:0 0 16px;
-    display:flex; align-items:center; gap:8px;
-  }
   .eyebrow::before{content:">"; color:var(--text-dimmer);}
   h1{
     font-family:var(--mono); font-weight:700;
@@ -401,14 +371,8 @@
 
 <section class="hero">
   <div class="wrap hero-inner">
-    <div class="terminal" role="img" aria-label="Terminal showing a simulated login sequence granting access to the R00TED server">
-      <div class="terminal-bar">
-        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-        <span class="terminal-title">root@r00ted:~</span>
-      </div>
-      <div class="terminal-body" id="termBody"></div>
-    </div>
-    <p class="eyebrow">whoami --server</p>
+
+    <p class="eyebrow" style="color:var(--text-dim)">whoami --server</p>
     <h1>Chat with<br><span class="glitch">root</span> access.</h1>
     <p class="hero-sub">R00TED is a self hosted discord alternative chat server for people who'd rather own their data. Voice channels, custom roles, an XP system with prestige badges, and live-stream embeds, running on infrastructure you control.</p>
     <div class="hero-ctas">
@@ -641,60 +605,7 @@
   });
 })();
 </script>
-<script>
-(function(){
-  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var el = document.getElementById('termBody');
-  var lines = [
-    {t:'$ connect r00ted://server.local', c:''},
-    {t:'resolving host... [ok]', c:'ok'},
-    {t:'negotiating handshake... [ok]', c:'ok'},
-    {t:'password: ********', c:'dim'},
-    {t:'', c:''},
-    {t:'ACCESS GRANTED', c:'red'},
-    {t:'welcome back, anonymous.', c:''}
-  ];
-  if (reduce) {
-    el.innerHTML = lines.map(function(l){
-      return '<div class="terminal-line" style="opacity:1" class="'+l.c+'">'+escapeHtml(l.t)+'</div>';
-    }).join('');
-    return;
-  }
-  function escapeHtml(s){
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-  var i = 0;
-  function renderLine(){
-    if (i >= lines.length){
-      var cursorDiv = document.createElement('div');
-      cursorDiv.className = 'terminal-line';
-      cursorDiv.style.opacity = 1;
-      cursorDiv.innerHTML = '<span class="type-cursor"></span>';
-      el.appendChild(cursorDiv);
-      return;
-    }
-    var line = lines[i];
-    var div = document.createElement('div');
-    div.className = 'terminal-line ' + (line.c || '');
-    el.appendChild(div);
-    var chars = line.t.split('');
-    var j = 0;
-    var speed = line.t.startsWith('$') ? 28 : 6;
-    (function typeChar(){
-      if (j < chars.length){
-        div.textContent += chars[j];
-        div.style.opacity = 1;
-        j++;
-        setTimeout(typeChar, speed);
-      } else {
-        i++;
-        setTimeout(renderLine, line.t === '' ? 80 : 180);
-      }
-    })();
-  }
-  renderLine();
-})();
-</script>
+
 <script>
 (function(){
   var lb = document.getElementById('lightbox');
