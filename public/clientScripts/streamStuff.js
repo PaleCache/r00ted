@@ -561,7 +561,6 @@ async function initKickPusherChat(chatroomId, chatWrap) {
     try {
       const payload = typeof data === "string" ? JSON.parse(data) : data;
       appendKickChatMessage(list, payload);
-      console.log("Raw badges for", payload?.sender?.username, badges);
     } catch (e) { console.warn("Kick chat parse error:", e); }
   });
 }
@@ -789,9 +788,16 @@ function broadcastStreamStatus() {
   if (typeof socket === "undefined" || !socket?.connected) return;
   const watching = [...openEmbedWindows.values()];
   const count = watching.length;
-  let streamStatus = null;
-  if (count === 1) streamStatus = `Watching ${watching[0].name} on ${watching[0].platform}`;
-  else if (count > 1) streamStatus = `Watching ${count} streams`;
+  const video = window.currentVideoWatching;
+
+  const parts = [];
+  if (count === 1) parts.push(`${watching[0].name} on ${watching[0].platform}`);
+  else if (count > 1) parts.push(`${count} streams`);
+  if (video) parts.push(`${video} - Server Library`);
+
+  const streamStatus = parts.length
+  ? `Watching ${parts.join(" + ")}`
+  : (window.browserStreaming ? (window.browserStreamingInfo || "Streaming") : null);
 
   window.currentStreamStatus = streamStatus;
   socket.emit("setStreamStatus", { streamStatus });
@@ -800,7 +806,7 @@ function broadcastStreamStatus() {
   }
 
   if (window.electronAPI?.overlayStreamUpdate) {
-    if (count >= 1) {
+    if (streamStatus) {
       window.electronAPI.overlayStreamUpdate({
         text: streamStatus,
         count,

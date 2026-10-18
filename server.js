@@ -7661,7 +7661,16 @@ function openCreateChannelModal() {
 socket.on("setGameStatus", (data) => {
   if (!socket.userId || !onlineUsers.has(socket.userId)) return;
   const currentUser = onlineUsers.get(socket.userId);
-  currentUser.gameStatus = data.gameStatus || null;
+
+  const status = typeof data?.gameStatus === "string" ? data.gameStatus.slice(0, 100) : null;
+  currentUser.gameStatus = status || null;
+  const started = Number(data?.gameStartedAt);
+  const now = Date.now();
+  currentUser.gameStartedAt =
+    status && Number.isFinite(started) && started <= now && now - started < 7 * 24 * 3600 * 1000
+      ? started
+      : (status ? now : null);
+
   broadcastOnlineUsers();
 });
 
@@ -10229,6 +10238,93 @@ app.get("/api/library/file", (req, res) => {
       fs.createReadStream(absPath).pipe(res);
     }
   });
+});
+
+const VIDEO_ROOT = path.resolve(path.join(__dirname, "public", "videos"));
+const VIDEO_EXTS = [".mp4", ".webm", ".m4v", ".mov", ".ogv", ".mkv"];
+const VIDEO_THUMB_EXTS = [".jpg", ".jpeg", ".png", ".webp"];
+const VIDEO_SEARCH_MAX = 200;
+
+if (!fs.existsSync(VIDEO_ROOT)) fs.mkdirSync(VIDEO_ROOT, { recursive: true });
+
+function safeVideoPath(subPath = "") {
+  const cleaned = String(subPath || "").replace(/\\/g, "/");
+  const resolved = path.resolve(path.join(VIDEO_ROOT, cleaned));
+  if (resolved !== VIDEO_ROOT && !resolved.startsWith(VIDEO_ROOT + path.sep)) return VIDEO_ROOT;
+  return resolved;
+}
+
+const videoUrl = (rel) => "/videos/" + rel.split("/").map(encodeURIComponent).join("/");
+
+function buildVideoEntry(absDir, relDir, name, siblings) {
+  const base = name.replace(/\.[^/.]+$/, "");
+  const thumb = siblings.find(f =>
+    VIDEO_THUMB_EXTS.includes(path.extname(f).toLowerCase()) && f.replace(/\.[^/.]+$/, "") === base
+  );
+  const relPath = relDir ? `${relDir}/${name}` : name;
+  let size = 0, mtime = 0;
+  try {
+    const st = fs.statSync(path.join(absDir, name));
+    size = st.size; mtime = st.mtimeMs;
+  } catch (e) {}
+  return {
+    name,
+    title: base,
+    relPath,
+    url: videoUrl(relPath),
+    thumbUrl: thumb ? videoUrl(relDir ? `${relDir}/${thumb}` : thumb) : null,
+    size,
+    mtime
+  };
+}
+
+app.get("/api/videos/browse", requireAuth, (req, res) => {
+  const reqPath = String(req.query.path || "").replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+  const dirPath = safeVideoPath(reqPath);
+
+  fs.readdir(dirPath, { withFileTypes: true }, (err, entries) => {
+    if (err) return res.status(404).json({ error: "Folder not found" });
+
+    const folders = [];
+    const fileNames = [];
+    entries.forEach(e => {
+      if (e.name.startsWith(".")) return;
+      if (e.isDirectory()) folders.push(e.name);
+      else fileNames.push(e.name);
+    });
+
+    const videos = fileNames
+      .filter(n => VIDEO_EXTS.includes(path.extname(n).toLowerCase()))
+      .map(n => buildVideoEntry(dirPath, reqPath, n, fileNames))
+      .sort((a, b) => b.mtime - a.mtime);
+
+    folders.sort((a, b) => a.localeCompare(b));
+    res.json({ path: reqPath, folders, videos });
+  });
+});
+
+app.get("/api/videos/search", requireAuth, (req, res) => {
+  const q = String(req.query.q || "").trim().toLowerCase();
+  if (!q) return res.json({ query: "", videos: [] });
+
+  const results = [];
+  (function walk(absDir, relDir) {
+    if (results.length >= VIDEO_SEARCH_MAX) return;
+    let entries;
+    try { entries = fs.readdirSync(absDir, { withFileTypes: true }); } catch (e) { return; }
+    const fileNames = entries.filter(e => !e.isDirectory() && !e.name.startsWith(".")).map(e => e.name);
+    for (const n of fileNames) {
+      if (results.length >= VIDEO_SEARCH_MAX) return;
+      if (VIDEO_EXTS.includes(path.extname(n).toLowerCase()) && n.toLowerCase().includes(q)) {
+        results.push(buildVideoEntry(absDir, relDir, n, fileNames));
+      }
+    }
+    for (const d of entries.filter(e => e.isDirectory() && !e.name.startsWith("."))) {
+      walk(path.join(absDir, d.name), relDir ? `${relDir}/${d.name}` : d.name);
+    }
+  })(VIDEO_ROOT, "");
+
+  res.json({ query: q, videos: results });
 });
 
 

@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
    overlayPingUpdate: (ping) => ipcRenderer.send('overlay-ping-update', ping),
    onNativeNowPlaying: (cb) => ipcRenderer.on('native-now-playing', (event, data) => cb(data)),
    copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
+   onRunningGameSession: (cb) => ipcRenderer.on('running-game-session', (_e, session) => cb(session)),
    getRunningGames: () => {
     return new Promise((resolve) => {
       const handler = (event, game) => {

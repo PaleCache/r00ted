@@ -1,4 +1,4 @@
-var debugmode = false;
+var debugmode = true;
 let currentProfileUser = null;
 let lastKnownStatus = new Map();
 let currentVoiceRoom = null;
@@ -139,28 +139,22 @@ let VAPID_PUBLIC_KEY = null;
 
 
 async function subscribeToPush(reg) {
-  console.log('🔔 subscribeToPush called');
   if (!('PushManager' in window)) {
-    console.log('❌ PushManager not supported');
     return;
   }
   if (!VAPID_PUBLIC_KEY) {
-    console.log('❌ No VAPID_PUBLIC_KEY yet');
     return;
   }
 
   let sub = await reg.pushManager.getSubscription();
-  console.log('existing sub:', sub);
   if (!sub) {
     const keyArray = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-    console.log('decoded key byte length:', keyArray.length);
-
     try {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: keyArray
       });
-      console.log('✅ new sub created:', sub);
+      
     } catch (err) {
       console.error('❌ subscribe() failed:', err.name, err.message);
       return;
@@ -168,7 +162,6 @@ async function subscribeToPush(reg) {
   }
 
   if (typeof socket !== "undefined" && socket?.connected) {
-    console.log('📤 emitting registerPushSubscription');
     socket.emit("registerPushSubscription", sub.toJSON());
   } else {
     console.log('❌ socket not connected, cannot emit');
@@ -264,19 +257,36 @@ decryptText(m.encPayload).then(plain => {
 
 let gameStatusStack = [];
 
-function setGameStatus(name) {
-    if (!name) return;
-    gameStatusStack = gameStatusStack.filter(n => n !== name);
-    gameStatusStack.push(name);
-    broadcastGameStatus();
+function setGameStatus(name, startedAt = Date.now()) {
+  if (!name) return;
+  gameStatusStack = gameStatusStack.filter(g => g.name !== name);
+  gameStatusStack.push({ name, startedAt });
+  broadcastGameStatus();
 }
 
 function clearGameStatus(name) {
-    const before = gameStatusStack.length;
-    gameStatusStack = gameStatusStack.filter(n => n !== name);
-    if (gameStatusStack.length !== before) {
-        broadcastGameStatus();
-    }
+  const before = gameStatusStack.length;
+  gameStatusStack = gameStatusStack.filter(g => g.name !== name);
+  if (gameStatusStack.length !== before) broadcastGameStatus();
+}
+
+function broadcastGameStatus() {
+  const top = gameStatusStack[gameStatusStack.length - 1] || null;
+  if (socket && socket.connected) {
+    socket.emit("setGameStatus", {
+      gameStatus: top ? `🎮 Playing ${top.name}` : null,
+      gameStartedAt: top ? top.startedAt : null
+    });
+  }
+}
+
+function formatPlaytime(startedAt) {
+  const totalMin = Math.max(0, Math.floor((Date.now() - startedAt) / 60000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return "just started";
 }
 
 function showCommandDropdown(query = "") {
@@ -601,6 +611,56 @@ function removeScreenCard(selectorAttr, selectorValue) {
 }
 
 
+let effectTooltipEl = null;
+
+function setupEffectTooltips(container) {
+  if (!container || container.dataset.tipWired === "1") return;
+  container.dataset.tipWired = "1";
+
+  if (!effectTooltipEl) {
+    effectTooltipEl = document.createElement("div");
+    effectTooltipEl.style.cssText = `
+      position: fixed; display: none; pointer-events: none;
+      background: #111214; color: #fff; border: 1px solid #3a3c42;
+      padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      white-space: nowrap; z-index: 100000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    `;
+    document.body.appendChild(effectTooltipEl);
+  }
+
+  container.addEventListener("mouseover", (e) => {
+    const btn = e.target.closest(".effect-btn");
+    if (!btn || !container.contains(btn)) return;
+    if (btn.dataset.name) {
+      btn.dataset.tip = btn.dataset.name;
+      btn.removeAttribute("data-name");
+    }
+    const text = btn.dataset.tip;
+    if (!text) return;
+
+    effectTooltipEl.textContent = text;
+    effectTooltipEl.style.display = "block";
+
+    const r = btn.getBoundingClientRect();
+    const t = effectTooltipEl.getBoundingClientRect();
+    let left = r.left + r.width / 2 - t.width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - t.width - 8));
+    let top = r.top - t.height - 6;
+    if (top < 8) top = r.bottom + 6; 
+
+    effectTooltipEl.style.left = left + "px";
+    effectTooltipEl.style.top = top + "px";
+  });
+
+  container.addEventListener("mouseout", (e) => {
+    if (e.target.closest(".effect-btn")) effectTooltipEl.style.display = "none";
+  });
+  container.addEventListener("scroll", () => {
+    effectTooltipEl.style.display = "none";
+  });
+}
+
 function renderGradientButtons() {
   const container = document.getElementById("gradientButtons");
   if (!container) return;
@@ -613,7 +673,9 @@ function renderGradientButtons() {
     gap: 8px;
     max-height: 220px;
     overflow-y: auto;
-    padding-right: 4px;
+    overflow-x: hidden;
+    padding: 12px;
+    margin: -12px;
     scrollbar-gutter: stable;
   `;
   container.classList.add("dark-scrollbar");
@@ -668,6 +730,7 @@ function renderGradientButtons() {
   lockedMsg.innerHTML = `🔒 Gradient name colors unlock at <strong style="color:#ffd700;">Level 2</strong>`;
   container.appendChild(lockedMsg);
 }
+setupEffectTooltips(container);
 }
 
 function escapeHtml(str) {
@@ -715,8 +778,7 @@ function BadgeBtw() {
   if ((user.level || 1) >= 2) {
     container.innerHTML = `
       <button onclick="setBadge(null)" style="scrollbar-gutter: stable; margin-bottom:12px; padding:8px 14px;">Remove Badge</button>
-      <div id="badgeSelector" class="dark-scrollbar" style="display: grid; grid-template-columns: repeat(11, 1fr); gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 4px;">
-      </div>
+      <div id="badgeSelector" class="dark-scrollbar" style="display: grid; grid-template-columns: repeat(11, 1fr); gap: 8px; max-height: 220px; overflow-y: auto; overflow-x: hidden; padding: 12px; margin: -12px;">
       <div id="prestigeBadgeSelector" style="display: grid; grid-template-columns: repeat(11, 1fr); gap: 8px; margin-top: 10px;">
       </div>
     `;
@@ -2053,7 +2115,6 @@ function hexToRgb(hex) {
 
 function getColorBgWithOpacity(colorClass, opacity = 0.2) {
   const hex = colorClassToHex[colorClass] || '#00f2ff';
-  console.log(`Color class: ${colorClass} Hex: ${hex}`);
   const rgb = hexToRgb(hex);
   
   const r = isNaN(rgb.r) ? 0 : rgb.r;
@@ -2097,13 +2158,15 @@ function renderUsers(users) {
     buckets.get(match.key).push(u);
   });
 
+ 
+  
   
 function rowSignature(u) {
     return [
       u.id, u.username, u.avatar, u.usernameColor, u.status,
       u.level, u.badge, u.prestigeBadge, u.isAdmin, u.isDeveloper,
       u.isPromptEngineer, u.isBot, u.customStatus, u.musicStatus,
-      u.streamStatus, u.gameStatus,
+      u.streamStatus, u.gameStatus, u.gameStartedAt,
       u.banner, u.profileHeader, u.profileGradient,
       (u.customRoleIds || []).join(",")
     ].join("|");
@@ -2366,8 +2429,6 @@ if (!isCurrentlyMuted) {
       updateLastActiveOnServer();
     }
   });
-
-  console.log("Activity detection for online status activated");
 });
 
 
@@ -2683,6 +2744,56 @@ if (isImageUrl(part)) {
         return;
       }
 
+
+      if (isTwitterUrl(part)) {
+  const tweetInfo = extractTweetInfo(part);
+  if (tweetInfo) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "twitter-embed-wrapper";
+    wrapper.style.cssText = `
+      width: 100%;
+      max-width: 550px;
+      min-width: 0;
+      box-sizing: border-box;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 4px 0;
+      padding: 4px;
+    `;
+
+    const loadingLabel = document.createElement("div");
+    loadingLabel.textContent = "Loading post...";
+    loadingLabel.style.cssText = "color:#8b8b8b; font-size:12px; padding:8px 10px;";
+    wrapper.appendChild(loadingLabel);
+
+    container.appendChild(wrapper);
+
+    loadTwitterWidgets().then(() => {
+      window.twttr.widgets.createTweet(tweetInfo.tweetId, wrapper, {
+        theme: "dark",
+        dnt: true,
+        conversation: "none"
+      }).then((el) => {
+        if (el) {
+          loadingLabel.remove();
+        } else {
+          loadingLabel.textContent = "Post unavailable";
+          const a = document.createElement("a");
+          a.href = part;
+          a.textContent = part;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.style.cssText = "color:#00a8fc; display:block; padding:4px 10px 8px;";
+          wrapper.appendChild(a);
+        }
+      });
+    }).catch(() => {
+      loadingLabel.textContent = "Failed to load post";
+    });
+  }
+  return;
+}
+
       if (isKickUrl(part)) {
   const kickInfo = extractKickInfo(part);
   if (kickInfo) {
@@ -2787,7 +2898,40 @@ appendTextWithMentionsAndEmoji(part, container, isEmojiOnlyMessage);
 }
 
 
+let _twitterWidgetsPromise = null;
+function loadTwitterWidgets() {
+  if (window.twttr && window.twttr.widgets) {
+    return Promise.resolve();
+  }
+  if (_twitterWidgetsPromise) {
+    return _twitterWidgetsPromise;
+  }
+  _twitterWidgetsPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[src="https://platform.twitter.com/widgets.js"]');
+    if (existing) {
+      existing.addEventListener("load", resolve);
+      existing.addEventListener("error", reject);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://platform.twitter.com/widgets.js";
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return _twitterWidgetsPromise;
+}
 
+function isTwitterUrl(url) {
+  return /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/\w+\/status\/\d+/i.test(url);
+}
+
+function extractTweetInfo(url) {
+  const match = url.match(/(twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/i);
+  if (!match) return null;
+  return { handle: match[2], tweetId: match[3] };
+}
 
 
 
@@ -3901,10 +4045,6 @@ if (e.key === "Enter" && !e.shiftKey) {
       return;
     }
 
-
-    
-
-    console.log(`MSG ${user.level}`)
     let messageText = text;
     let isEncrypted = false;
     let encPayload = null;
@@ -4131,7 +4271,7 @@ function renderRoleListScreen(box) {
       clearBadgeBtn.style.display = "block";
       pickBadgeBtn.textContent = roleCreateDraft.badge;
     } else {
-      badgePreview.innerHTML = `<span style="color:#72767d; font-size:16px;">＋</span>`;
+      badgePreview.innerHTML = `<span style="color:#72767d; font-size:16px;"></span>`;
       clearBadgeBtn.style.display = "none";
       pickBadgeBtn.textContent = "Choose badge (optional)";
     }
@@ -4147,6 +4287,8 @@ function renderRoleListScreen(box) {
 
   nameEl.addEventListener("input", () => { roleCreateDraft.name = nameEl.value; });
   hexEl.addEventListener("input", () => { roleCreateDraft.hex = hexEl.value; updateNewRolePreview(); });
+  hexEl.addEventListener("change", flushPendingRoleManagerRender);
+  hexEl.addEventListener("blur", flushPendingRoleManagerRender);
   opacityEl.addEventListener("input", () => { roleCreateDraft.opacity = opacityEl.value; updateNewRolePreview(); });
   updateNewRolePreview();
 
@@ -4695,19 +4837,36 @@ function renderRoleCheckboxes() {
   });
 }
 
+
+let roleManagerRenderPending = false;
+
+function isRoleColorPickerActive() {
+  const a = document.activeElement;
+  return !!(a && a.type === "color" && a.closest("#roleManagerBox"));
+}
+
+function flushPendingRoleManagerRender() {
+  if (!roleManagerRenderPending) return;
+  roleManagerRenderPending = false;
+  renderRoleManager();
+}
+
 function refreshRoleManagerIfOpen() {
   const modal = document.getElementById("roleManagerModal");
   const box = document.getElementById("roleManagerBox");
-  if (modal && box) {
-    renderRoleManager();
+  if (!modal || !box) return;
+
+  if (isRoleColorPickerActive()) {
+    roleManagerRenderPending = true;
+    return;
   }
+  renderRoleManager();
 }
 
 
 function handleStreamOfflineNotification(stream) {
   const streamId = `${stream.platform}-${stream.name}`;
   notifiedStreams.delete(streamId);
-  console.log(`⚫ ${stream.name} went offline - cleared notification flag`);
 }
 
 
@@ -4988,63 +5147,9 @@ const uploadPercent = document.getElementById("uploadPercent");
 
 imageInput.setAttribute("accept", "image/*,video/*,audio/*,text/plain,text/markdown,text/csv,application/json,.txt,.md,.csv,.json");
 imageInput.addEventListener("change", () => {
-  const file = imageInput.files[0];
-  if (!file) return;
-
-  const formData = new FormData();
-  formData.append("image", file);
-
-  const xhr = new XMLHttpRequest();
-  xhr.open("POST", "/upload-image", true);
-  xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("chatToken")}`);
-  uploadProgress.style.display = "block";
-  xhr.upload.onprogress = (event) => {
-    if (event.lengthComputable) {
-      const percent = Math.round((event.loaded / event.total) * 100);
-      uploadPercent.textContent = percent + "%";
-    }
-  };
-
- xhr.onload = () => {
-  uploadProgress.style.display = "none";
-  if (xhr.status === 200) {
-    const data = JSON.parse(xhr.responseText);
-    const isVideo = file.type.startsWith("video/");
-    const isAudio = data.type === "audio";
-    const isTextFile = data.type === "file";
-
-    const msg = {
-      id: crypto.randomUUID(),
-      userId: user.id,
-      username: user.username,
-      avatar: user.avatar,
-      usernameColor: user.usernameColor,
-      badge: user.badge,
-      level: user.level || 1,
-      isAdmin: user.isAdmin || false,
-      isDeveloper: user.isDeveloper || false,
-      isPromptEngineer: user.isPromptEngineer || false,
-      isBot: user.isBot || false,
-      prestigeBadge: user.prestigeBadge || null,
-      text: data.url,
-      fileName: (isAudio || isTextFile) ? (data.filename || file.name) : undefined,
-      channel: currentChannel,
-      time: Date.now(),
-      type: isVideo ? "video" : (isAudio ? "audio" : (isTextFile ? "file" : "image"))
-    };
-
-    socket.emit("message", msg);
-  } else {
-    showToast("Upload failed: " + xhr.responseText);
-  }
-};
-
-  xhr.onerror = () => {
-    uploadProgress.style.display = "none";
-    showToast("Upload error");
-  };
-
-  xhr.send(formData);
+  const files = Array.from(imageInput.files || []);
+  files.forEach(uploadDroppedFile);
+  imageInput.value = ""; 
 });
 
 const avatarInput = document.getElementById("pfpUpload");
@@ -5053,21 +5158,14 @@ let currentFile = null;
 
 if (avatarInput) {
   avatarInput.addEventListener("change", function(e) {
-    console.log("📁 Change event triggered");
     const inputElement = e.target;
     const fileList = inputElement.files;
-    
-    console.log("📋 FileList object:", fileList);
-    console.log("📊 FileList length:", fileList.length);
     if (!fileList || fileList.length === 0) {
       console.warn("❌ No file selected.");
       return;
     }
 
     const selectedFile = fileList.item(0);
-    
-    console.log("📄 Selected file object:", selectedFile);
-    console.log("📄 Selected file type:", typeof selectedFile);
     if (!selectedFile || !selectedFile.name) {
       console.error("❌ File object is invalid:", selectedFile);
      showToast("❌ Invalid file. Please try again.");
@@ -5077,8 +5175,6 @@ if (avatarInput) {
     const fileName = selectedFile.name.toLowerCase();
     const fileType = selectedFile.type || "";
     const fileSize = selectedFile.size || 0;
-
-    console.log(`File: "${fileName}" | Type: "${fileType}" | Size: ${fileSize} bytes`);
     const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
     const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
     const isImage = fileType.startsWith("image/") || hasValidExtension;
@@ -5096,13 +5192,8 @@ if (avatarInput) {
 
 
     reader.onload = (readerEvent) => {
-      console.log("📖 File read successfully");
-
-
-          const isAnimated = fileType === 'image/gif' || fileType === 'image/webp';
-
+      const isAnimated = fileType === 'image/gif' || fileType === 'image/webp';
       if (isAnimated) {
-        console.log("🎬 Animated file detected (GIF/WebP). Skipping cropper.");
         uploadAnimatedImage(readerEvent.target.result);
         inputElement.value = ''; 
         return;
@@ -5116,7 +5207,6 @@ if (avatarInput) {
       }
 
       img.src = readerEvent.target.result;
-      console.log("🖼️ Image loaded");
       if (typeof Cropper === 'undefined') {
         console.error("❌ Cropper.js not loaded");
        showToast("❌ Cropper library not available.");
@@ -5142,14 +5232,12 @@ if (avatarInput) {
         cropBoxResizable: true,
         toggleDragModeOnDblclick: false,
         ready: function() {
-          console.log("Cropper initialized");
         }
       });
 
       const cropModal = document.getElementById("avatarEditorModal");
       if (cropModal) {
         cropModal.style.display = "flex";
-        console.log("🪟 Modal opened");
       }
     };
 
@@ -5157,8 +5245,6 @@ if (avatarInput) {
       console.error("❌ FileReader error:", error);
      showToast("❌ Failed to read image.");
     };
-
-    console.log("📖 Starting to read file...");
     reader.readAsDataURL(selectedFile);
     setTimeout(() => {
       inputElement.value = '';
@@ -5770,9 +5856,7 @@ function setPrestigeBadge(badgeUrl) {
 
 
 function showLevelUpNotification(newLevel) {
-   console.log("showLevelUpNotification called, plinkoOpen =", window.plinkoOpen);
   if (window.plinkoOpen) {
-    console.log("SUPPRESSED");
     return;
   }
   const banner = document.createElement('div');
@@ -5912,7 +5996,6 @@ function startConnectionHealthCheck() {
   if (connectionHealthCheck) clearInterval(connectionHealthCheck);
   connectionHealthCheck = setInterval(() => {
     if (window.jitsiInitializing) {
-      console.log("⏳ Still initializing, skipping check");
       return;
     }
     if (!connection || !window.jitsiInitialized) {
@@ -5922,7 +6005,6 @@ function startConnectionHealthCheck() {
 
    initJitsi()
   .then(() => {
-    console.log("Jitsi reinitialized successfully");
     enableVoiceChannelButtons();
     socket.emit("getChannels");
     if (currentVoiceRoom) {
@@ -6237,6 +6319,7 @@ function setProfileGradient(gradient) {
 
 function renderProfileGradientButtons() {
   const container = document.getElementById("profileGradientButtons");
+  const prevScroll = container.querySelector("#profileGradientGrid")?.scrollTop || 0;
   if (!container) return;
 
   if ((user.level || 1) < 2) {
@@ -6248,34 +6331,36 @@ function renderProfileGradientButtons() {
     return;
   }
 
-  container.innerHTML = `
-    <div class="dark-scrollbar" style="display:grid;grid-template-columns:repeat(10, 1fr);gap:8px;max-height:220px;overflow-y:auto; scrollbar-gutter: stable; padding-right:4px;">
-      ${colors.map(p => {
-        const isActive = user.profileGradient === p.grad;
-        return `
-          <button class="effect-btn" 
-            title="${p.name}",
-            data-name="${p.name}",
-            onclick="setProfileGradient('${p.grad.replace(/'/g, "\\'")}')"
-            style="
-              background: ${p.grad};
-              width:100%;height:50px; width: 50px;border-radius:8px;
-              border:${isActive ? '3px solid #FF0000' : 'none'};
-              box-shadow:${isActive ? '0 0 12px #FF0000' : 'none'};
-              box-sizing:border-box;cursor:pointer;
-              scrollbar-gutter: stable;
-            ">
-          </button>
-        `;
-      }).join('')}
-    </div>
-    <div style="margin-top:10px;">
-      <input id="customProfileGradient" type="text" placeholder="Custom CSS gradient..." 
-        style="width:100%;box-sizing:border-box;padding:8px 10px;background:#1e1f22;border:1px solid #3a3c42;border-radius:6px;color:#fff;font-size:13px;outline:none;">
-      <button onclick="setProfileGradient(document.getElementById('customProfileGradient').value)" 
-        style="margin-top:6px;width:100%;padding:6px;background:#FF0000;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">Apply Custom</button>
-    </div>
-  `;
+container.innerHTML = `
+  <div id="profileGradientGrid" class="dark-scrollbar" style="display:grid;grid-template-columns:repeat(10, 50px);gap:8px;max-height:220px;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding:14px;margin:-14px;">
+    ${colors.map(p => {
+      const isActive = user.profileGradient === p.grad;
+      return `
+        <button class="effect-btn"
+          data-name="${p.name}"
+          onclick="setProfileGradient('${p.grad.replace(/'/g, "\\'")}')"
+          style="
+            background: ${p.grad};
+            width:50px;height:50px;border-radius:8px;
+            border:${isActive ? '3px solid #FF0000' : 'none'};
+            box-shadow:${isActive ? '0 0 12px #FF0000' : 'none'};
+            box-sizing:border-box;cursor:pointer;
+          ">
+        </button>
+      `;
+    }).join('')}
+  </div>
+  <div style="margin-top:10px;">
+    <input id="customProfileGradient" type="text" placeholder="Custom CSS gradient..."
+      style="width:100%;box-sizing:border-box;padding:8px 10px;background:#1e1f22;border:1px solid #3a3c42;border-radius:6px;color:#fff;font-size:13px;outline:none;">
+    <button onclick="setProfileGradient(document.getElementById('customProfileGradient').value)"
+      style="margin-top:6px;width:100%;padding:6px;background:#FF0000;border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">Apply Custom</button>
+  </div>
+`;
+
+setupEffectTooltips(container.querySelector("#profileGradientGrid"));
+  const newGrid = container.querySelector("#profileGradientGrid");
+  if (newGrid) newGrid.scrollTop = prevScroll;
 }
 
 
@@ -6440,7 +6525,7 @@ window.addEventListener('load', () => {
 
   if (!notifSettings.browserMediaStatus) {
     const lastSource = window.__lastNativeNowPlaying?.source?.toLowerCase() || "";
-    const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge'];
+    const BROWSER_HINTS = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'librewolf', 'plasma-browser-integration'];
     const isBrowser = BROWSER_SOURCES.some(b => lastSource.includes(b));
     if (isBrowser) {
       if (typeof socket !== "undefined" && socket?.connected) {
@@ -6956,7 +7041,6 @@ function renderGifPage() {
 
 
 function sendGif(gifUrl) {
-  console.log(`SEND GIF ${user.level}`)
   const msg = {
     id: crypto.randomUUID(),
     userId: user.id,
@@ -7062,7 +7146,7 @@ function uploadDroppedFile(file) {
   }
 
   if (file.size > 200 * 1024 * 1024) {
-    showToast("❌ File too large (max 100MB)");
+    showToast("❌ File too large (max 200MB)");
     return;
   }
 
@@ -7640,12 +7724,9 @@ function openAvatarCrop(e) {
 function openBannerCrop(e) {
   const file = e.target.files;
   if (!file) return;
-
   const fileType = file.type || "";
   const isAnimated = fileType === 'image/gif' || fileType === 'image/webp';
-
   if (isAnimated) {
-    console.log("🎬 Animated banner detected (GIF/WebP). Skipping cropper.");
     uploadAnimatedBanner(file);
     e.target.value = '';
     return;
@@ -8409,15 +8490,6 @@ function appendAddButton(container, type) {
 }
 
 
-
-
-function broadcastGameStatus() {
-    const top = gameStatusStack[gameStatusStack.length - 1] || null;
-    if (socket && socket.connected) {
-        socket.emit("setGameStatus", { gameStatus: top ? `🎮 Playing ${top}` : null });
-    }
-}
-
 function openEmoteManager() {
   document.getElementById("emoteManagerModal")?.remove();
 
@@ -8457,9 +8529,14 @@ function openEmoteManager() {
         Uploading... <span id="emoteUploadPct">0%</span>
       </div>
 
-   <div id="emoteGrid" style="
-  display:grid; grid-template-columns: repeat(auto-fill, minmax(72px,1fr));
-  gap:10px; overflow-y:auto; flex:1; padding: 4px 8px 4px 4px;
+<div id="emoteGrid" style="
+  display:grid;
+  grid-template-columns: repeat(auto-fill, 72px);
+  grid-auto-rows: 72px;
+  justify-content: center;
+  align-content: start;
+  gap:10px; overflow-y:auto; flex:1; min-height:0;
+  padding: 4px 8px 4px 4px;
   overscroll-behavior: contain;
 "></div>
     </div>
@@ -8532,19 +8609,19 @@ function renderEmoteGrid() {
 
   pepeList.forEach(filename => {
     const wrapper = document.createElement("div");
-   wrapper.style.cssText = `
-  position:relative; border-radius:8px; overflow:hidden;
-  background:#40444b; aspect-ratio:1; display:flex;
-  align-items:center; justify-content:center;
-  will-change: transform; transition: outline 0.15s;
-  cursor: pointer;
-`;
+  wrapper.style.cssText = `
+    position:relative; border-radius:8px; overflow:hidden;
+    background:#40444b; width:72px; height:72px; display:flex;
+    align-items:center; justify-content:center;
+    transition: outline 0.15s;
+    cursor: pointer;
+  `;
 wrapper.onmouseover = () => wrapper.style.outline = '2px solid #FF0000';
 wrapper.onmouseout = () => wrapper.style.outline = 'none';
 
     const img = document.createElement("img");
     img.src = `/avatars/${filename}`;
-    img.style.cssText = "width:100%; height:100%; object-fit:contain;";
+    img.style.cssText = "position:absolute; inset:0; width:100%; height:100%; object-fit:contain;";
     img.title = filename;
     img.draggable = false;
 
@@ -8806,7 +8883,10 @@ function applyServerBanner(url) {
 
 const gameDetection = {
   currentGame: null,
+  startedAt: null,
+  lastSeen: 0,
   detectionInterval: null,
+  lastPushedGame: null,
 
   start() {
     if (this.detectionInterval) return;
@@ -8817,23 +8897,42 @@ const gameDetection = {
   async detectGame() {
     try {
       if (!window.electronAPI?.getRunningGames) return;
-      const gameName = await window.electronAPI.getRunningGames();
-      if (gameName !== this.currentGame) {
-        this.currentGame = gameName;
-        this.updateStatus(gameName);
+      const name = await window.electronAPI.getRunningGames();
+      const now = Date.now();
+
+      if (name) {
+        this.lastSeen = now;
+        if (name !== this.currentGame) {
+          this.currentGame = name;
+          this.startedAt = now;
+          this.updateStatus(name, this.startedAt);
+        }
+      } else if (this.currentGame && now - this.lastSeen > 30000) {
+      
+        this.currentGame = null;
+        this.startedAt = null;
+        this.updateStatus(null);
       }
     } catch (e) {}
   },
 
-  updateStatus(gameName) {
-    if (gameName) {
-      window.setGameStatus(gameName);
+  updateStatus(name, startedAt) {
+    if (name) {
+      window.setGameStatus(name, startedAt);
     } else if (this.lastPushedGame) {
       window.clearGameStatus(this.lastPushedGame);
     }
-    this.lastPushedGame = gameName || null;
+    this.lastPushedGame = name || null;
   }
 };
+
+setInterval(() => {
+  const popup = document.getElementById('userProfilePopup');
+  if (!popup || popup.style.visibility !== 'visible') return;
+  popup.querySelectorAll('[data-game-started-at]').forEach(el => {
+    el.textContent = `${el.dataset.gameLabel} · ${formatPlaytime(Number(el.dataset.gameStartedAt))}`;
+  });
+}, 60000);
 
 function updateVoiceChannelParticipantLists() {
   voiceRoomParticipants.forEach((participants, roomName) => {
@@ -9378,7 +9477,6 @@ document.getElementById("resetOverlayPosBtn").addEventListener("click", () => {
 
 if (window.electronAPI?.onOverlayRequestRefresh) {
   window.electronAPI.onOverlayRequestRefresh(() => {
-    console.log('🔄 Overlay ready, pushing current voice state');
     pushOverlayVoiceUpdate();
   });
 }
@@ -10187,3 +10285,92 @@ document.getElementById("createBotTokenBtn")?.addEventListener("click", () => {
 document.querySelector('[data-tab="adminPanel"]')?.addEventListener("click", () => {
   socket.emit("getBotTokens");
 });
+
+
+const DEFAULT_AVATAR_COUNT = 9;
+
+function openDefaultAvatarPicker() {
+  document.getElementById("defaultAvatarModal")?.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "defaultAvatarModal";
+  modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center; z-index:30002;";
+  modal.innerHTML = `
+    <div style="background:#2b2d31; border-radius:12px; padding:20px; width:340px; max-width:90vw; border:1px solid #3a3c42;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+        <h3 style="margin:0; color:#fff; font-size:16px;">Choose a Default Avatar</h3>
+        <button id="closeDefaultAvatarPicker" style="background:none; border:none; color:#72767d; font-size:20px; cursor:pointer;">✕</button>
+      </div>
+      <div id="defaultAvatarGrid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const close = () => modal.remove();
+  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  modal.querySelector("#closeDefaultAvatarPicker").onclick = close;
+
+  const grid = modal.querySelector("#defaultAvatarGrid");
+  for (let i = 1; i <= DEFAULT_AVATAR_COUNT; i++) {
+    const url = `/avatars/default${i}.png`;
+    const isSelected = user.avatar === url;
+
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = `Default ${i}`;
+    img.style.cssText = `
+      width:100%; aspect-ratio:1; object-fit:cover; border-radius:50%;
+      cursor:pointer; box-sizing:border-box; transition:transform 0.15s;
+      border:${isSelected ? "3px solid #FF0000" : "3px solid transparent"};
+      box-shadow:${isSelected ? "0 0 12px #FF0000" : "none"};
+    `;
+    img.onmouseover = () => img.style.transform = "scale(1.06)";
+    img.onmouseout = () => img.style.transform = "scale(1)";
+    img.onclick = () => {
+      applyDefaultAvatar(url);
+      close();
+    };
+    grid.appendChild(img);
+  }
+}
+
+function applyDefaultAvatar(url) {
+  if (user.avatar === url) return;
+
+  user.avatar = url;
+  localStorage.setItem("chatUser", JSON.stringify(user));
+
+  const settingsPfp = document.getElementById("settingsPfp");
+  if (settingsPfp) settingsPfp.src = sanitizeAvatar(user.avatar);
+
+  if (typeof conference !== "undefined" && conference) {
+    try {
+      conference.setLocalParticipantProperty("avatar", user.avatar);
+    } catch (error) {
+      console.warn("Jitsi update failed:", error);
+    }
+  }
+
+  if (socket && socket.connected) {
+    socket.emit("updateUser", {
+      user: {
+        id: user.id,
+        username: user.username,
+        avatar: user.avatar,
+        usernameColor: user.usernameColor,
+        badge: user.badge || null,
+        level: user.level || 1,
+        profileHeader: user.profileHeader,
+        prestigeBadge: user.prestigeBadge || null,
+        profileGradient: user.profileGradient || null
+      }
+    });
+  }
+
+  const myIndex = currentUsers.findIndex(u => u && u.id === user.id);
+  if (myIndex !== -1) currentUsers[myIndex].avatar = user.avatar;
+  renderUsers(currentUsers);
+
+  updateNamePreview(user.usernameColor || "username-cyan");
+  showToast("Avatar updated!");
+}

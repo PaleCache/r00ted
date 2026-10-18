@@ -307,6 +307,7 @@ function renderAnimatedGradientButtons() {
     </div>
   `;
 }
+setupEffectTooltips(container);
 }
 
 
@@ -404,4 +405,5 @@ function renderProfileEffectButtons() {
 
   html += `</div>`;
   container.innerHTML = html;
+  setupEffectTooltips(container);
 }

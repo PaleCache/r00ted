@@ -67,6 +67,14 @@
     <path d="M3 7h6" />
   </svg>
 </button>
+
+<button id="videoLibBtn" class="sidebar-icon-btn" title="Videos" onclick="openVideoModal()">
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-video">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z" />
+    <path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" />
+  </svg>
+</button>
  
 
 <div id="hiddenGameButtons" style="display:none;">
@@ -572,6 +580,7 @@
     <label style="margin-bottom: 0;">Profile Picture</label>
     <img id="settingsPfp" class="settings-pfp">
     <button onclick="document.getElementById('pfpUpload').click()">Change</button>
+    <button onclick="openDefaultAvatarPicker()">Choose Default</button>
   </div>
 
   <div style="display: flex; flex-direction: column; gap: 16px; flex: 1; min-width: 0;">
@@ -1228,6 +1237,7 @@
 <script src="/clientScripts/reactions.js" defer></script>
 <script src="/clientScripts/Buildlinks.js" defer></script>
 <script src="/clientScripts/weatherWidget.js" defer></script>
+<script src="/clientScripts/videoLibrary.js" defer></script>
 <script src="/clientScripts/forumChannels.js" defer></script>
 <script src="/clientScripts/mobileNav.js" defer></script>
 </body>

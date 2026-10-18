@@ -581,6 +581,7 @@ div#usersList {
   position: relative;
   width: 856px;
   max-width: 90vw;
+  height: 640px;
   max-height: 85vh;
   background: #020203;
   border-radius: 10px;
@@ -1724,27 +1725,6 @@ width: 100%;
   position: relative;
 }
 
-.effect-btn::after {
-  content: attr(data-name);
-  position: absolute;
-  bottom: 120%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #111;
-  color: #fff;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 5px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.15s;
-  z-index: 1000;
-}
-
-.effect-btn:hover::after {
-  opacity: 1;
-}
 
 .effect-btn:hover {
   transform: scale(1.1);
@@ -2827,7 +2807,7 @@ div#usersList img {
   color: #ef4444;
 }
 
-voiceStatusLabel
+
 #scrollToBottomBtn:hover{
   color: #FF0000 !important;
 }

@@ -172,7 +172,16 @@ function renderProfilePopupContent(userData) {
     gameStrong.style.color = '#fff';
     gameStrong.textContent = 'Playing: ';
     gameDiv.appendChild(gameStrong);
-    gameDiv.appendChild(document.createTextNode(userData.gameStatus));
+
+    const gameText = document.createElement('span');
+    gameText.textContent = userData.gameStartedAt
+      ? `${userData.gameStatus} · ${formatPlaytime(userData.gameStartedAt)}`
+      : userData.gameStatus;
+    if (userData.gameStartedAt) {
+      gameText.dataset.gameStartedAt = userData.gameStartedAt;
+      gameText.dataset.gameLabel = userData.gameStatus;
+    }
+    gameDiv.appendChild(gameText);
     infoDiv.appendChild(gameDiv);
   }
 

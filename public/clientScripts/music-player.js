@@ -249,11 +249,15 @@ let cachedPlaylists = {};
   #mpSideHeader > div {
     display: flex; gap: 6px; flex-wrap: wrap;
   }
-#mpAddBtn, #mpAddFolderBtn, #mpAddRadioBtn, #mpClearQueueBtn {
+#mpAddBtn, #mpAddFolderBtn, #mpAddRadioBtn, #mpAddYtBtn, #mpClearQueueBtn {
     background: #FF0000; border: 1px solid rgba(255,0,0,0.4); color: #ffffff;
     font-size: 10px; font-weight: 600; padding: 5px 7px; border-radius: 6px; cursor: pointer; transition: 0.15s;
     white-space: nowrap;
   }
+
+  #mpYtHost { display: none; position: absolute; inset: 0; background: #000; z-index: 1; }
+#mpYtHost iframe { width: 100%; height: 100%; border: 0; display: block; }
+#mpYtShield { position: absolute; inset: 0; z-index: 2; cursor: pointer; }
   #mpAddBtn:hover, #mpAddFolderBtn:hover, #mpAddRadioBtn:hover { background: #FF0000; color: #fff; }
   #mpPlaylist { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
   #mpPlaylist::-webkit-scrollbar { width: 7px; }
@@ -727,6 +731,7 @@ let cachedPlaylists = {};
             <button id="mpPipFullscreenBtn" title="Fullscreen">⛶</button>
             <video id="mpArtVideo" style="display:none;" muted loop playsinline></video>
             <div id="mpVideoSpinner"></div>
+            <div id="mpYtHost"><div id="mpYtPlayer"></div><div id="mpYtShield"></div></div>
             <img id="mpArtImg" style="display:none;">
             <div id="mpArtFallback">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
@@ -813,6 +818,7 @@ let cachedPlaylists = {};
                 <button id="mpAddBtn">+ Files</button>
                 <button id="mpAddFolderBtn">+ Folder</button>
                 <button id="mpAddRadioBtn">+ Radio</button>
+                <button id="mpAddYtBtn">+ YouTube</button>
                 <button id="mpClearQueueBtn" title="Clear queue">Clear</button>
               </div>
             </div>
@@ -971,9 +977,11 @@ let cachedPlaylists = {};
 
   function formatTime(sec) {
     if (!isFinite(sec) || sec < 0) sec = 0;
-    const m = Math.floor(sec / 60);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
     const s = Math.floor(sec % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
+    const ss = s.toString().padStart(2, "0");
+    return h > 0 ? `${h}:${m.toString().padStart(2, "0")}:${ss}` : `${m}:${ss}`;
   }
 
   let videoArtEnabled = (() => {
@@ -1102,9 +1110,10 @@ async function setVideoArtEnabled(enabled) {
     if (!track.artUrl) return null;
     if (track.artUrl.startsWith('data:')) return track.artUrl;
     try {
-      const res = await fetch(track.artUrl, {
-        headers: { Authorization: `Bearer ${authToken()}` }
-      });
+    const sameOrigin = track.artUrl.startsWith("/") || track.artUrl.startsWith(location.origin);
+    const res = await fetch(track.artUrl, sameOrigin
+      ? { headers: { Authorization: `Bearer ${authToken()}` } }
+      : {});
       if (!res.ok) return null;
       const blob = await res.blob();
       return await new Promise((resolve) => {
@@ -1633,8 +1642,8 @@ async function syncBotVideoTrack(force) {
   async function updateMusicStatus() {
     if (typeof socket === "undefined" || !socket?.connected) return;
     const track = queue[currentIndex];
-    const isActuallyPlaying = track && !audio.paused;
-    const musicStatus = isActuallyPlaying ? `${track.title} - ${track.artist}` : null;
+    const isActuallyPlaying = track && isPlaying();
+    const musicStatus = isActuallyPlaying ? `${track.artist} - ${track.title}` : null;
     const musicArtUrl = isActuallyPlaying ? (track.artUrl || null) : null;
     window.currentMusicStatus = musicStatus;
     window.currentMusicArtUrl = musicArtUrl;
@@ -1881,8 +1890,11 @@ async function syncBotVideoTrack(force) {
   function updateNowPlayingUI() {
     const track = queue[currentIndex];
     const videoEl = el("mpArtVideo");
-
+    el("mpYtHost").style.display = track?.isYoutube ? "block" : "none";
+    el("mpEqRow").style.opacity = track?.isYoutube ? "0.35" : "";
     if (!track) {
+      stopYt();
+      setPlayIcon(false);
       el("mpTitle").textContent = "No track loaded";
       el("mpArtist").textContent = "Add some music to get started";
       videoEl.pause();
@@ -1907,7 +1919,16 @@ async function syncBotVideoTrack(force) {
 
 const useVideo = videoArtEnabled && !!track.videoUrl;
 
-if (useVideo) {
+if (track.isYoutube) {
+  videoEl.pause();
+  videoEl.removeAttribute("src");
+  videoEl.dataset.trackId = "";
+  videoEl.style.display = "none";
+  el("mpVideoSpinner").classList.remove("show");
+  el("mpArtImg").style.display = "none";
+  el("mpArtFallback").style.display = "none";
+  syncBotVideoTrack();
+} else if (useVideo) {
   el("mpArtImg").style.display = "none";
   el("mpArtFallback").style.display = "none";
 
@@ -1979,15 +2000,33 @@ if (useVideo) {
     updateBotIdentity();
   }
 
-  function playTrackAt(index) {
-    if (index < 0 || index >= queue.length) return;
-    currentIndex = index;
-    const track = queue[currentIndex];
-    audio.src = track.url;
-    audio.play().catch(() => {});
+function playTrackAt(index) {
+  if (index < 0 || index >= queue.length) return;
+  currentIndex = index;
+  const track = queue[currentIndex];
+
+  if (track.isYoutube) {
+    audio.pause();
+    resetProgressUI();
     updateNowPlayingUI();
     setPlayIcon(true);
+    if (isBroadcasting) window.showToast?.("YouTube audio can't be sent through Listen Together");
+    ensureYtPlayer()
+      .then(p => {
+        if (queue[currentIndex] !== track) return;
+        if (track.isMix) p.loadPlaylist({ listType: "playlist", list: track.listId, index: 0 });
+        else p.loadVideoById(track.videoId);
+      })
+      .catch(() => window.showToast?.("Couldn't load the YouTube player"));
+      return;
   }
+
+  stopYt();
+  audio.src = track.url;
+  audio.play().catch(() => {});
+  updateNowPlayingUI();
+  setPlayIcon(true);
+}
 
 
   async function swapBotVideoSource() {
@@ -2130,31 +2169,40 @@ if (useVideo) {
     el("mpMiniPauseIcon").style.display = isPlaying ? "block" : "none";
   }
 
-  function togglePlay() {
-    if (currentIndex === -1) {
-      if (queue.length > 0) playTrackAt(0);
-      return;
-    }
-    if (audio.paused) { audio.play().catch(() => {}); setPlayIcon(true); }
-    else { audio.pause(); setPlayIcon(false); }
+function togglePlay() {
+  if (currentIndex === -1) {
+    if (queue.length > 0) playTrackAt(0);
+    return;
   }
-
-  function nextTrack(auto) {
-    if (queue.length === 0) return;
-    let next = currentIndex + 1;
-    if (next >= queue.length) next = 0;
-    playTrackAt(next);
+  if (queue[currentIndex]?.isYoutube) {
+    if (!ytPlayer) return;
+    ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+    return;
   }
+  if (audio.paused) { audio.play().catch(() => {}); setPlayIcon(true); }
+  else { audio.pause(); setPlayIcon(false); }
+}
 
-  function prevTrack() {
-    if (queue.length === 0) return;
-    if (audio.currentTime > 3) { audio.currentTime = 0; return; }
-    let prev = currentIndex - 1;
-    if (prev < 0) prev = queue.length - 1;
-    playTrackAt(prev);
-  }
+function nextTrack(auto) {
+  if (queue.length === 0) return;
+  if (!auto && queue[currentIndex]?.isMix && ytPlayer) { ytPlayer.nextVideo(); return; }
+  let next = currentIndex + 1;
+  if (next >= queue.length) next = 0;
+  playTrackAt(next);
+}
 
-  async function handleFiles(fileList) {
+function prevTrack() {
+  if (queue.length === 0) return;
+  if (queue[currentIndex]?.isYoutube) {
+    if (ytPlayer && ytPlayer.getCurrentTime() > 3) { ytPlayer.seekTo(0, true); return; }
+  } else if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+  if (queue[currentIndex]?.isMix && ytPlayer) { ytPlayer.previousVideo(); return; }
+  let prev = currentIndex - 1;
+  if (prev < 0) prev = queue.length - 1;
+  playTrackAt(prev);
+}
+
+async function handleFiles(fileList) {
     const allFiles = Array.from(fileList);
     const audioFiles = allFiles.filter(f => /audio\//.test(f.type) || /\.(mp3|flac|wav|ogg|m4a|aac|opus)$/i.test(f.name));
     if (audioFiles.length === 0) return;
@@ -2518,7 +2566,7 @@ if (useVideo) {
 
   async function saveCurrentQueueAsPlaylist(name) {
     if (!name) return;
-    const saveable = queue.filter(t => t.source === "server" || t.source === "radio");
+    const saveable = queue.filter(t => t.source === "server" || t.source === "radio" || t.source === "youtube");
     if (saveable.length === 0) {
       window.showToast?.("No server library tracks or radio stations in the queue to save. Local files can't be saved.");
       return;
@@ -2534,18 +2582,11 @@ if (useVideo) {
           name,
           userId: window.user?.id || null,
           createdBy: (window.user?.username || "Unknown"),
-          tracks: saveable.map(t => t.source === "radio" ? ({
-            type: "radio",
-            name: t.title,
-            rawUrl: t.rawUrl,
-          }) : ({
-            type: "server",
-            name: t.title,
-            relPath: t.relPath,
-            url: t.url,
-            artUrl: t.artUrl || null,
-            videoUrl: t.videoUrl || null,
-          })),
+          tracks: saveable.map(t =>
+           t.source === "youtube" ? ({ type: "youtube", name: t.title, artist: t.artist, videoId: t.videoId, listId: t.listId || null })
+            : t.source === "radio" ? ({ type: "radio", name: t.title, rawUrl: t.rawUrl })
+            : ({ type: "server", name: t.title, relPath: t.relPath, url: t.url, artUrl: t.artUrl || null, videoUrl: t.videoUrl || null })
+          ),
         })
       });
       const data = await res.json();
@@ -2566,6 +2607,7 @@ if (useVideo) {
     const pl = cachedPlaylists[name];
     if (!pl) return;
     queue = pl.tracks.map(t => {
+      if (t.type === "youtube") return t.listId ? buildYtMixTrack(t.listId, t.videoId) : buildYtTrack(t.videoId, t.name, t.artist);
       if (t.type === "radio") {
         return buildRadioTrack(t.rawUrl, t.name);
       }
@@ -2786,47 +2828,424 @@ if (useVideo) {
 }
 
 
+  
+  let ytApiPromise = null;
+  let ytReadyPromise = null;
+  let ytPlayer = null;
+  let ytTickTimer = null;
+  let ytErrorStreak = 0;
+  let ytRenderTimer = null;
+
+  const ytOrigin = /^https?:/.test(location.origin) ? location.origin : undefined;
+
+  function isPlaying() {
+    const t = queue[currentIndex];
+    if (t?.isYoutube) return ytPlayer?.getPlayerState?.() === 1;
+    return !audio.paused;
+  }
+
+  function loadYtApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve();
+    if (!ytApiPromise) {
+      ytApiPromise = new Promise((resolve, reject) => {
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(); };
+        const s = document.createElement("script");
+        s.src = "https://www.youtube.com/iframe_api";
+        s.onerror = () => { ytApiPromise = null; reject(new Error("YT API failed to load")); };
+        document.head.appendChild(s);
+      });
+    }
+    return ytApiPromise;
+  }
+
+  function ensureYtPlayer() {
+    if (ytReadyPromise) return ytReadyPromise;
+    ytReadyPromise = loadYtApi().then(() => new Promise((resolve) => {
+      ytPlayer = new YT.Player("mpYtPlayer", {
+        width: "100%",
+        height: "100%",
+        playerVars: {
+          playsinline: 1, rel: 0, controls: 0, disablekb: 1,
+          modestbranding: 1, iv_load_policy: 3, enablejsapi: 1,
+          origin: ytOrigin
+        },
+        events: {
+          onReady: () => {
+            ytPlayer.setVolume(parseInt(el("mpVol").value, 10) || 0);
+            resolve(ytPlayer);
+          },
+          onStateChange: onYtState,
+          onError: onYtError
+        }
+      });
+    }));
+    ytReadyPromise.catch(() => { ytReadyPromise = null; });
+    return ytReadyPromise;
+  }
+
+  function stopYt() {
+    stopYtTick();
+    try {
+      ytPlayer?.pauseVideo?.();
+      ytPlayer?.stopVideo?.();
+    } catch (e) {}
+  }
+
+  function startYtTick() {
+    stopYtTick();
+    ytTickTimer = setInterval(ytTick, 250);
+    ytTick();
+  }
+  function stopYtTick() {
+    if (ytTickTimer) { clearInterval(ytTickTimer); ytTickTimer = null; }
+  }
+
+  function setProgressUI(cur, dur) {
+    const pct = dur > 0 ? (cur / dur) * 100 : 0;
+    const seek = el("mpSeek");
+    seek.disabled = false;
+    seek.value = pct;
+    seek.style.background = `linear-gradient(to right, #FF0000 0%, #FF0000 ${pct}%, #3a3c42 ${pct}%, #3a3c42 100%)`;
+    el("mpTimeCur").textContent = formatTime(cur);
+    el("mpTimeDur").textContent = formatTime(dur);
+    const miniBar = el("mpMiniProgressBar");
+    if (miniBar) miniBar.style.width = pct + "%";
+    el("mpProgressEmote").style.left = pct + "%";
+    el("mpMiniProgressEmote").style.left = pct + "%";
+  }
+
+  function resetProgressUI() { setProgressUI(0, 0); }
+
+  function ytTick() {
+    const t = queue[currentIndex];
+    if (!t?.isYoutube || !ytPlayer?.getCurrentTime) return;
+    const dur = ytPlayer.getDuration() || 0;
+    if (!dur) return;
+    setProgressUI(ytPlayer.getCurrentTime(), dur);
+  }
+
+  function onYtState(e) {
+  const t = queue[currentIndex];
+  if (!t?.isYoutube) return;
+  const S = YT.PlayerState;
+  if (e.data === S.PLAYING) {
+    ytErrorStreak = 0;
+    setPlayIcon(true);
+    startYtTick();
+    if (t.isMix) {
+      const d = ytPlayer.getVideoData?.() || {};
+      if (d.title) t.title = d.title;
+      if (d.author) t.artist = d.author.replace(/ - Topic$/, "");
+      if (d.video_id) t.artUrl = `https://i.ytimg.com/vi/${d.video_id}/mqdefault.jpg`;
+      scheduleYtRender();
+    }
+    updateMusicStatus();
+  } else if (e.data === S.PAUSED) {
+    setPlayIcon(false);
+    updateMusicStatus();
+  } else if (e.data === S.ENDED) {
+    stopYtTick();
+    if (repeatMode === 1) {
+      ytPlayer.seekTo(0, true);
+      ytPlayer.playVideo();
+    } else {
+      nextTrack(true);
+    }
+  }
+}
+
+function onYtError() {
+  const t = queue[currentIndex];
+  if (!t?.isYoutube) return;
+  if (t.isMix) {
+    try { ytPlayer.nextVideo(); } catch (e) {}
+    return;
+  }
+  window.showToast?.(`Can't play "${t.title}" (embedding disabled or unavailable), skipping`);
+  ytErrorStreak++;
+  if (ytErrorStreak >= queue.length) { ytErrorStreak = 0; return; }
+  setTimeout(() => { if (queue[currentIndex] === t) nextTrack(true); }, 800);
+}
+
+  function parseYouTube(raw) {
+    let u;
+    try { u = new URL(raw.trim()); } catch (e) { return null; }
+    const host = u.hostname.replace(/^(www\.|m\.|music\.)/, "");
+    let videoId = null;
+    const listId = u.searchParams.get("list");
+    if (host === "youtu.be") {
+      videoId = u.pathname.slice(1).split("/")[0];
+    } else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+      if (u.pathname === "/watch") videoId = u.searchParams.get("v");
+      else {
+        const m = u.pathname.match(/^\/(?:shorts|embed|live|v)\/([\w-]{11})/);
+        if (m) videoId = m[1];
+      }
+    } else {
+      return null;
+    }
+    if (videoId && !/^[\w-]{11}$/.test(videoId)) videoId = null;
+    if (!videoId && !listId) return null;
+    return { videoId, listId };
+  }
+
+ function buildYtMixTrack(listId, videoId) {
+  const t = buildYtTrack(videoId || "", "YouTube Mix", "YouTube");
+  t.isMix = true;
+  t.listId = listId;
+  if (!videoId) t.artUrl = null;
+  return t;
+}
+
+  function buildYtTrack(videoId, title, artist) {
+    return {
+      id: Math.random().toString(36).slice(2),
+      file: null,
+      title: title || "YouTube video",
+      artist: artist || "YouTube",
+      artUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+      videoUrl: null,
+      url: "",
+      source: "youtube",
+      isYoutube: true,
+      videoId,
+      addedAt: Date.now(),
+    };
+  }
+
+
+  async function fetchYtPlaylistIds(listId, videoId) {
+  await loadYtApi();
+  const isMix = listId.startsWith("RD");
+  return new Promise((resolve, reject) => {
+    const host = document.createElement("div");
+    host.style.cssText = "position:fixed;left:-9999px;top:0;width:200px;height:200px;";
+    const inner = document.createElement("div");
+    host.appendChild(inner);
+    document.body.appendChild(host);
+
+    let p = null, done = false, timeout = null, lastIds = null;
+    const finish = (ids, err) => {
+      if (done) return;
+      done = true;
+      clearInterval(poll);
+      clearTimeout(timeout);
+      try { p?.destroy(); } catch (e) {}
+      host.remove();
+      err ? reject(err) : resolve(ids);
+    };
+    const poll = setInterval(() => {
+      try {
+        const ids = p?.getPlaylist?.();
+        if (ids && ids.length) {
+          lastIds = ids;
+          if (!isMix || ids.length > 1) finish(ids);
+        }
+      } catch (e) {}
+    }, 300);
+    timeout = setTimeout(() => {
+      lastIds ? finish(lastIds) : finish(null, new Error("timeout"));
+    }, isMix ? 15000 : 10000);
+
+    const cfg = {
+      width: 200, height: 200,
+      playerVars: isMix
+        ? { list: listId, origin: ytOrigin, playsinline: 1 }
+        : { listType: "playlist", list: listId, origin: ytOrigin },
+      events: {
+        onReady: (e) => {
+          if (isMix) { try { e.target.mute(); e.target.playVideo(); } catch (err) {} }
+        },
+        onError: () => finish(null, new Error("unavailable"))
+      }
+    };
+    if (isMix && videoId) cfg.videoId = videoId;
+    p = new YT.Player(inner, cfg);
+  });
+}
+
+  function scheduleYtRender() {
+    clearTimeout(ytRenderTimer);
+    ytRenderTimer = setTimeout(() => {
+      renderPlaylist();
+      const t = queue[currentIndex];
+      if (t?.isYoutube) {
+        el("mpTitle").textContent = t.title;
+        el("mpArtist").textContent = t.artist;
+        el("mpMiniTitle").textContent = t.title;
+        el("mpMiniArtist").textContent = t.artist;
+        updateBotIdentity();
+        updateMusicStatus();
+      }
+    }, 500);
+  }
+
+  
+  async function hydrateYtMeta(tracks) {
+    let i = 0;
+    const worker = async () => {
+      while (i < tracks.length) {
+        const t = tracks[i++];
+        try {
+          const r = await fetch(
+            `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent("https://www.youtube.com/watch?v=" + t.videoId)}`
+          );
+          if (r.ok) {
+            const d = await r.json();
+            if (d.title) t.title = d.title;
+            if (d.author_name) t.artist = d.author_name.replace(/ - Topic$/, "");
+          }
+        } catch (e) {}
+        if (queue.includes(t)) scheduleYtRender();
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+  }
+
+  async function addYouTubeFromUrl(raw) {
+  const parsed = parseYouTube(raw);
+  if (!parsed) throw new Error("Enter a valid YouTube video or playlist link.");
+
+  let tracks;
+if (parsed.listId && parsed.listId.startsWith("RD")) {
+  window.showToast?.("Loading YouTube Mix…");
+  try {
+    const ids = await fetchYtPlaylistIds(parsed.listId, parsed.videoId);
+    tracks = ids.map(id => buildYtTrack(id));
+  } catch (e) { tracks = []; }
+
+  if (tracks.length === 0) {
+    if (!parsed.videoId) throw new Error("Couldn't load that Mix.");
+    tracks = [buildYtTrack(parsed.videoId)];
+    window.showToast?.("Couldn't load the whole Mix, added the first song only");
+  }
+} else if (parsed.listId) {
+ 
+    window.showToast?.("Loading YouTube playlist…");
+    let ids;
+    try { ids = await fetchYtPlaylistIds(parsed.listId); }
+    catch (e) { throw new Error("Couldn't load that playlist (private, empty, or unavailable)."); }
+    tracks = ids.map(id => buildYtTrack(id));
+  } else {
+  
+    tracks = [buildYtTrack(parsed.videoId)];
+  }
+
+  const firstNew = queue.length;
+  tracks.forEach(t => {
+    queue.push(t);
+    if (shuffleOn && preShuffleOrder) preShuffleOrder.push(t);
+  });
+  renderPlaylist();
+  if (currentIndex === -1) playTrackAt(firstNew);
+  hydrateYtMeta(tracks.filter(t => !t.isMix));
+  window.showToast?.(`Added ${tracks.length} YouTube track${tracks.length === 1 ? "" : "s"} to Queue`);
+}
+
+  function openAddYouTubeModal() {
+    document.getElementById("mpAddYtModal")?.remove();
+    const m = document.createElement("div");
+    m.id = "mpAddYtModal";
+    m.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:21000;";
+    const inputStyle = "width:100%;padding:10px 14px;background:#40444b;border:1px solid #40444b;border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;transition:border-color 0.2s;";
+    m.innerHTML = `
+      <div style="background:#2b2d31;border-radius:12px;padding:28px 32px;width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid #3a3c42;">
+        <h3 style="margin:0 0 6px;color:#fff;font-size:18px;">Add from YouTube</h3>
+        <p style="margin:0 0 20px;color:#b9bbbe;font-size:13px;">Paste a video or playlist link.</p>
+        <input id="mpYtUrlInput" type="text" placeholder="https://www.youtube.com/watch?v=..." style="${inputStyle}">
+        <p id="mpYtError" style="color:#ff3333;font-size:13px;min-height:18px;margin:8px 0 0;"></p>
+        <div style="display:flex;gap:10px;margin-top:8px;justify-content:flex-end;">
+          <button id="mpYtCancel" style="background:#40444b;border:none;color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:14px;">Cancel</button>
+          <button id="mpYtConfirm" style="background:#FF0000;border:none;color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Add</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+
+    const input = m.querySelector("#mpYtUrlInput");
+    const errEl = m.querySelector("#mpYtError");
+    const confirmBtn = m.querySelector("#mpYtConfirm");
+    input.focus();
+    input.addEventListener("focus", () => input.style.borderColor = "#FF0000");
+    input.addEventListener("blur", () => input.style.borderColor = "#40444b");
+
+    let busy = false;
+    const submit = async () => {
+      if (busy) return;
+      const val = input.value.trim();
+      if (!val) { errEl.textContent = "Paste a YouTube link."; return; }
+      busy = true;
+      confirmBtn.textContent = "Adding…";
+      confirmBtn.style.opacity = "0.6";
+      errEl.textContent = "";
+      try {
+        await addYouTubeFromUrl(val);
+        m.remove();
+      } catch (e) {
+        errEl.textContent = e.message || "Something went wrong.";
+        busy = false;
+        confirmBtn.textContent = "Add";
+        confirmBtn.style.opacity = "";
+      }
+    };
+    confirmBtn.onclick = submit;
+    m.querySelector("#mpYtCancel").onclick = () => m.remove();
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submit();
+      if (e.key === "Escape") m.remove();
+    });
+    m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
+  }
+
+
+
   function wireEvents() {
   try {
   if (window.electronAPI?.onNativeNowPlaying) {
-  window.electronAPI.onNativeNowPlaying((np) => {
+   window.electronAPI.onNativeNowPlaying((np) => {
   window.__lastNativeNowPlaying = np;
   try {
-    if (currentIndex !== -1 && !audio.paused) return;
+    const music   = np?.music ?? null;
+    const browser = np?.browser ?? null;
+    const browserStreaming = !!(browser?.isPlaying && notifSettings.browserMediaStatus !== false);
+    const browserInfo = (browserStreaming && browser.title)
+      ? `${browser.artist ? `${browser.artist} - ${browser.title}` : browser.title} (via ${browser.source || "Browser"})`
+      : null;
 
-        const BROWSER_SOURCES = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'msedge', 'librewolf'];
-        if (np?.source && BROWSER_SOURCES.some(b => np.source.toLowerCase().includes(b)) && notifSettings.browserMediaStatus === false) {
-          np = null;
-        }
-
-      if (!np || !np.isPlaying) {
-          if (typeof socket !== "undefined" && socket?.connected) {
-            socket.emit("setMusicStatus", { musicStatus: null, musicArtUrl: null });
-          }
-          if (window.electronAPI?.overlayMusicUpdate) {
-            window.electronAPI.overlayMusicUpdate(null);
-          }
-          return;
-        }
-
-          const musicStatus = np.artist
-            ? `${np.title} - ${np.artist} (via ${np.source || "Spotify"})`
-            : `${np.title} (via ${np.source || "Spotify"})`;
-
-          if (typeof socket !== "undefined" && socket?.connected) {
-            socket.emit("setMusicStatus", { musicStatus, musicArtUrl: np.artUrl || null });
-          }
-          if (window.electronAPI?.overlayMusicUpdate) {
-            window.electronAPI.overlayMusicUpdate({ title: np.title, artist: np.artist, artUrl: np.artUrl });
-          }
-        } catch (e) {
-          console.error("native-now-playing handler failed:", e);
-        }
-      });
+    if (window.browserStreaming !== browserStreaming || window.browserStreamingInfo !== browserInfo) {
+      window.browserStreaming = browserStreaming;
+      window.browserStreamingInfo = browserInfo;
+      if (typeof broadcastStreamStatus === "function") broadcastStreamStatus();
     }
+
+   
+    if (currentIndex !== -1 && isPlaying()) return;
+
+    if (!music?.isPlaying) {
+      if (typeof socket !== "undefined" && socket?.connected) {
+        socket.emit("setMusicStatus", { musicStatus: null, musicArtUrl: null });
+      }
+      window.electronAPI?.overlayMusicUpdate?.(null);
+      return;
+    }
+
+    const musicStatus = music.artist
+      ? `${music.artist} - ${music.title} (via ${music.source || "Spotify"})`
+      : `${music.title} (via ${music.source || "Spotify"})`;
+
+    if (typeof socket !== "undefined" && socket?.connected) {
+      socket.emit("setMusicStatus", { musicStatus, musicArtUrl: music.artUrl || null });
+    }
+    window.electronAPI?.overlayMusicUpdate?.({ title: music.title, artist: music.artist, artUrl: music.artUrl });
   } catch (e) {
-    console.error("Failed to register native-now-playing listener:", e);
+    console.error("native-now-playing handler failed:", e);
   }
+
+    });
+  }
+} catch (e) {
+  console.error("Failed to register native-now-playing listener:", e);
+}
 
   btn.addEventListener("click", openPlayer);
     el("mpCloseBtn").addEventListener("click", closePlayer);
@@ -2858,6 +3277,7 @@ if (useVideo) {
     });
 
     el("mpAddRadioBtn").addEventListener("click", openAddRadioModal);
+    el("mpAddYtBtn").addEventListener("click", openAddYouTubeModal);
 
     el("mpPlaylistSearchInput").addEventListener("input", (e) => {
       const val = e.target.value;
@@ -2951,6 +3371,11 @@ if (useVideo) {
 
     el("mpSeek").addEventListener("input", (e) => {
       const track = queue[currentIndex];
+      if (track?.isYoutube) {
+        const d = ytPlayer?.getDuration?.();
+        if (d) ytPlayer.seekTo((e.target.value / 100) * d, true);
+        return;
+      }
       if (track?.isRadio || !audio.duration) return;
       audio.currentTime = (e.target.value / 100) * audio.duration;
       const videoEl = el("mpArtVideo");
@@ -2962,6 +3387,7 @@ if (useVideo) {
     el("mpVol").addEventListener("input", (e) => {
       const vol = e.target.value / 100;
       audio.volume = vol;
+      try { ytPlayer?.setVolume?.(vol * 100); } catch (err) {}
       const fill = `linear-gradient(to right, #FF0000 0%, #FF0000 ${vol*100}%, #3a3c42 ${vol*100}%, #3a3c42 100%)`;
       el("mpVol").style.background = fill;
       el("mpMiniVol").value = e.target.value;
@@ -2984,6 +3410,7 @@ if (useVideo) {
     el("mpMiniVol").addEventListener("input", (e) => {
       const vol = e.target.value / 100;
       audio.volume = vol;
+      try { ytPlayer?.setVolume?.(vol * 100); } catch (err) {}
       const fill = `linear-gradient(to right, #FF0000 0%, #FF0000 ${vol*100}%, #3a3c42 ${vol*100}%, #3a3c42 100%)`;
       el("mpMiniVol").style.background = fill;
       el("mpVol").value = e.target.value;
@@ -3072,6 +3499,7 @@ if (useVideo) {
     });
 
     audio.addEventListener("play", () => {
+      if (queue[currentIndex]?.isYoutube) return;
       setPlayIcon(true);
       const videoEl = el("mpArtVideo");
       if (videoArtEnabled && videoEl.style.display !== "none") videoEl.play().catch(() => {});
@@ -3080,6 +3508,7 @@ if (useVideo) {
     });
 
     audio.addEventListener("pause", () => {
+      if (queue[currentIndex]?.isYoutube) return;
       setPlayIcon(false);
       el("mpArtVideo").pause();
       updateMusicStatus();

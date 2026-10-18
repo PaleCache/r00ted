@@ -5,6 +5,26 @@ const os = require('os');
 let lastMusicData = null;
 const { exec } = require('child_process');
 const util = require('util');
+const BROWSER_HINTS = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'librewolf', 'plasma-browser-integration'];
+const isBrowserSource = (s) => !!s && BROWSER_HINTS.some(h => s.toLowerCase().includes(h));
+const MUSIC_APP_ALLOWLIST = ['neonkat'];
+
+function getProcessName(pid) {
+  if (!pid) return '';
+  try {
+    const cmdline = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').replace(/\0/g, ' ').toLowerCase();
+    const comm = fs.readFileSync(`/proc/${pid}/comm`, 'utf8').trim().toLowerCase();
+    return `${comm} ${cmdline}`;
+  } catch {
+    return '';
+  }
+}
+
+function isAllowlistedMusicApp(dest) {
+  const pid = dest.match(/instance_?(\d+)/i)?.[1];
+  const info = getProcessName(pid ? parseInt(pid, 10) : null);
+  return MUSIC_APP_ALLOWLIST.some(n => info.includes(n));
+}
 const execAsync = util.promisify(exec);const { execSync } = require('child_process');
 //if (process.platform === 'linux') {
   //app.commandLine.appendSwitch('ozone-platform', 'x11');
@@ -520,85 +540,79 @@ function isOwnProcess(pid) {
 }
 
 async function getLinuxNowPlaying() {
+  const result = { music: null, browser: null };
   try {
     const { stdout: listOut } = await execAsync(
       `dbus-send --session --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames`,
       { timeout: 2000 }
     );
-
     const players = [...listOut.matchAll(/"(org\.mpris\.MediaPlayer2\.[^"]+)"/g)].map(m => m[1]);
-    if (players.length === 0) return null;
-    const BROWSER_HINTS = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'librewolf'];
-    const isBrowser = (dest) => BROWSER_HINTS.some(h => dest.toLowerCase().includes(h));
     const externalPlayers = players.filter(dest => {
-      const pidMatch = dest.match(/instance(\d+)/i);
-      const pid = pidMatch ? parseInt(pidMatch[1], 10) : null;
-      return !isOwnProcess(pid);
+      const pid = dest.match(/instance(\d+)/i)?.[1];
+      return !isOwnProcess(pid ? parseInt(pid, 10) : null);
     });
 
-    const sortedPlayers = [
-      ...externalPlayers.filter(p => !isBrowser(p)),
-      ...externalPlayers.filter(p => isBrowser(p)),
-    ];
-
-    for (const dest of sortedPlayers) {
-  try {
-    let source;
-    try {
-      const { stdout: identityOut } = await execAsync(
-        `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2' string:'Identity'`,
-        { timeout: 1500 }
-      );
-      const identity = identityOut.match(/string "([^"]*)"/)?.[1];
-      if (identity) source = identity;
-    } catch {}
-
-    if (!source) {
-      const rawName = dest.replace('org.mpris.MediaPlayer2.', '').split('.')[0];
-      source = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-    }
-
-    const { stdout: statusOut } = await execAsync(
-      `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'PlaybackStatus'`,
-      { timeout: 1500 }
-    );
-    if (!/string "Playing"/.test(statusOut)) continue;
-
-    const { stdout: out } = await execAsync(
-      `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'Metadata'`,
-      { timeout: 1500 }
-    );
-
-    const title  = out.match(/"xesam:title"\s*\n\s*variant\s+string "([^"]*)"/)?.[1];
-    const artist = out.match(/"xesam:artist"[\s\S]*?string "([^"]*)"/)?.[1];
-    let artUrl = out.match(/"mpris:artUrl"\s*\n\s*variant\s+string "([^"]*)"/)?.[1];
-    if (!title) continue;
-
-    if (artUrl && !/^(https?|file):\/\//i.test(artUrl)) artUrl = null;
-
-    if (artUrl && artUrl.startsWith('file://')) {
+    for (const dest of externalPlayers) {
       try {
-        const filePath = decodeURIComponent(artUrl.replace('file://', ''));
-        const buffer = fs.readFileSync(filePath);
-        const mime = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
-        artUrl = `data:${mime};base64,${buffer.toString('base64')}`;
-      } catch (e) {
-        console.warn('[NowPlaying] Could not read local art file:', e.message);
-        artUrl = await fetchArtViaItunes(title, artist);
-      }
+        let source;
+        try {
+          const { stdout } = await execAsync(
+            `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2' string:'Identity'`,
+            { timeout: 1500 }
+          );
+          source = stdout.match(/string "([^"]*)"/)?.[1];
+        } catch {}
+        if (!source) {
+          const raw = dest.replace('org.mpris.MediaPlayer2.', '').split('.')[0];
+          source = raw.charAt(0).toUpperCase() + raw.slice(1);
+        }
+
+        const { stdout: statusOut } = await execAsync(
+          `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'PlaybackStatus'`,
+          { timeout: 1500 }
+        );
+        if (!/string "Playing"/.test(statusOut)) continue;
+
+        if (!isAllowlistedMusicApp(dest) && (isBrowserSource(dest) || isBrowserSource(source))) {
+          if (!result.browser || !result.browser.title) {
+            let title = null, artist = null;
+            try {
+              const { stdout: mOut } = await execAsync(
+                `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'Metadata'`,
+                { timeout: 1500 }
+              );
+              title  = mOut.match(/"xesam:title"\s*\n\s*variant\s+string "([^"]*)"/)?.[1] || null;
+              artist = mOut.match(/"xesam:artist"[\s\S]*?string "([^"]*)"/)?.[1] || null;
+            } catch {}
+            result.browser = { isPlaying: true, source, title, artist };
+          }
+          continue;
+        }
+
+        const { stdout: out } = await execAsync(
+          `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'Metadata'`,
+          { timeout: 1500 }
+        );
+        const title  = out.match(/"xesam:title"\s*\n\s*variant\s+string "([^"]*)"/)?.[1];
+        const artist = out.match(/"xesam:artist"[\s\S]*?string "([^"]*)"/)?.[1];
+        let artUrl   = out.match(/"mpris:artUrl"\s*\n\s*variant\s+string "([^"]*)"/)?.[1];
+        if (!title) continue;
+
+        if (artUrl && !/^(https?|file):\/\//i.test(artUrl)) artUrl = null;
+        if (artUrl?.startsWith('file://')) {
+          try {
+            const filePath = decodeURIComponent(artUrl.replace('file://', ''));
+            const mime = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+            artUrl = `data:${mime};base64,${fs.readFileSync(filePath).toString('base64')}`;
+          } catch {
+            artUrl = await fetchArtViaItunes(title, artist);
+          }
+        }
+        result.music = { isPlaying: true, title, artist: artist || null, artUrl: artUrl || null, source };
+      } catch { continue; }
     }
-
-
-
-    return { isPlaying: true, title, artist: artist || null, artUrl: artUrl || null, source };
-  } catch {
-    continue;
-  }
-}
-    return null;
-  } catch (e) {
-    return null;
-  }
+  } catch {}
+  return result;
 }
 
 const NOW_PLAYING_PS1_CONTENT = `Add-Type -AssemblyName System.Runtime.WindowsRuntime
@@ -637,17 +651,17 @@ $playing = $mgr.GetSessions() | Where-Object {
     [int]$_.GetPlaybackInfo().PlaybackStatus.value__ -eq 4 -and -not (Is-Self $_.SourceAppUserModelId)
 }
 $sorted = @($playing | Where-Object { -not (Is-Browser $_.SourceAppUserModelId) }) + @($playing | Where-Object { Is-Browser $_.SourceAppUserModelId })
-$session = $sorted | Select-Object -First 1
 
-if ($session) {
-    $props = Await ($session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
+$out = @($sorted | ForEach-Object {
+    $props = Await ($_.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
     [PSCustomObject]@{
         isPlaying = $true
         title     = $props.Title
         artist    = $props.Artist
-        appId     = $session.SourceAppUserModelId
-    } | ConvertTo-Json -Compress
-}
+        appId     = $_.SourceAppUserModelId
+    }
+})
+if ($out.Count -gt 0) { ConvertTo-Json -InputObject $out -Compress }
 `;
 
 
@@ -655,6 +669,7 @@ const nowPlayingPs1Path = path.join(app.getPath('temp'), 'r00ted-now-playing.ps1
 fs.writeFileSync(nowPlayingPs1Path, NOW_PLAYING_PS1_CONTENT);
 
 async function getWindowsNowPlaying() {
+  const result = { music: null, browser: null };
   try {
     const { stdout: out } = await execAsync(
       `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${nowPlayingPs1Path}"`,
@@ -662,25 +677,39 @@ async function getWindowsNowPlaying() {
     );
 
     const trimmed = out.trim();
-    if (!trimmed) return null;
-    const data = JSON.parse(trimmed);
-    if (!data.title) return null;
+    if (!trimmed) return result;
 
-    let rawApp = (data.appId || 'Unknown').split('!')[0];
-    rawApp = rawApp.split(/[\\/]/).pop();   
-    rawApp = rawApp.replace(/\.exe$/i, '');  
-    const source = rawApp.charAt(0).toUpperCase() + rawApp.slice(1);
+    const parsed = JSON.parse(trimmed);
+    const sessions = (Array.isArray(parsed) ? parsed : [parsed]).filter(s => s && s.title);
 
-    let artUrl = null;
-    if (data.title) {
-      artUrl = await fetchArtViaItunes(data.title, data.artist);
+    for (const data of sessions) {
+      let rawApp = (data.appId || 'Unknown').split('!')[0];
+      rawApp = rawApp.split(/[\\/]/).pop();
+      rawApp = rawApp.replace(/\.exe$/i, '');
+      const source = rawApp;
+
+      if (isBrowserSource(data.appId)) {
+        if (!result.browser) {
+          result.browser = { isPlaying: true, source, title: data.title, artist: data.artist || null };
+        }
+        continue;
+      }
+
+      if (!result.music) {
+        const artUrl = await fetchArtViaItunes(data.title, data.artist);
+        result.music = {
+          isPlaying: true,
+          title: data.title,
+          artist: data.artist || null,
+          artUrl,
+          source
+        };
+      }
     }
-
-    return { isPlaying: true, title: data.title, artist: data.artist || null, artUrl, source };
   } catch (e) {
     console.error('getWindowsNowPlaying failed:', e.message);
-    return null;
   }
+  return result;
 }
 
 async function getNativeNowPlaying() {
@@ -756,14 +785,6 @@ if (process.platform === 'win32') {
   overlayWindow.setIgnoreMouseEvents(true);
 }
 
-const b = overlayWindow.getBounds();
-overlayWindow.setBounds({ ...b, width: b.width + 1 });
-setImmediate(() => overlayWindow.setBounds(b));
-
-
-
-  
-
   overlayWindow.on('closed', () => { overlayWindow = null; });
 }
 
@@ -801,10 +822,9 @@ ipcMain.on('overlay-voice-update', (event, participants) => {
   if (!overlayWindow || !overlaySettings.enabled) return;
   if (!overlayReady) return;
   if (participants && participants.length > 0) {
-    if (!overlayWindow.isVisible()) {
-      overlayWindow.showInactive();
-      if (process.platform === 'linux') setTimeout(() => applyNativeClickThrough(), 150);
-    }
+  if (!overlayWindow.isVisible()) {
+    overlayWindow.showInactive();
+  }
     overlayWindow.webContents.send('voice-update', participants);
   } else if (!overlayEditMode) {
     overlayWindow.hide();
