@@ -3,8 +3,11 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 let lastMusicData = null;
+const { autoUpdater } = require('electron-updater');
 const { exec } = require('child_process');
 const util = require('util');
+const STREAMING_APP_HINTS = ['fossflix'];
+const isStreamingApp = (s) => !!s && STREAMING_APP_HINTS.some(h => s.toLowerCase().includes(h));
 const BROWSER_HINTS = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'librewolf', 'plasma-browser-integration'];
 const isBrowserSource = (s) => !!s && BROWSER_HINTS.some(h => s.toLowerCase().includes(h));
 const MUSIC_APP_ALLOWLIST = ['neonkat'];
@@ -61,11 +64,20 @@ function applyNativeClickThrough() {
 }
 
 const overlayConfigPath = path.join(app.getPath('userData'), 'overlay-settings.json');
-let overlaySettings = { enabled: true, x: null, y: null };
+let overlaySettings = { enabled: true, x: null, y: null, displayId: null };
 try {
   overlaySettings = { ...overlaySettings, ...JSON.parse(fs.readFileSync(overlayConfigPath, 'utf8')) };
 } catch (e) {
   console.log('⚠️ No saved overlay settings found, using defaults:', e.message);
+}
+
+function getOverlayDisplay() {
+  const displays = screen.getAllDisplays();
+  if (overlaySettings.displayId != null) {
+    const match = displays.find(d => d.id === overlaySettings.displayId);
+    if (match) return match;
+  }
+  return screen.getPrimaryDisplay();
 }
 
 function saveOverlaySettings() {
@@ -222,7 +234,7 @@ mainWindow = new BrowserWindow({
     { label: 'Show', click: () => mainWindow.show() },
     { label: 'Hide', click: () => mainWindow.hide() },
     { type: 'separator' },
-    { label: 'Quit', click: () => { mainWindow.destroy(); app.exit(0); } }
+    { label: 'Quit', click: () => { mainWindow.destroy(); app.quit(); } }
   ]));
   tray.on('click', () => {
     if (mainWindow.isVisible()) { mainWindow.hide(); } else { mainWindow.show(); }
@@ -244,6 +256,99 @@ ipcMain.on('update-badge', (event, count) => {
   mainWindow.setIcon(buildWindowIconWithBadge(safeCount));
 }
 });
+
+const SHARE_SINK = 'r00ted_share';
+let linuxShareState = null;
+let relinkTimer = null;
+
+async function cleanupShareModules() {
+  const { stdout } = await execAsync('pactl list short modules');
+  for (const line of stdout.split('\n')) {
+    if (line.includes('r00ted_share')) {
+      await execAsync(`pactl unload-module ${line.split('\t')[0]}`).catch(() => {});
+    }
+  }
+}
+
+const OWN_BINARY = path.basename(process.execPath).toLowerCase();
+function isExcludedStream(props) {
+  const pid = Number(props['application.process.id']);
+  if (pid && isOwnProcess(pid)) return true;
+  const bin = (props['application.process.binary'] || '').toLowerCase();
+  const name = (props['application.name'] || '').toLowerCase();
+  if (bin === OWN_BINARY || name.includes('r00ted')) return true;
+  if (/easyeffects|r00ted_share/.test(name) || /easyeffects/.test(bin)) return true;
+  return false;
+}
+
+async function linkAllStreams() {
+  const { stdout } = await execAsync('pw-dump', { maxBuffer: 64 * 1024 * 1024 });
+  const objs = JSON.parse(stdout);
+  const nodes = objs.filter(o => o.type === 'PipeWire:Interface:Node');
+  const ports = objs.filter(o => o.type === 'PipeWire:Interface:Port');
+
+  const sink = nodes
+    .filter(n => n.info?.props?.['node.name'] === SHARE_SINK)
+    .sort((a, b) => b.info.props['object.serial'] - a.info.props['object.serial'])[0];
+  if (!sink) return;
+
+  const ins = ports.filter(p => p.info?.props?.['node.id'] === sink.id && p.info.props['port.direction'] === 'in');
+
+  const streams = nodes.filter(n =>
+    n.info?.props?.['media.class'] === 'Stream/Output/Audio' &&
+    !isExcludedStream(n.info.props)
+  );
+
+  for (const stream of streams) {
+    const outs = ports.filter(p => p.info?.props?.['node.id'] === stream.id && p.info.props['port.direction'] === 'out');
+    for (const o of outs) {
+      const ch = o.info.props['audio.channel'];
+      const targets = ch === 'MONO' ? ins : ins.filter(p => p.info.props['audio.channel'] === ch);
+      for (const t of targets) {
+        await execAsync(`pw-link ${o.id} ${t.id}`).catch(() => {});
+      }
+    }
+  }
+}
+
+ipcMain.handle('linux-audio-share-start', async () => {
+  await cleanupShareModules();
+
+  const nullModule = (await execAsync(
+    `pactl load-module module-null-sink sink_name=${SHARE_SINK} sink_properties=device.description=R00TED-Share-Sink`
+  )).stdout.trim();
+  const remapModule = (await execAsync(
+    `pactl load-module module-remap-source master=${SHARE_SINK}.monitor source_name=r00ted_share_src source_properties=device.description=R00TED-Share`
+  )).stdout.trim();
+
+  await linkAllStreams().catch(err => console.warn('link failed:', err.message));
+  clearInterval(relinkTimer);
+  relinkTimer = setInterval(() => linkAllStreams().catch(() => {}), 2000);
+
+  linuxShareState = { nullModule, remapModule };
+  return linuxShareState;
+});
+
+ipcMain.handle('linux-audio-share-stop', async (e, state) => {
+  clearInterval(relinkTimer);
+  relinkTimer = null;
+  const s = state || linuxShareState;
+  if (s) {
+    for (const m of [s.remapModule, s.nullModule]) {
+      if (m) await execAsync(`pactl unload-module ${m}`).catch(() => {});
+    }
+  }
+  linuxShareState = null;
+});
+
+app.on('before-quit', () => {
+  clearInterval(relinkTimer);
+  if (!linuxShareState) return;
+  for (const m of [linuxShareState.remapModule, linuxShareState.nullModule]) {
+    try { if (m) execSync(`pactl unload-module ${m}`); } catch {}
+  }
+});
+
 
 ipcMain.handle('copy-to-clipboard', (event, text) => {
   try {
@@ -326,7 +431,10 @@ ipcMain.on('show-notification', async (event, { title, body, icon, url, tag, sil
         if (!callbackCalled) { callbackCalled = true; callback({ video: false }); }
         return;
       }
-      if (!callbackCalled) { callbackCalled = true; callback({ video: sources[response] }); }
+      if (!callbackCalled) { callbackCalled = true; callback({
+        video: sources[response],
+        ...(process.platform === 'win32' ? { audio: 'loopback' } : {})
+    }); }
     } catch (err) {
       console.error('Screen share error:', err.message);
       if (!callbackCalled) { callbackCalled = true; callback({ video: false }); }
@@ -347,6 +455,7 @@ ipcMain.on('show-notification', async (event, { title, body, icon, url, tag, sil
     event.preventDefault();
     mainWindow.hide();
   });
+  setupAutoUpdater();
 });
 
 
@@ -392,6 +501,35 @@ async function fetchArtViaItunes(title, artist) {
   } catch (e) {
     return null;
   }
+}
+
+function setupAutoUpdater() {
+  if (!app.isPackaged || !CONFIG.updateUrl) return;
+
+  autoUpdater.setFeedURL({ provider: 'generic', url: CONFIG.updateUrl });
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-downloaded', (info) => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      buttons: ['Restart now', 'Later'],
+      defaultId: 0,
+      title: 'Update ready',
+      message: `R00TED ${info.version} has been downloaded.`
+    }).then(({ response }) => {
+      if (response !== 0) return;
+      if (overlayWindow) overlayWindow.destroy();
+      mainWindow.destroy();
+      autoUpdater.quitAndInstall(false, true);
+    });
+  });
+
+  autoUpdater.on('error', (err) => console.error('Updater error:', err.message));
+
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  check();
+  setInterval(check, 4 * 60 * 60 * 1000);
 }
 
 async function loadGamesConfig() {
@@ -471,33 +609,98 @@ function getRunningProcesses() {
   try {
     const raw = execSync(
       process.platform === 'win32'
-        ? 'powershell -NoProfile -NonInteractive -Command "Get-CimInstance Win32_Process | Select-Object -ExpandProperty ExecutablePath"'
+        ? 'powershell -NoProfile -NonInteractive -Command "Get-CimInstance Win32_Process | ForEach-Object { if ($_.ExecutablePath) { $_.ExecutablePath } else { $_.Name } }"'
         : 'ps -eo args=',
-      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], timeout: 3000 }
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], timeout: 10000 }
     );
-    return raw.split('\n')
-      .map(l => l.replace(/^executablepath=/i, '').replace(/\\/g, '/').trim().toLowerCase())
-      .filter(Boolean);
+    return raw.split('\n').map(l => l.replace(/\\/g, '/').trim().toLowerCase()).filter(Boolean);
   } catch (e) {
     console.warn('getRunningProcesses failed:', e.message);
     return [];
   }
 }
 
+function normDir(p) {
+  const s = String(p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+  return s.length > 5 ? s + '/' : null;
+}
+
+let installedCache = { time: 0, list: [] };
+
+function getInstalledWindowsGames() {
+  if (process.platform !== 'win32') return [];
+  if (Date.now() - installedCache.time < 5 * 60 * 1000) return installedCache.list;
+
+  const list = [];
+
+  try {
+    const dir = 'C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests';
+    for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.item'))) {
+      try {
+        const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+        const d = normDir(j.InstallLocation);
+        if (j.DisplayName && d) list.push({ name: j.DisplayName, dir: d });
+      } catch {}
+    }
+  } catch {}
+
+ 
+  try {
+    const known = new Set(Object.values(MANUAL_GAMES).map(n => String(n).toLowerCase()));
+    const raw = execSync(
+      `powershell -NoProfile -NonInteractive -Command "Get-ItemProperty 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*','HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*','HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -and $_.InstallLocation } | Select-Object DisplayName,InstallLocation | ConvertTo-Json -Compress"`,
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], timeout: 15000 }
+    );
+    for (const a of [].concat(JSON.parse(raw.trim() || '[]'))) {
+      const d = normDir(a.InstallLocation);
+      if (d && known.has(String(a.DisplayName).toLowerCase())) list.push({ name: a.DisplayName, dir: d });
+    }
+  } catch (e) {
+    console.warn('registry scan failed:', e.message);
+  }
+
+  installedCache = { time: Date.now(), list };
+  return list;
+}
+
+function getWindowTitles() {
+  if (process.platform !== 'win32') return [];
+  try {
+    const raw = execSync(
+      'powershell -NoProfile -NonInteractive -Command "Get-Process | Where-Object { $_.MainWindowTitle -and $_.Id -ne ' + process.pid + ' -and $_.ProcessName -notmatch \'chrome|firefox|msedge|brave|opera|vivaldi|explorer\' } | ForEach-Object { $_.MainWindowTitle }"',
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'], timeout: 10000 }
+    );
+    return raw.split('\n').map(l => l.trim().toLowerCase()).filter(Boolean);
+  } catch { return []; }
+}
+
+function matchByWindowTitle(titles) {
+  for (const [key, name] of Object.entries(MANUAL_GAMES)) {
+    const k = key.toLowerCase();
+    if (k.startsWith('folder:') || k.startsWith('title:')) continue;
+
+    const n = k.replace(/\.exe$/i, '');
+    if (n.length < 4) continue;
+
+    for (const t of titles) {
+      if (t === n || t.startsWith(n + ' ') || t.startsWith(n + ' -') || t.startsWith(n + ':')) {
+        return name;
+      }
+    }
+  }
+  return null;
+}
+
 ipcMain.on('get-running-games', (event) => {
   let result = null;
   try {
     const processPaths = getRunningProcesses().map(p => p.replace(/\\/g, '/'));
-    const steamGames = getInstalledSteamGames();
 
-    for (const [installdir, { name, appid }] of steamGames) {
+    for (const [installdir, { name }] of getInstalledSteamGames()) {
       if (name.toLowerCase().includes('proton') ||
           name.toLowerCase().includes('runtime') ||
           name.toLowerCase().includes('redistributable')) continue;
-      const needle = `steamapps/common/${installdir}`.toLowerCase();
-      const matched = processPaths.some(p => p.includes(needle));
-
-      if (matched) {
+      if (processPaths.some(p => p.includes(`steamapps/common/${installdir}`.toLowerCase()))) {
         result = name;
         break;
       }
@@ -505,14 +708,40 @@ ipcMain.on('get-running-games', (event) => {
 
   
     if (!result) {
-      const exeNames = new Set(
-        processPaths.map(p => path.basename(p).replace(/\.exe$/i, '').trim().toLowerCase())
-      );
-      for (const [exe, name] of Object.entries(MANUAL_GAMES)) {
-        if (exeNames.has(exe.toLowerCase())) { result = name; break; }
+      for (const g of getInstalledWindowsGames()) {
+        if (processPaths.some(p => p.startsWith(g.dir))) { result = g.name; break; }
       }
     }
+
+  
+    if (!result) {
+      const exeNames = new Set();
+      for (const line of processPaths) {
+        for (const m of line.matchAll(/([^\/\s"']+)\.exe\b/gi)) exeNames.add(m[1].toLowerCase());
+        const first = line.split(/\s+/)[0];
+        exeNames.add(path.basename(first).replace(/\.exe$/i, '').toLowerCase());
+      }
+
+      let titles = null;
+      for (const [key, name] of Object.entries(MANUAL_GAMES)) {
+        const k = key.toLowerCase();
+        if (k.startsWith('folder:')) {
+          const folder = k.slice(7).replace(/\\/g, '/');
+          if (processPaths.some(p => p.includes(`/${folder}/`))) { result = name; break; }
+        } else if (k.startsWith('title:')) {
+          titles = titles || getWindowTitles();
+          const t = k.slice(6);
+          if (titles.some(w => w === t || w.includes(t))) { result = name; break; }
+        } else if (exeNames.has(k.replace(/\.exe$/i, ''))) {
+          result = name; break;
+        }
+      }
+    }
+
+
+    if (!result) result = matchByWindowTitle(getWindowTitles());
   } catch (e) {
+    console.warn('get-running-games failed:', e.message);
   }
 
   event.reply('running-games-reply', result);
@@ -540,7 +769,7 @@ function isOwnProcess(pid) {
 }
 
 async function getLinuxNowPlaying() {
-  const result = { music: null, browser: null };
+  const result = { music: null, browser: null, streaming: null };
   try {
     const { stdout: listOut } = await execAsync(
       `dbus-send --session --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames`,
@@ -573,21 +802,39 @@ async function getLinuxNowPlaying() {
         );
         if (!/string "Playing"/.test(statusOut)) continue;
 
-        if (!isAllowlistedMusicApp(dest) && (isBrowserSource(dest) || isBrowserSource(source))) {
-          if (!result.browser || !result.browser.title) {
-            let title = null, artist = null;
-            try {
-              const { stdout: mOut } = await execAsync(
-                `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'Metadata'`,
-                { timeout: 1500 }
-              );
-              title  = mOut.match(/"xesam:title"\s*\n\s*variant\s+string "([^"]*)"/)?.[1] || null;
-              artist = mOut.match(/"xesam:artist"[\s\S]*?string "([^"]*)"/)?.[1] || null;
-            } catch {}
-            result.browser = { isPlaying: true, source, title, artist };
-          }
-          continue;
+        if (isStreamingApp(dest) || isStreamingApp(source)) {
+        if (!result.streaming) {
+          let title = null, artist = null, artUrl = null;
+          try {
+            const { stdout: mOut } = await execAsync(
+              `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'Metadata'`,
+              { timeout: 1500 }
+            );
+            title  = mOut.match(/"xesam:title"\s*\n\s*variant\s+string "([^"]*)"/)?.[1] || null;
+            artist = mOut.match(/"xesam:artist"[\s\S]*?string "([^"]*)"/)?.[1] || null;
+            artUrl = await normalizeArtUrl(mOut.match(/"mpris:artUrl"\s*\n\s*variant\s+string "([^"]*)"/)?.[1]);
+          } catch {}
+          result.streaming = { isPlaying: true, source, title, artist, artUrl };
         }
+        continue;
+      }
+
+    if (!isAllowlistedMusicApp(dest) && (isBrowserSource(dest) || isBrowserSource(source))) {
+      if (!result.browser || !result.browser.title) {
+        let title = null, artist = null, artUrl = null;
+        try {
+          const { stdout: mOut } = await execAsync(
+            `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'Metadata'`,
+            { timeout: 1500 }
+          );
+          title  = mOut.match(/"xesam:title"\s*\n\s*variant\s+string "([^"]*)"/)?.[1] || null;
+          artist = mOut.match(/"xesam:artist"[\s\S]*?string "([^"]*)"/)?.[1] || null;
+          artUrl = await normalizeArtUrl(mOut.match(/"mpris:artUrl"\s*\n\s*variant\s+string "([^"]*)"/)?.[1]);
+        } catch {}
+        result.browser = { isPlaying: true, source, title, artist, artUrl };
+      }
+      continue;
+    }
 
         const { stdout: out } = await execAsync(
           `dbus-send --session --print-reply --dest=${dest} /org/mpris/MediaPlayer2 org.freedesktop.DBus.Properties.Get string:'org.mpris.MediaPlayer2.Player' string:'Metadata'`,
@@ -668,8 +915,34 @@ if ($out.Count -gt 0) { ConvertTo-Json -InputObject $out -Compress }
 const nowPlayingPs1Path = path.join(app.getPath('temp'), 'r00ted-now-playing.ps1');
 fs.writeFileSync(nowPlayingPs1Path, NOW_PLAYING_PS1_CONTENT);
 
+function ensureNowPlayingScript() {
+  try {
+    if (!fs.existsSync(nowPlayingPs1Path)) {
+      fs.writeFileSync(nowPlayingPs1Path, NOW_PLAYING_PS1_CONTENT);
+    }
+  } catch (e) {
+    console.error('Could not write now-playing script:', e.message);
+    return false;
+  }
+  return true;
+}
+
+
+async function normalizeArtUrl(artUrl) {
+  if (!artUrl || !/^(https?|file):\/\//i.test(artUrl)) return null;
+  if (!artUrl.startsWith('file://')) return artUrl;
+  try {
+    const filePath = decodeURIComponent(artUrl.replace('file://', ''));
+    const mime = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    return `data:${mime};base64,${fs.readFileSync(filePath).toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 async function getWindowsNowPlaying() {
   const result = { music: null, browser: null };
+  if (!ensureNowPlayingScript()) return result;
   try {
     const { stdout: out } = await execAsync(
       `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${nowPlayingPs1Path}"`,
@@ -687,6 +960,13 @@ async function getWindowsNowPlaying() {
       rawApp = rawApp.split(/[\\/]/).pop();
       rawApp = rawApp.replace(/\.exe$/i, '');
       const source = rawApp;
+
+      if (isStreamingApp(data.appId)) {
+        if (!result.streaming) {
+          result.streaming = { isPlaying: true, source, title: data.title, artist: data.artist || null };
+        }
+        continue;
+      }
 
       if (isBrowserSource(data.appId)) {
         if (!result.browser) {
@@ -727,11 +1007,11 @@ setInterval(async () => {
 
 
 let overlayWindow = null;
+let overlayReady = false;
 
 function createOverlayWindow() {
-   overlayReady = false;
-  const { screen } = require('electron');
-  const { width, height, x, y } = screen.getPrimaryDisplay().bounds;
+  overlayReady = false;
+  const { width, height, x, y } = getOverlayDisplay().bounds;
 
   overlayWindow = new BrowserWindow({
     title: 'r00ted-overlay-unique-id',
@@ -860,16 +1140,46 @@ ipcMain.on('overlay-set-enabled', (event, enabled) => {
 
 
 ipcMain.handle('overlay-get-info', () => {
-  const { width, height } = screen.getPrimaryDisplay().bounds;
+  const { width, height } = getOverlayDisplay().bounds;
   return {
     screenWidth: width,
     screenHeight: height,
     x: overlaySettings.x ?? 20,
     y: overlaySettings.y ?? 420,
-    enabled: overlaySettings.enabled
+    enabled: overlaySettings.enabled,
+    displayId: getOverlayDisplay().id
   };
 });
 
+
+ipcMain.handle('overlay-list-displays', () => {
+  const primaryId = screen.getPrimaryDisplay().id;
+  return screen.getAllDisplays().map((d, i) => ({
+    id: d.id,
+    label: `Display ${i + 1}${d.id === primaryId ? ' (primary)' : ''} - ${d.bounds.width}x${d.bounds.height}`,
+    bounds: d.bounds
+  }));
+});
+
+ipcMain.on('overlay-set-display', (event, displayId) => {
+  overlaySettings.displayId = displayId;
+  overlaySettings.x = null; 
+  overlaySettings.y = null;
+  saveOverlaySettings();
+
+  if (overlayWindow) {
+    const { x, y, width, height } = getOverlayDisplay().bounds;
+    overlayWindow.setBounds({ x, y, width, height });
+    overlayWindow.webContents.send('load-config', {
+      serverUrl: CONFIG.serverUrl || 'http://127.0.0.1:5350/',
+      position: { x: null, y: null },
+      enabled: overlaySettings.enabled,
+      version: app.getVersion()
+    });
+  }
+});
+
+ipcMain.handle('get-app-version', () => app.getVersion());
 
 ipcMain.on('overlay-reset-position', (event) => {
   overlaySettings.x = null;

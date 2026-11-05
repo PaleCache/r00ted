@@ -48,8 +48,7 @@ socket.on("serverConfig", (data) => {
 
   if (data.version) {
     window.APP_VERSION = data.version;
-    const versionEl = document.getElementById("version");
-    if (versionEl) versionEl.textContent = `v${data.version} alpha`;
+    renderVersionInfo(data.version);
     updateTabBadge();
   }
 
@@ -140,6 +139,7 @@ socket.on("streamsUpdate", (data) => {
     const win = openEmbedWindows.get(id);
     if (win) win.renderMeta(s);
   });
+  pruneOfflineEmbeds(data.allStreams);
 });
 
 socket.on("streamOffline", (data) => {

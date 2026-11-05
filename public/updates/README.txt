@@ -1,0 +1,1 @@
+you can add app updates in here by using electron updater

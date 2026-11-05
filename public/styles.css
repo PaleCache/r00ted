@@ -7616,3 +7616,45 @@ filter: brightness(0) saturate(100%) invert(36%) sepia(80%) saturate(3000%) hue-
     top: 12px !important;
   }
 }
+
+#overlayMonitorSelect {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 32px 8px 10px;
+  background-color: #1e1f22;
+  color: #fff;
+  border: 1px solid #3a3c42;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  color-scheme: dark;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b9bbbe' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.15s;
+}
+
+#overlayMonitorSelect:hover,
+#overlayMonitorSelect:focus {
+  border-color: #FF0000;
+}
+
+#overlayMonitorSelect option {
+  background-color: #1e1f22;
+  color: #fff;
+}
+
+.settings-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+#version {
+  margin-top: auto;
+  flex-shrink: 0;
+  height: auto;
+  overflow: visible;
+}

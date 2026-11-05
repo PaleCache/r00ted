@@ -18,6 +18,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
    onNativeNowPlaying: (cb) => ipcRenderer.on('native-now-playing', (event, data) => cb(data)),
    copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
    onRunningGameSession: (cb) => ipcRenderer.on('running-game-session', (_e, session) => cb(session)),
+   linuxAudioListApps: () => ipcRenderer.invoke('linux-audio-list-apps'),
+    linuxAudioShareStart: (id) => ipcRenderer.invoke('linux-audio-share-start', id),
+    linuxAudioShareStop: (state) => ipcRenderer.invoke('linux-audio-share-stop', state),
+    overlayListDisplays: () => ipcRenderer.invoke('overlay-list-displays'),
+    overlaySetDisplay: (id) => ipcRenderer.send('overlay-set-display', id),
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
    getRunningGames: () => {
     return new Promise((resolve) => {
       const handler = (event, game) => {

@@ -538,246 +538,289 @@ video.addEventListener('leavepictureinpicture', () => {
 let screenTrack = null;
 let screenAudioTrack = null;
 let currentActiveAudioTrack = null;
+let shareMix = null;
+const IS_LINUX = /Linux/i.test(navigator.userAgent) && !/Android/i.test(navigator.userAgent);
+
+function pickApp(apps) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40000;display:flex;align-items:center;justify-content:center;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#181818;color:#fff;padding:20px;border-radius:10px;min-width:320px;display:flex;flex-direction:column;gap:8px;';
+    box.innerHTML = '<div style="font-weight:600;font-size:16px;margin-bottom:6px;">Share audio from which app?</div>';
+    const done = v => { overlay.remove(); resolve(v); };
+    apps.forEach(a => {
+      const b = document.createElement('button');
+      b.textContent = a.name;
+      b.style.cssText = 'padding:8px 12px;border-radius:6px;border:1px solid #333;background:#222;color:#fff;cursor:pointer;text-align:left;';
+      b.onclick = () => done(a.id);
+      box.appendChild(b);
+    });
+    const skip = document.createElement('button');
+    skip.textContent = 'Share without app audio';
+    skip.style.cssText = 'margin-top:6px;padding:8px 12px;border-radius:6px;border:none;background:#ed4245;color:#fff;cursor:pointer;';
+    skip.onclick = () => done(null);
+    box.appendChild(skip);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+  });
+}
+
+async function teardownShareAudio() {
+  const mix = shareMix;
+  shareMix = null;
+  if (!mix) return;
+  if (conference && mix.mixedTrack && localAudioTrack) {
+    try { await conference.replaceTrack(mix.mixedTrack, localAudioTrack); } catch (e) {}
+  }
+  currentActiveAudioTrack = localAudioTrack;
+  try { mix.mixedTrack?.dispose(); } catch (e) {}
+  try { await mix.ctx?.close(); } catch (e) {}
+  try { mix.monitorStream?.getTracks().forEach(t => t.stop()); } catch (e) {}
+  if (mix.shareState) {
+    try { await window.electronAPI.linuxAudioShareStop(mix.shareState); } catch (e) {}
+  }
+}
+
+async function stopScreenShare() {
+  if (conference && screenTrack) { try { await conference.removeTrack(screenTrack); } catch (e) {} }
+  await teardownShareAudio();
+  try { screenTrack?.dispose(); } catch (e) {}
+  try { screenAudioTrack?.dispose(); } catch (e) {}
+  screenTrack = null;
+  screenAudioTrack = null;
+  const btn = document.getElementById('screenBtn');
+  if (btn) { btn.style.background = ''; btn.classList.remove('sharing'); }
+  removeScreenCard("data-screen-id", "local-screen");
+  socket.emit("screenShareStop", { userId: user.id, username: user.username, roomName: currentVoiceRoom });
+}
 
 async function toggleScreenShare() {
-  if (screenTrack) {
-   
-   if (conference) {
+  if (screenTrack) { await stopScreenShare(); return; }
+
+  let linuxShareState = null;
+  let monitorStream = null;
+  const cleanupLinux = () => {
+    if (monitorStream) { monitorStream.getTracks().forEach(t => t.stop()); monitorStream = null; }
+    if (linuxShareState) { window.electronAPI.linuxAudioShareStop(linuxShareState).catch(() => {}); linuxShareState = null; }
+  };
+
   try {
-    if (screenTrack) await conference.removeTrack(screenTrack);
-    if (screenAudioTrack) await conference.removeTrack(screenAudioTrack);
-  } catch (e) {}
-}
-if (screenAudioTrack) { screenAudioTrack.dispose(); screenAudioTrack = null; }
-    
-    try {
-      if (screenTrack) screenTrack.dispose();
-      if (screenAudioTrack) screenAudioTrack.dispose();
-    } catch (e) {
-      console.error("Error disposing tracks:", e);
+    if (!conference) { showToast("❌ You must join voice first to share screen"); return; }
+
+    if (IS_LINUX && window.electronAPI?.linuxAudioShareStart && localAudioTrack) {
+  try {
+    linuxShareState = await window.electronAPI.linuxAudioShareStart();
+    await new Promise(r => setTimeout(r, 400));
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const mon = devices.find(d => d.kind === 'audioinput' && /R00TED-Share|r00ted_share/i.test(d.label));
+    if (mon) {
+      monitorStream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: mon.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+    } else {
+      showToast("Couldn't find the share audio device. Sharing without app audio.");
     }
-    
-    screenTrack = null;
-    screenAudioTrack = null;
-    document.getElementById('screenBtn').style.background = '';
-    
-    removeScreenCard("data-screen-id", "local-screen");
-    document.getElementById('screenBtn').classList.remove('sharing');
-    
-    socket.emit("screenShareStop", {
-      userId: user.id,
-      username: user.username,
-      roomName: currentVoiceRoom
-    });
-    return;
+  } catch (e) {
+    console.error("Linux audio setup failed:", e);
+    showToast("System audio setup failed. Sharing without audio.");
   }
-
-  try {
-    if (!conference) {
-     showToast("❌ You must join voice first to share screen");
-      return;
-    }
-
-    console.log("Requesting screen capture...");
+}
 
     let tracks = [];
     try {
-    tracks = await JitsiMeetJS.createLocalTracks({
-      devices: ['desktop'],
-      desktopSharingFrameRate: { min: 5, max: 30 },
-      constraints: { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } }
-    });
-      console.log(`📹 Captured ${tracks.length} tracks from screen`);
+      tracks = await JitsiMeetJS.createLocalTracks({
+        devices: ['desktop'],
+        desktopSharingFrameRate: { min: 5, max: 30 },
+        constraints: { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true, restrictOwnAudio: true } }
+      });
     } catch (e) {
       console.error("❌ Desktop capture failed:", e);
-     showToast("❌ Screen capture failed. Make sure you selected a window/screen.");
+      showToast("❌ Screen capture failed. Make sure you selected a window/screen.");
+      cleanupLinux();
       return;
     }
 
     screenTrack = null;
     screenAudioTrack = null;
-    if (Array.isArray(tracks)) {
-  for (let i = 0; i < tracks.length; i++) {
-    if (tracks[i] && typeof tracks[i].getType === 'function') {
-      const trackType = tracks[i].getType();
-      
-      if (trackType === 'video' && !screenTrack) {
-        screenTrack = tracks[i];
-        console.log("Got screen VIDEO track");
-      } else if (trackType === 'audio' && !screenAudioTrack) {
-        screenAudioTrack = tracks[i];
-        console.log("Got screen AUDIO track");
+    for (const t of tracks) {
+      if (!t || typeof t.getType !== 'function') continue;
+      const type = t.getType();
+      if (type === 'video' && !screenTrack) {
+        screenTrack = t;
+      } else if (type === 'audio') {
+        if (IS_LINUX || screenAudioTrack) { try { t.dispose(); } catch (e) {} }
+        else screenAudioTrack = t;
       }
     }
-  }
-}
 
     if (!screenTrack) {
-      console.error("❌ No video track captured!");
-     showToast("❌ Could not capture screen video");
+      showToast("❌ Could not capture screen video");
+      cleanupLinux();
       return;
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("Adding screen video track to conference...");
-   try {
- await conference.addTrack(screenTrack);
 
+    await new Promise(r => setTimeout(r, 1000));
 
-if (screenAudioTrack && localAudioTrack) {
-  try {
-    const ctx = new AudioContext();
-      const micSource = ctx.createMediaStreamSource(
-      new MediaStream([currentActiveAudioTrack.getTrack()]) 
-    );
-    const screenSource = ctx.createMediaStreamSource(
-      new MediaStream([screenAudioTrack.getTrack()])
-    );
-    const destination = ctx.createMediaStreamDestination();
-    micSource.connect(destination);
-    screenSource.connect(destination);
+    try {
+      await conference.addTrack(screenTrack);
 
-    const [mixedJitsiTrack] = await JitsiMeetJS.createLocalTracksFromMediaStreams([{
-      stream: destination.stream,
-      sourceType: 'mic',
-      mediaType: 'audio'
-    }]);
+      const extraAudio = monitorStream?.getAudioTracks()[0] || screenAudioTrack?.getTrack?.() || null;
 
-        await conference.replaceTrack(currentActiveAudioTrack, mixedJitsiTrack); 
-    currentActiveAudioTrack = mixedJitsiTrack;
-    screenAudioTrack._mixedJitsiTrack = mixedJitsiTrack;
-    screenAudioTrack._audioContext = ctx;
-    console.log("Mixed mic + screen audio");
-  } catch (e) {
-    console.warn("Audio mixing failed:", e);
-    screenAudioTrack.dispose();
-    screenAudioTrack = null;
-  }
-}
-} catch (e) {
-  console.error("❌ Failed to add tracks:", e);
-  screenTrack.dispose();
-  if (screenAudioTrack) screenAudioTrack.dispose();
-  return;
-}
-    
-    await new Promise(resolve => setTimeout(resolve, 2500));
-removeScreenCard("data-screen-id", "local-screen");
-const screenContainer = document.getElementById("screenContainer");
- 
-  const wrapper = document.createElement("div");
-  wrapper.className = "ss-card ss-local";
-  wrapper.setAttribute("data-screen-id", "local-screen");
- 
-  const loading = document.createElement("div");
-  loading.className = "ss-loading";
-  const spinner = document.createElement("div");
-  spinner.className = "ss-spinner";
-  const loadingText = document.createElement("div");
-  loadingText.textContent = "Starting your stream…";
-  loading.appendChild(spinner);
-  loading.appendChild(loadingText);
-  wrapper.appendChild(loading);
- 
-  const video = document.createElement("video");
-  video.className = "ss-video";
-  video.autoplay = true;
-  video.muted = true;
-  video.style.objectFit = "contain";
-  video.style.opacity = "0";
-  video.style.transition = "opacity 0.2s ease";
-  wrapper.appendChild(video);
- 
-  const chip = document.createElement("div");
-  chip.className = "ss-chip";
-  const chipDot = document.createElement("span");
-  chipDot.className = "ss-dot";
-  const chipText = document.createElement("span");
-  chipText.textContent = "You're sharing your screen";
-  chip.appendChild(chipDot);
-  chip.appendChild(chipText);
-  wrapper.appendChild(chip);
- 
-  const controls = document.createElement("div");
-  controls.className = "ss-controls";
- 
-  const fullscreenBtn = document.createElement("button");
-  fullscreenBtn.className = "ss-btn";
-  fullscreenBtn.title = "Fullscreen";
-  fullscreenBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>`;
-  fullscreenBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (video.requestFullscreen) video.requestFullscreen().catch(err => console.error("Fullscreen error:", err));
-  });
- 
-  const stopBtn = document.createElement("button");
-  stopBtn.className = "ss-btn ss-btn-danger";
-  stopBtn.title = "Stop sharing";
-  stopBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
-  stopBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toggleScreenShare();
-  });
- 
-  controls.appendChild(fullscreenBtn);
-  controls.appendChild(stopBtn);
-  wrapper.appendChild(controls);
- 
-  screenContainer.appendChild(wrapper);
- 
-  console.log("Attaching screen video...");
-  screenTrack.attach(video);
- 
-  video.addEventListener('loadedmetadata', () => {
-    loading.style.display = "none";
-    video.style.opacity = "1";
-  }, { once: true });
- 
-screenContainer.classList.add("show");
-screenContainer.style.display = "flex"; 
-document.getElementById('screenBtn').classList.add('sharing');
+      if (extraAudio && localAudioTrack) {
+        try {
+          const ctx = new AudioContext();
+          if (ctx.state === 'suspended') await ctx.resume();
 
+          const micSource = ctx.createMediaStreamSource(new MediaStream([localAudioTrack.getTrack()]));
+          const micGain = ctx.createGain();
+          micGain.gain.value = isCurrentlyMuted ? 0 : 1;
+          const shareSource = ctx.createMediaStreamSource(new MediaStream([extraAudio]));
+          const destination = ctx.createMediaStreamDestination();
 
-    socket.emit("screenShareStart", {
-      userId: user.id,
-      username: user.username,
-      roomName: currentVoiceRoom,
-      avatar: user.avatar,
-      usernameColor: user.usernameColor,
-      level: user.level || 1
+          micSource.connect(micGain);
+          micGain.connect(destination);
+          shareSource.connect(destination);
+
+          destination.stream.getAudioTracks()[0].contentHint = 'music';
+
+          const [mixedJitsiTrack] = await JitsiMeetJS.createLocalTracksFromMediaStreams([{
+            stream: destination.stream, sourceType: 'mic', mediaType: 'audio'
+          }]);
+
+          try { mixedJitsiTrack.getTrack().contentHint = 'music'; } catch (e) {}
+
+          await conference.replaceTrack(localAudioTrack, mixedJitsiTrack);
+          currentActiveAudioTrack = mixedJitsiTrack;
+
+          shareMix = { ctx, micGain, mixedTrack: mixedJitsiTrack, monitorStream, shareState: linuxShareState };
+          const probe = (label, stream) => {
+  const a = ctx.createAnalyser();
+  ctx.createMediaStreamSource(stream).connect(a);
+  const buf = new Uint8Array(a.fftSize);
+  let n = 0;
+  const t = setInterval(() => {
+    a.getByteTimeDomainData(buf);
+    const peak = Math.max(...buf.map(v => Math.abs(v - 128)));
+    console.log(`[probe] ${label} peak=${peak}`);
+    if (++n >= 8) clearInterval(t);
+  }, 500);
+};
+console.log("[probe] ctx.state:", ctx.state,
+  "| monitor track:", extraAudio.readyState, "muted:", extraAudio.muted,
+  "| mixed jitsi muted:", mixedJitsiTrack.isMuted());
+probe("monitor (app audio)", new MediaStream([extraAudio]));
+probe("mixed output", destination.stream);
+          monitorStream = null;
+          linuxShareState = null;
+        } catch (e) {
+          console.warn("Audio mixing failed:", e);
+          try { screenAudioTrack?.dispose(); } catch (_) {}
+          screenAudioTrack = null;
+        }
+      }
+      cleanupLinux();
+    } catch (e) {
+      console.error("❌ Failed to add tracks:", e);
+      try { screenTrack.dispose(); } catch (_) {}
+      try { screenAudioTrack?.dispose(); } catch (_) {}
+      screenTrack = null;
+      screenAudioTrack = null;
+      await teardownShareAudio();
+      cleanupLinux();
+      return;
+    }
+
+    await new Promise(r => setTimeout(r, 2500));
+    removeScreenCard("data-screen-id", "local-screen");
+    const screenContainer = document.getElementById("screenContainer");
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "ss-card ss-local";
+    wrapper.setAttribute("data-screen-id", "local-screen");
+
+    const loading = document.createElement("div");
+    loading.className = "ss-loading";
+    const spinner = document.createElement("div");
+    spinner.className = "ss-spinner";
+    const loadingText = document.createElement("div");
+    loadingText.textContent = "Starting your stream…";
+    loading.appendChild(spinner);
+    loading.appendChild(loadingText);
+    wrapper.appendChild(loading);
+
+    const video = document.createElement("video");
+    video.className = "ss-video";
+    video.autoplay = true;
+    video.muted = true;
+    video.style.objectFit = "contain";
+    video.style.opacity = "0";
+    video.style.transition = "opacity 0.2s ease";
+    wrapper.appendChild(video);
+
+    const chip = document.createElement("div");
+    chip.className = "ss-chip";
+    const chipDot = document.createElement("span");
+    chipDot.className = "ss-dot";
+    const chipText = document.createElement("span");
+    chipText.textContent = "You're sharing your screen";
+    chip.appendChild(chipDot);
+    chip.appendChild(chipText);
+    wrapper.appendChild(chip);
+
+    const controls = document.createElement("div");
+    controls.className = "ss-controls";
+
+    const fullscreenBtn = document.createElement("button");
+    fullscreenBtn.className = "ss-btn";
+    fullscreenBtn.title = "Fullscreen";
+    fullscreenBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>`;
+    fullscreenBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (video.requestFullscreen) video.requestFullscreen().catch(err => console.error("Fullscreen error:", err));
     });
 
-    screenTrack.addEventListener(
-      JitsiMeetJS.events.track.TRACK_REMOVED,
-      () => {
-        console.log("🛑 Screen share stopped");
-        screenTrack = null;
-        screenAudioTrack = null;
-        document.getElementById('screenBtn').style.background = '';
-        removeScreenCard("data-screen-id", "local-screen");
-        document.getElementById('screenBtn').classList.remove('sharing');
-        
-        socket.emit("screenShareStop", {
-          userId: user.id,
-          username: user.username,
-          roomName: currentVoiceRoom
-        });
-      }
-    );
+    const stopBtn = document.createElement("button");
+    stopBtn.className = "ss-btn ss-btn-danger";
+    stopBtn.title = "Stop sharing";
+    stopBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
+    stopBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleScreenShare(); });
 
-    console.log("Screen share started (video only)!");
+    controls.appendChild(fullscreenBtn);
+    controls.appendChild(stopBtn);
+    wrapper.appendChild(controls);
+    screenContainer.appendChild(wrapper);
+
+    screenTrack.attach(video);
+    video.addEventListener('loadedmetadata', () => {
+      loading.style.display = "none";
+      video.style.opacity = "1";
+    }, { once: true });
+
+    screenContainer.classList.add("show");
+    screenContainer.style.display = "flex";
+    document.getElementById('screenBtn').classList.add('sharing');
+
+    socket.emit("screenShareStart", {
+      userId: user.id, username: user.username, roomName: currentVoiceRoom,
+      avatar: user.avatar, usernameColor: user.usernameColor, level: user.level || 1
+    });
+
+    const trackRef = screenTrack;
+    screenTrack.addEventListener(JitsiMeetJS.events.track.LOCAL_TRACK_STOPPED, async () => {
+      if (screenTrack !== trackRef) return;
+      await stopScreenShare();
+    });
 
   } catch (err) {
     console.error("❌ Screen share error:", err);
     screenTrack = null;
     screenAudioTrack = null;
-    document.getElementById('screenBtn').style.background = '';
-    
-    if (err.name === "NotAllowedError") {
-     showToast("❌ Screen share cancelled");
-    } else {
-     showToast("❌ Screen share failed: " + err.message);
-    }
+    await teardownShareAudio();
+    cleanupLinux();
+    const btn = document.getElementById('screenBtn');
+    if (btn) btn.style.background = '';
+    showToast(err.name === "NotAllowedError" ? "❌ Screen share cancelled" : "❌ Screen share failed: " + err.message);
   }
 }
 
@@ -1371,6 +1414,7 @@ function toggleMute() {
   isCurrentlyMuted = !isCurrentlyMuted;
 
   isCurrentlyMuted ? localAudioTrack.mute() : localAudioTrack.unmute();
+  if (shareMix?.micGain) shareMix.micGain.gain.value = isCurrentlyMuted ? 0 : 1;
 
   document.getElementById('muteBtn').classList.toggle('muted', isCurrentlyMuted);
   voiceStates.set(user.id, { isMuted: isCurrentlyMuted, isDeafened: isDeafened });

@@ -1,4 +1,5 @@
 var debugmode = false;
+const { writeJsonSync, readJsonSafe, createSaver, startBackups } = require("./storage");
 const express = require("express");
 const http = require("http");
 const socketIO = require("socket.io");
@@ -7,9 +8,6 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const sharp = require("sharp");
-const ipConnectionCount = new Map();
-const IP_LIMIT = 2;
-const CHECK_INTERVAL = 5000;
 const app = express();
 const server = http.createServer(app);
 let messages = [];
@@ -154,6 +152,7 @@ const io = socketIO(server, {
   maxHttpBufferSize: 50e6,
   connectTimeout: 45000
 });
+io.emit = (...args) => io.to("joined").emit(...args);
 
 const XP_PER_LEVEL = 100;
 function calculateLevel(xp) {
@@ -291,15 +290,15 @@ function getXpForLevel(level) {
 
 function loadChannels() {
   if (fs.existsSync(CHANNELS_FILE)) {
-    try { return JSON.parse(fs.readFileSync(CHANNELS_FILE, "utf8")); }
+    try { return readJsonSafe(CHANNELS_FILE, DEFAULT_CHANNELS); }
     catch (e) { console.error("❌ channels.json load failed", e); }
   }
-  fs.writeFileSync(CHANNELS_FILE, JSON.stringify(DEFAULT_CHANNELS, null, 2));
+  writeJsonSync(CHANNELS_FILE, DEFAULT_CHANNELS);
   return DEFAULT_CHANNELS;
 }
 
 function saveChannels(channels) {
-  fs.writeFileSync(CHANNELS_FILE, JSON.stringify(channels, null, 2));
+  writeJsonSync(CHANNELS_FILE, channels);
 }
 
 function syncChannelsArray() {
@@ -393,25 +392,15 @@ function stripAtPrefix(str) {
 }
 
 function loadUsers() {
-  if (fs.existsSync(USERS_FILE)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
-      allUsers = new Map(data.map(u => [u.id, u]));
-      console.log(`✅ Loaded ${allUsers.size} users with XP`);
-    } catch (e) { console.error("❌ users.json load failed", e); }
-  }
+  const data = readJsonSafe(USERS_FILE, []);
+  allUsers = new Map(data.map(u => [u.id, u]));
+  console.log(`✅ Loaded ${allUsers.size} users with XP`);
 }
 
+const usersSaver = createSaver(USERS_FILE, () => Array.from(allUsers.values()), 1000);
+
 function saveUsers() {
-  const arr = Array.from(allUsers.values());
-  const tmpPath = "./data/users.json.tmp";
-  try {
-    fs.writeFileSync(tmpPath, JSON.stringify(arr, null, 2));
-    fs.renameSync(tmpPath, USERS_FILE);
-  } catch (e) {
-    console.error("❌ Failed to save users.json:", e);
-    try { fs.unlinkSync(tmpPath); } catch {}
-  }
+  usersSaver.save();
 }
 
 loadUsers();
@@ -560,6 +549,42 @@ function loadTokenFromFile() {
 
 
 
+function parseViewerNumber(raw) {
+  if (raw === undefined || raw === null) return null;
+  const m = String(raw).trim().match(/^([\d.,]+)\s*([KkMm])?$/);
+  if (!m) return null;
+  let num = parseFloat(m[1].replace(/,/g, ''));
+  if (!Number.isFinite(num)) return null;
+  if (m[2]) num *= m[2].toLowerCase() === 'm' ? 1000000 : 1000;
+  return Math.round(num);
+}
+
+function extractYouTubeViewers(html) {
+  if (typeof html !== 'string') return null;
+  const patterns = [
+    /"originalViewCount":"(\d+)"/,
+    /"concurrentViewers":"(\d+)"/,
+    /"viewCount":\{"videoViewCountRenderer":\{"viewCount":\{"runs":\[\{"text":"([\d.,]+[KkMm]?)"\},\{"text":"\s*watching/,
+    /"viewCount":\{"videoViewCountRenderer":\{"viewCount":\{"simpleText":"([\d.,]+[KkMm]?)\s*watching/,
+    /"simpleText":"([\d.,]+[KkMm]?)\s*watching now"/,
+    /"text":"([\d.,]+[KkMm]?)"\},\{"text":"\s*watching now"/,
+    /aria-label="([\d.,]+[KkMm]?) watching now"/,
+    /([\d.,]+[KkMm]?)\s*watching now/i
+  ];
+  for (const re of patterns) {
+    const m = html.match(re);
+    if (m && m[1]) {
+      const n = parseViewerNumber(m[1]);
+      if (n !== null) return n;
+    }
+  }
+  return null;
+}
+
+function formatYouTubeViewers(n) {
+  return n === null ? 'Unknown' : `${n} watching now`;
+}
+
 async function getYouTubeLiveV2(channels) {
   const liveStreams = [];
 
@@ -583,6 +608,9 @@ async function getYouTubeLiveV2(channels) {
       if (resp.status >= 300 && resp.status < 400 && resp.headers.location?.includes('/watch?v=')) {
         const videoId = resp.headers.location.split('v=')[1]?.split('&')[0] || '';
         const avatar = await getYouTubeChannelAvatar(channel, html);
+        const redirectTitleMatch = typeof html === 'string' ? html.match(/<title>(.*?) - YouTube<\/title>/) : null;
+        const title = redirectTitleMatch && redirectTitleMatch[1] ? redirectTitleMatch[1].trim() : 'Live Stream';
+        const viewerCount = formatYouTubeViewers(extractYouTubeViewers(html));
         liveStreams.push({
           name: channel,
           live: true,
@@ -615,16 +643,7 @@ async function getYouTubeLiveV2(channels) {
           }
         }
 
-        let viewerCount = 'Unknown';
-        const viewerAriaMatch = html.match(/aria-label="(\d+(?:,\d+)*) watching now"/);
-        if (viewerAriaMatch && viewerAriaMatch[1]) {
-          viewerCount = viewerAriaMatch[1] + ' watching now'; 
-        } else {
-          const viewerTextMatch = html.match(/(\d+(?:,\d+)*)\s*watching now/i);
-          if (viewerTextMatch && viewerTextMatch[1]) {
-            viewerCount = viewerTextMatch[1] + ' watching now'; 
-          }
-        }
+        const viewerCount = formatYouTubeViewers(extractYouTubeViewers(html));
         const avatar = await getYouTubeChannelAvatar(channel, html);
         liveStreams.push({
           name: channel,
@@ -658,7 +677,7 @@ async function getYouTubeLiveV2(channels) {
           live: true,
           url: videoId ? `https://www.youtube.com/watch?v=${videoId}` : url,
           title: title,
-          viewerCount: 'Unknown',
+          viewerCount: formatYouTubeViewers(extractYouTubeViewers(html)),
           logo: avatar || 'fallback_youtube_logo_url'
         });
       } else {
@@ -1189,13 +1208,13 @@ const pepeRunStarts = new Map();
 let pepeHighscore = { username: null, userId: null, score: 0, ts: 0 };
 function loadPepeHighscore() {
   if (fs.existsSync(PEPE_HIGHSCORE_FILE)) {
-    try { return JSON.parse(fs.readFileSync(PEPE_HIGHSCORE_FILE, "utf8")); }
+    try { return readJsonSafe(PEPE_HIGHSCORE_FILE, { username: null, userId: null, score: 0, ts: 0 }); }
     catch (e) { console.error("❌ pepeHighscore.json load failed", e); }
   }
   return { username: null, userId: null, score: 0, ts: 0 };
 }
 function savePepeHighscore() {
-  fs.writeFileSync(PEPE_HIGHSCORE_FILE, JSON.stringify(pepeHighscore, null, 2));
+  writeJsonSync(PEPE_HIGHSCORE_FILE, pepeHighscore);
 }
 pepeHighscore = loadPepeHighscore();
 const PONG_WIDTH = 700;
@@ -1535,7 +1554,7 @@ let diceLeaderboard = new Map();
 function diceLoadLeaderboard() {
   if (fs.existsSync(DICE_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(DICE_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(DICE_LEADERBOARD_FILE, {});
       diceLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded dice leaderboard (${diceLeaderboard.size} players)`);
     } catch (e) {
@@ -1545,7 +1564,7 @@ function diceLoadLeaderboard() {
 }
 function diceSaveLeaderboard() {
   try {
-    fs.writeFileSync(DICE_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(diceLeaderboard), null, 2));
+    writeJsonSync(DICE_LEADERBOARD_FILE, Object.fromEntries(diceLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save diceLeaderboard.json:", e);
   }
@@ -1593,7 +1612,7 @@ let plinkoLeaderboard = new Map();
 function plinkoLoadLeaderboard() {
   if (fs.existsSync(PLINKO_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(PLINKO_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(PLINKO_LEADERBOARD_FILE, {});
       plinkoLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded plinko leaderboard (${plinkoLeaderboard.size} players)`);
     } catch (e) {
@@ -1603,7 +1622,7 @@ function plinkoLoadLeaderboard() {
 }
 function plinkoSaveLeaderboard() {
   try {
-    fs.writeFileSync(PLINKO_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(plinkoLeaderboard), null, 2));
+    writeJsonSync(PLINKO_LEADERBOARD_FILE, Object.fromEntries(plinkoLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save plinkoLeaderboard.json:", e);
   }
@@ -1653,7 +1672,7 @@ let aviaLeaderboard = new Map();
 function aviaLoadLeaderboard() {
   if (fs.existsSync(AVIA_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(AVIA_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(AVIA_LEADERBOARD_FILE, {});
       aviaLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded avia leaderboard (${aviaLeaderboard.size} players)`);
     } catch (e) {
@@ -1663,7 +1682,7 @@ function aviaLoadLeaderboard() {
 }
 function aviaSaveLeaderboard() {
   try {
-    fs.writeFileSync(AVIA_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(aviaLeaderboard), null, 2));
+    writeJsonSync(AVIA_LEADERBOARD_FILE, Object.fromEntries(aviaLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save aviaLeaderboard.json:", e);
   }
@@ -1820,7 +1839,7 @@ let airstrikeLeaderboard = new Map();
 function asLoadLeaderboard() {
   if (fs.existsSync(AS_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(AS_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(AS_LEADERBOARD_FILE, {});
       airstrikeLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded airstrike leaderboard (${airstrikeLeaderboard.size} players)`);
     } catch (e) {
@@ -1830,7 +1849,7 @@ function asLoadLeaderboard() {
 }
 function asSaveLeaderboard() {
   try {
-    fs.writeFileSync(AS_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(airstrikeLeaderboard), null, 2));
+    writeJsonSync(AS_LEADERBOARD_FILE, Object.fromEntries(airstrikeLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save airstrikeLeaderboard.json:", e);
   }
@@ -2019,7 +2038,7 @@ let chickenLeaderboard = new Map();
 function chickenLoadLeaderboard() {
   if (fs.existsSync(CHICKEN_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(CHICKEN_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(CHICKEN_LEADERBOARD_FILE, {});
       chickenLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded chicken leaderboard (${chickenLeaderboard.size} players)`);
     } catch (e) {
@@ -2029,7 +2048,7 @@ function chickenLoadLeaderboard() {
 }
 function chickenSaveLeaderboard() {
   try {
-    fs.writeFileSync(CHICKEN_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(chickenLeaderboard), null, 2));
+    writeJsonSync(CHICKEN_LEADERBOARD_FILE, Object.fromEntries(chickenLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save chickenLeaderboard.json:", e);
   }
@@ -2173,7 +2192,7 @@ let weedLeaderboard = new Map();
 function wgLoadLeaderboard() {
   if (fs.existsSync(WG_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(WG_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(WG_LEADERBOARD_FILE, {});
       weedLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded weed grow leaderboard (${weedLeaderboard.size} growers)`);
     } catch (e) {
@@ -2183,7 +2202,7 @@ function wgLoadLeaderboard() {
 }
 function wgSaveLeaderboard() {
   try {
-    fs.writeFileSync(WG_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(weedLeaderboard), null, 2));
+    writeJsonSync(WG_LEADERBOARD_FILE, Object.fromEntries(weedLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save weedLeaderboard.json:", e);
   }
@@ -2278,26 +2297,26 @@ function wgSerializePot(pot) {
 
 const WG_GARDENS_FILE = path.join(__dirname, "./data/weedGardens.json");
 
-function wgSaveGardens() {
-  try {
-    const obj = {};
-    weedGardens.forEach((garden, userId) => {
-      obj[userId] = garden.map(pot => {
-        if (!pot || pot.stage === "empty") return { stage: "empty" };
-        const { timer, ...rest } = pot;
-        return rest;
-      });
+const gardensSaver = createSaver(WG_GARDENS_FILE, () => {
+  const obj = {};
+  weedGardens.forEach((garden, userId) => {
+    obj[userId] = garden.map(pot => {
+      if (!pot || pot.stage === "empty") return { stage: "empty" };
+      const { timer, ...rest } = pot;
+      return rest;
     });
-    fs.writeFileSync(WG_GARDENS_FILE, JSON.stringify(obj, null, 2));
-  } catch (e) {
-    console.error("❌ Failed to save weedGardens.json:", e);
-  }
+  });
+  return obj;
+}, 1000);
+
+function wgSaveGardens() {
+  gardensSaver.save();
 }
 
 function wgLoadGardens() {
   if (!fs.existsSync(WG_GARDENS_FILE)) return;
   try {
-    const data = JSON.parse(fs.readFileSync(WG_GARDENS_FILE, "utf8"));
+    const data = readJsonSafe(WG_GARDENS_FILE, {});
     Object.entries(data).forEach(([userId, pots]) => {
       const garden = pots.map(p => {
         if (!p || p.stage === "empty") return wgEmptyPot();
@@ -2433,7 +2452,7 @@ let dartsLeaderboard = new Map();
 function dartsLoadLeaderboard() {
   if (fs.existsSync(DARTS_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(DARTS_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(DARTS_LEADERBOARD_FILE, {});
       dartsLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded darts leaderboard (${dartsLeaderboard.size} players)`);
     } catch (e) {
@@ -2443,7 +2462,7 @@ function dartsLoadLeaderboard() {
 }
 function dartsSaveLeaderboard() {
   try {
-    fs.writeFileSync(DARTS_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(dartsLeaderboard), null, 2));
+    writeJsonSync(DARTS_LEADERBOARD_FILE, Object.fromEntries(dartsLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save dartsLeaderboard.json:", e);
   }
@@ -2499,7 +2518,7 @@ let dragonTowerLeaderboard = new Map();
 function dtLoadLeaderboard() {
   if (fs.existsSync(DT_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(DT_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(DT_LEADERBOARD_FILE, {});
       dragonTowerLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded dragon tower leaderboard (${dragonTowerLeaderboard.size} players)`);
     } catch (e) {
@@ -2509,7 +2528,7 @@ function dtLoadLeaderboard() {
 }
 function dtSaveLeaderboard() {
   try {
-    fs.writeFileSync(DT_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(dragonTowerLeaderboard), null, 2));
+    writeJsonSync(DT_LEADERBOARD_FILE, Object.fromEntries(dragonTowerLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save dragonTowerLeaderboard.json:", e);
   }
@@ -2637,7 +2656,7 @@ let rouletteLeaderboard = new Map();
 function rouletteLoadLeaderboard() {
   if (fs.existsSync(ROULETTE_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(ROULETTE_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(ROULETTE_LEADERBOARD_FILE, {});
       rouletteLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded roulette leaderboard (${rouletteLeaderboard.size} players)`);
     } catch (e) { console.error("❌ rouletteLeaderboard.json load failed", e); }
@@ -2645,7 +2664,7 @@ function rouletteLoadLeaderboard() {
 }
 function rouletteSaveLeaderboard() {
   try {
-    fs.writeFileSync(ROULETTE_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(rouletteLeaderboard), null, 2));
+    writeJsonSync(ROULETTE_LEADERBOARD_FILE, Object.fromEntries(rouletteLeaderboard));
   } catch (e) { console.error("❌ Failed to save rouletteLeaderboard.json:", e); }
 }
 rouletteLoadLeaderboard();
@@ -3268,7 +3287,7 @@ let pepeLeaderboard = new Map();
 function pepeLoadLeaderboard() {
   if (fs.existsSync(PEPE_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(PEPE_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(PEPE_LEADERBOARD_FILE, {});
       pepeLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded pepe runner leaderboard (${pepeLeaderboard.size} players)`);
     } catch (e) {
@@ -3278,7 +3297,7 @@ function pepeLoadLeaderboard() {
 }
 function pepeSaveLeaderboard() {
   try {
-    fs.writeFileSync(PEPE_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(pepeLeaderboard), null, 2));
+    writeJsonSync(PEPE_LEADERBOARD_FILE, Object.fromEntries(pepeLeaderboard));
   } catch (e) {
     console.error("❌ Failed to save pepeLeaderboard.json:", e);
   }
@@ -3502,7 +3521,7 @@ for (const chunk of slugChunks) {
         liveStreamers.push({
           ...s,
           platform: 'youtube',
-          viewers: s.viewerCount ? parseInt(s.viewerCount.replace(/,/g, '')) : 0,
+          viewers: (() => { const n = parseInt(String(s.viewerCount || '').replace(/,/g, ''), 10); return Number.isFinite(n) ? n : 0; })(),
           logo: s.logo || null
         });
       });
@@ -3790,6 +3809,77 @@ app.get('/api/kick-chatroom/:slug', (req, res) => {
   res.json({ chatroomId });
 });
 
+
+const { Readable } = require("node:stream");
+const MV_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36";
+const mvAllowedHost = (h) => { h = String(h).toLowerCase(); return h === "live-video.net" || h.endsWith(".live-video.net"); };
+function mvAuthed(req, res, next) {
+  if (req.query.token === CHAT_PASSWORD) return next();
+  return requireAuth(req, res, next);
+}
+const mvProxyPath = (t, tok) =>
+"/api/multiview/proxy?url=" + encodeURIComponent(t) + (tok ? "&token=" + encodeURIComponent(tok) : "");
+function mvRewrite(text, src, tok) {
+  return text.split(/\r?\n/).map((line) => {
+    const t = line.trim();
+    if (!t) return line;
+    if (t.startsWith("#")) return line.replace(/URI="([^"]+)"/g, (_, u) => `URI="${mvProxyPath(new URL(u, src).href, tok)}"`);
+    return mvProxyPath(new URL(t, src).href, tok);
+  }).join("\n");
+}
+
+app.get("/api/multiview/resolve", mvAuthed, async (req, res) => {
+  const slug = String(req.query.username || "").trim().replace(/^@/, "")
+  .replace(/^https?:\/\/(www\.)?kick\.com\//i, "").replace(/[/?#].*$/, "");
+  if (!/^[a-zA-Z0-9_-]{1,50}$/.test(slug)) return res.status(400).json({ error: "Invalid Kick username." });
+  try {
+    const up = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`, {
+      headers: { Accept: "application/json", "User-Agent": MV_UA, Referer: `https://kick.com/${slug}` },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!up.ok) return res.status(502).json({ error: `Kick API returned HTTP ${up.status}` });
+    const d = await up.json();
+    const url = [d?.playback_url, d?.livestream?.playback_url, d?.stream?.playback_url,
+    d?.channel?.playback_url, d?.channel?.livestream?.playback_url]
+    .find((x) => typeof x === "string" && x.includes(".m3u8"));
+    if (!url) return res.status(404).json({ error: `${slug} isn't live.` });
+    res.set("Cache-Control", "no-store").json({ playback_url: url });
+  } catch (e) {
+    res.status(502).json({ error: "Could not reach Kick: " + e.message });
+  }
+});
+
+app.get("/api/multiview/proxy", mvAuthed, async (req, res) => {
+  const tok = req.query.token === CHAT_PASSWORD ? CHAT_PASSWORD : null;
+  let target;
+  try { target = new URL(String(req.query.url || "")); } catch { return res.status(400).send("Invalid URL"); }
+  const ac = new AbortController();
+  res.on("close", () => ac.abort());
+  try {
+    let up;
+    for (let hop = 0; hop <= 4; hop++) {
+      if (!["http:", "https:"].includes(target.protocol) || !mvAllowedHost(target.hostname)) return res.status(403).send("Host not allowed");
+           up = await fetch(target, { redirect: "manual", signal: AbortSignal.any([ac.signal, AbortSignal.timeout(15000)]), headers: { "User-Agent": MV_UA } });
+      if (up.status >= 300 && up.status < 400 && up.headers.get("location")) { target = new URL(up.headers.get("location"), target); continue; }
+      break;
+    }
+    if (!up.ok) return res.status(up.status).send(`Upstream HTTP ${up.status}`);
+    const type = up.headers.get("content-type") || "";
+    res.set("Cache-Control", "no-store");
+    if (target.pathname.endsWith(".m3u8") || /mpegurl|vnd\.apple/i.test(type)) {
+      res.type("application/vnd.apple.mpegurl").send(mvRewrite(await up.text(), target.href, tok));
+    } else {
+      res.type(type || "application/octet-stream");
+      if (!up.body) return res.end();
+      Readable.fromWeb(up.body).on("error", () => res.end()).pipe(res);
+    }
+  } catch (e) {
+    if (e.name === "AbortError") return;
+    if (!res.headersSent) res.status(502).send("Proxy failed"); else res.end();
+  }
+});
+
+
 const MUSIC_ROOT = path.resolve(path.join(__dirname, "public", "music"));
  
 const AUDIO_EXTS = [".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".opus"];
@@ -3993,6 +4083,7 @@ app.get("/api/music/browse", requireAuth, (req, res) => {
 });
 
 const gamesFilePath = path.join(__dirname, 'games.json');
+app.use('/updates', express.static(path.join(__dirname, 'updates')));
 
 app.get('/games.json', (req, res) => {
   try {
@@ -4096,7 +4187,7 @@ const PLAYLISTS_FILE = path.join(__dirname, "./data/playlists.json");
  
 function loadPlaylistsFromDisk() {
   if (fs.existsSync(PLAYLISTS_FILE)) {
-    try { return JSON.parse(fs.readFileSync(PLAYLISTS_FILE, "utf8")); }
+    try { return readJsonSafe(PLAYLISTS_FILE, {}); }
     catch (e) { console.error("❌ playlists.json load failed", e); }
   }
   return {};
@@ -4106,13 +4197,13 @@ const BOT_TOKENS_FILE = path.join(__dirname, "./data/botTokens.json");
 
 function loadBotTokens() {
   if (fs.existsSync(BOT_TOKENS_FILE)) {
-    try { return JSON.parse(fs.readFileSync(BOT_TOKENS_FILE, "utf8")); }
+    try { return readJsonSafe(BOT_TOKENS_FILE, []); }
     catch (e) { console.error("❌ botTokens.json load failed", e); }
   }
   return [];
 }
 function saveBotTokens(tokens) {
-  fs.writeFileSync(BOT_TOKENS_FILE, JSON.stringify(tokens, null, 2));
+  writeJsonSync(BOT_TOKENS_FILE, tokens);
 }
 let botTokens = loadBotTokens();
 
@@ -4125,19 +4216,19 @@ const ROLES_FILE = path.join(__dirname, "./data/roles.json");
 
 function loadRoles() {
   if (fs.existsSync(ROLES_FILE)) {
-    try { return JSON.parse(fs.readFileSync(ROLES_FILE, "utf8")); }
+    try { return readJsonSafe(ROLES_FILE, []); }
     catch (e) { console.error("❌ roles.json load failed", e); }
   }
   return [];
 }
 function saveRoles(roles) {
-  fs.writeFileSync(ROLES_FILE, JSON.stringify(roles, null, 2));
+  writeJsonSync(ROLES_FILE, roles);
 }
 let customRoles = loadRoles();
  
 function savePlaylistsToDisk(playlists) {
   try {
-    fs.writeFileSync(PLAYLISTS_FILE, JSON.stringify(playlists, null, 2));
+    writeJsonSync(PLAYLISTS_FILE, playlists);
   } catch (err) {
     console.error("❌ Failed to save playlists.json:", err);
   }
@@ -4707,7 +4798,7 @@ MOON_COINS.forEach(c => {
 function moonLoadLeaderboard() {
   if (fs.existsSync(MOON_LEADERBOARD_FILE)) {
     try {
-      const data = JSON.parse(fs.readFileSync(MOON_LEADERBOARD_FILE, "utf8"));
+      const data = readJsonSafe(MOON_LEADERBOARD_FILE, {});
       moonLeaderboard = new Map(Object.entries(data));
       console.log(`✅ Loaded moon leaderboard (${moonLeaderboard.size} players)`);
     } catch (e) { console.error("❌ moonLeaderboard.json load failed", e); }
@@ -4715,7 +4806,7 @@ function moonLoadLeaderboard() {
 }
 function moonSaveLeaderboard() {
   try {
-    fs.writeFileSync(MOON_LEADERBOARD_FILE, JSON.stringify(Object.fromEntries(moonLeaderboard), null, 2));
+    writeJsonSync(MOON_LEADERBOARD_FILE, Object.fromEntries(moonLeaderboard));
   } catch (e) { console.error("❌ Failed to save moonLeaderboard.json:", e); }
 }
 moonLoadLeaderboard();
@@ -4925,6 +5016,8 @@ if (!moonPriceInterval) {
 }
 
 io.on("connection", (socket) => {
+
+
 socket.emit('serverConfig', {
     jitsi: serverConfig.jitsi,
     server: {
@@ -4947,7 +5040,61 @@ socket.on("getChannels", () => {
   socket.emit("channelList", dynamicChannels);
 });
 
+const IMG_RE = /^https?:\/\/\S+\.(png|jpe?g|gif|webp)(\?.*)?$/i;
+const REL_IMG_RE = /^\/\S+\.(png|jpe?g|gif|webp)(\?.*)?$/i;
+const EMOTE_RE = /\/avatars\/[^/]+\.(png|jpe?g|gif|webp)(\?.*)?$/i;
 
+socket.on("searchImages", (payload, cb) => {
+  if (typeof cb !== "function") return;
+
+  const { query, channel, before } = payload || {};
+  const limit = Math.min(Math.max(parseInt(payload?.limit) || 40, 1), 100);
+  const q = String(query || "").toLowerCase().slice(0, 64);
+  const userId = payload?.userId ? String(payload.userId) : null;
+  const username = payload?.username ? String(payload.username).toLowerCase() : null;
+  const cursor = Number(before) || null;
+  const pool = channel
+    ? (messagesByChannel.get(channel) || [])
+    : Array.from(messagesByChannel.values()).flat();
+
+  const sorted = pool.slice().sort((a, b) => b.time - a.time);
+  const results = [];
+
+  for (const m of sorted) {
+    if (cursor && m.time >= cursor) continue;
+    if (m.encrypted || typeof m.text !== "string") continue;
+
+    const url = m.text.trim();
+    const isImage =
+      m.type === "image" ||
+      (m.type === "text" && (IMG_RE.test(url) || REL_IMG_RE.test(url)));
+    if (!isImage) continue;
+    if (EMOTE_RE.test(url)) continue;
+
+    if (userId) {
+      if (String(m.userId) !== userId) continue;
+    } else if (username) {
+      if (String(m.username || "").toLowerCase() !== username) continue;
+    }
+
+    if (q) {
+      const name = String(m.username || "").toLowerCase();
+      const urlLc = url.toLowerCase();
+      let ok;
+      if (userId || username) ok = urlLc.includes(q);
+      else if (q.length < 2) ok = name === q;
+      else ok = name.includes(q) || urlLc.includes(q);
+      if (!ok) continue;
+    }
+
+    results.push({ id: m.id, url, username: m.username, userId: m.userId, channel: m.channel, time: m.time });
+    if (results.length > limit) break;
+  }
+
+  const hasMore = results.length > limit;
+  const images = results.slice(0, limit);
+  cb({ images, hasMore, nextBefore: images.length ? images[images.length - 1].time : cursor });
+});
 
 socket.on('registerPushSubscription', (sub) => {
   const userId = socket.userId;
@@ -5406,7 +5553,7 @@ socket.on('updateServerBanner', (data) => {
   serverConfig.serverBanner = currentServerBanner;
 
   try {
-    fs.writeFileSync(SERVER_CONFIG_PATH, JSON.stringify(serverConfig, null, 2));
+    writeJsonSync(SERVER_CONFIG_PATH, serverConfig);
     console.log('🖼️ Server banner saved to server-config.json:', currentServerBanner);
   } catch (err) {
     console.error('❌ Failed to save server banner:', err);
@@ -5787,9 +5934,7 @@ socket.on("deleteChannel", (data) => {
 });
    
 socket.on("join", (clientData) => {
-
    const isBot = clientData.isBot === true;
-
   if (socket.isBotToken && !isBot) {
     socket.disconnect(true);
     return;
@@ -5850,8 +5995,6 @@ const isNewUser = !allUsers.has(clientData.id);
       console.log(`📝 New account created: ${clientData.username} | Attempts: ${attempts.count}/${ACCOUNT_CREATION_LIMIT}`);
     }
   if (!clientData?.id) return;
-
-
    if (!isBot) {
   socket.xpTimer = setInterval(() => {
     if (!socket.userId) return;
@@ -5884,6 +6027,7 @@ const wasAlreadyOnline = !isBot && userSockets.has(clientData.id) && userSockets
 
 socket.userId = clientData.id;
 socket.isBot = isBot;
+socket.join("joined");
 
 if (!userSockets.has(clientData.id)) userSockets.set(clientData.id, new Set());
 userSockets.get(clientData.id).add(socket.id);
@@ -5988,7 +6132,7 @@ socket.emit("userData", {
   broadcastOnlineUsers();
 
 if (!socket.isBot && !isReconnect && !wasAlreadyOnline) {
-    socket.broadcast.emit("userOnline", serverUser);
+    socket.to("joined").emit("userOnline", serverUser);
     allUsers.forEach((u, uid) => {
     if (uid === clientData.id) return;
     if (onlineUsers.has(uid)) return;
@@ -7044,7 +7188,7 @@ const channel = foundInChannel || "general";
 socket.on("typing", (data) => {
   if (socket.userId && onlineUsers.has(socket.userId)) {
     const currentUser = onlineUsers.get(socket.userId);
-    socket.broadcast.emit("typing", {
+    socket.to("joined").emit("typing", {
       userId: socket.userId,
       username: currentUser.username,
       avatar: currentUser.avatar || '/avatars/default1.png',
@@ -7055,7 +7199,7 @@ socket.on("typing", (data) => {
 
   socket.on("stopTyping", () => {
     if (socket.userId) {
-      socket.broadcast.emit("stopTyping", {
+      socket.to("joined").emit("stopTyping", {
         userId: socket.userId
       });
     }
@@ -7369,14 +7513,31 @@ socket.on("delete", (data) => {
 });
 
  
+const BACKUP_DIR = path.join(__dirname, "backups");
+const DATA_DIR = path.join(__dirname, "data");
+function purgeMessageBackups(dir) {
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return 0; }
+  let removed = 0;
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      removed += purgeMessageBackups(full);
+    } else if (/^(messages|forumData)[-_.]/i.test(e.name)) {
+      try { fs.unlinkSync(full); removed++; } catch (err) {
+        console.error("Failed to delete backup:", full, err.message);
+      }
+    }
+  }
+  return removed;
+}
+
 socket.on("clear", () => {
-   if (!socket.isAdmin) return;
+  if (!socket.isAdmin) return;
+
   const uploadDir = path.join(__dirname, "uploads");
   fs.readdir(uploadDir, (err, files) => {
-    if (err) {
-      console.error("Failed to read uploads folder:", err);
-      return;
-    }
+    if (err) { console.error("Failed to read uploads folder:", err); return; }
     files.forEach(file => {
       fs.unlink(path.join(uploadDir, file), err => {
         if (err) console.error("Failed to delete file:", file, err);
@@ -7384,13 +7545,23 @@ socket.on("clear", () => {
     });
   });
 
+ 
   messages = [];
-  messagesByChannel.forEach((_, channel) => {
-    messagesByChannel.set(channel, []);
-  });
+  messagesByChannel.forEach((_, channel) => messagesByChannel.set(channel, []));
+  forumPostsByChannel.forEach((_, channel) => forumPostsByChannel.set(channel, []));
+  forumPostMessages.clear();
 
   saveMessages();
+  saveForumData();
+
   io.emit("clear");
+  dynamicChannels
+    .filter(c => c.type === "forum")
+    .forEach(c => io.emit("forumPostsList", { channel: c.id, posts: [] }));
+  setTimeout(() => {
+    const removed = purgeMessageBackups(BACKUP_DIR) + purgeMessageBackups(DATA_DIR);
+    console.log(`🧹 Clear: removed ${removed} message/forum backup file(s)`);
+  }, 3500);
 });
 
  
@@ -7687,6 +7858,7 @@ socket.on("setStreamStatus", (data) => {
   if (!socket.userId || !onlineUsers.has(socket.userId)) return;
   const currentUser = onlineUsers.get(socket.userId);
   currentUser.streamStatus = data.streamStatus || null;
+  currentUser.streamArtUrl = data.streamStatus ? (data.streamArtUrl || null) : null;
   broadcastOnlineUsers();
 });
 
@@ -9954,7 +10126,7 @@ app.post("/upload-emote", requireAuth, emoteUpload.single("emote"), (req, res) =
   if (!emoteConfig.pepeList) emoteConfig.pepeList = [];
   emoteConfig.pepeList.push(filename);
   try {
-    fs.writeFileSync(EMOTE_CONFIG_PATH, JSON.stringify(emoteConfig, null, 2));
+    writeJsonSync(EMOTE_CONFIG_PATH, emoteConfig);
     console.log(`✅ Emote added: ${filename}`);
   } catch (err) {
     console.error("❌ Failed to save emote config:", err);
@@ -9976,7 +10148,7 @@ app.delete("/delete-emote/:filename", requireAuth, (req, res) => {
   emoteConfig.pepeList = (emoteConfig.pepeList || []).filter(f => f !== filename);
 
   try {
-    fs.writeFileSync(EMOTE_CONFIG_PATH, JSON.stringify(emoteConfig, null, 2));
+    writeJsonSync(EMOTE_CONFIG_PATH, emoteConfig);
   } catch (err) {
     return res.status(500).json({ error: "Failed to save config" });
   }
@@ -10004,7 +10176,7 @@ const FORUM_DATA_FILE = path.join(__dirname, "./data/forumData.json");
 function loadForumData() {
   try {
     if (fs.existsSync(FORUM_DATA_FILE)) {
-      const data = JSON.parse(fs.readFileSync(FORUM_DATA_FILE, "utf8"));
+      const data = readJsonSafe(FORUM_DATA_FILE, {});
       forumPostsByChannel = Array.isArray(data.forumPostsByChannel)
         ? new Map(data.forumPostsByChannel)
         : new Map();
@@ -10023,17 +10195,17 @@ function loadForumData() {
   }
 }
 
+const forumSaver = createSaver(FORUM_DATA_FILE, () => {
+  if (!(forumPostsByChannel instanceof Map)) forumPostsByChannel = new Map();
+  if (!(forumPostMessages instanceof Map)) forumPostMessages = new Map();
+  return {
+    forumPostsByChannel: Array.from(forumPostsByChannel.entries()),
+    forumPostMessages: Array.from(forumPostMessages.entries())
+  };
+}, 1000);
+
 function saveForumData() {
-  try {
-    if (!(forumPostsByChannel instanceof Map)) forumPostsByChannel = new Map();
-    if (!(forumPostMessages instanceof Map)) forumPostMessages = new Map();
-    fs.writeFileSync(FORUM_DATA_FILE, JSON.stringify({
-      forumPostsByChannel: Array.from(forumPostsByChannel.entries()),
-      forumPostMessages: Array.from(forumPostMessages.entries())
-    }, null, 2));
-  } catch (err) {
-    console.error("❌ Failed to save forumData.json:", err);
-  }
+  forumSaver.save();
 }
 
 
@@ -10052,35 +10224,27 @@ function saveWhispers() {
   }, 2000);
 }
 
+const messagesSaver = createSaver("./data/messages.json", () => {
+  const hiddenObj = {};
+  hiddenWhisperConvos.forEach((map, userId) => {
+    hiddenObj[userId] = Object.fromEntries(map);
+  });
+  return {
+    channelMessages: Array.from(messagesByChannel.values()).flat(),
+    whispers: whispers,
+    groupWhispers: groupWhispers,
+    whisperGroups: whisperGroups,
+    hiddenWhispers: hiddenObj
+  };
+}, 2000);
+
 function persistAllMessages() {
-  try {
-    const allChannelMsgs = Array.from(messagesByChannel.values()).flat();
-    const hiddenObj = {};
-    hiddenWhisperConvos.forEach((map, userId) => {
-      hiddenObj[userId] = Object.fromEntries(map);
-    });
-    const combined = {
-      channelMessages: allChannelMsgs,
-      whispers: whispers,
-      groupWhispers: groupWhispers,
-      whisperGroups: whisperGroups,
-      hiddenWhispers: hiddenObj
-    };
-    const tmpPath = "./data/messages.json.tmp";
-    fs.writeFile(tmpPath, JSON.stringify(combined, null, 2), (err) => {
-      if (err) { console.error("❌ Failed to save messages.json:", err); return; }
-      fs.rename(tmpPath, "./data/messages.json", (renameErr) => {
-        if (renameErr) console.error("❌ Failed to finalize messages.json:", renameErr);
-      });
-    });
-  } catch (err) {
-    console.error("❌ Failed to persist messages:", err);
-  }
+  messagesSaver.save();
 }
 
-if (fs.existsSync("./data/messages.json")) {
+if (fs.existsSync("./data/messages.json") || fs.existsSync("./data/messages.json.bak")) {
   try {
-    const raw = JSON.parse(fs.readFileSync("./data/messages.json", "utf8"));
+    const raw = readJsonSafe("./data/messages.json", {});
     if (Array.isArray(raw)) {
       messages = raw.filter(m => m && m.id);
       messages.forEach(msg => {
@@ -10327,6 +10491,13 @@ app.get("/api/videos/search", requireAuth, (req, res) => {
   res.json({ query: q, videos: results });
 });
 
+
+startBackups({
+  dataDir: path.join(__dirname, "data"),
+  backupDir: path.join(__dirname, "backups"),
+  everyMs: 60 * 60 * 1000,
+  keep: 48
+});
 
 server.listen(5350, '127.0.0.1', () => {
   console.log("🚀 Node.js server running on http://127.0.0.1:5350");

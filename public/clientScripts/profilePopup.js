@@ -185,7 +185,7 @@ function renderProfilePopupContent(userData) {
     infoDiv.appendChild(gameDiv);
   }
 
-  if (userData.streamStatus) {
+    if (userData.streamStatus) {
     const streamDiv = document.createElement('div');
     streamDiv.style.cssText = 'margin-bottom:8px; display:flex; align-items:center; gap:8px;';
     const streamIconSvg = `
@@ -197,10 +197,23 @@ function renderProfilePopupContent(userData) {
     const iconBox = document.createElement('div');
     iconBox.style.cssText = `
       width:32px; height:32px; border-radius:4px; flex-shrink:0;
+      overflow:hidden; position:relative;
       background: linear-gradient(135deg,#2b2d31,#1a1b1e);
       display:flex; align-items:center; justify-content:center;
     `;
-    iconBox.innerHTML = streamIconSvg;
+
+    if (userData.streamArtUrl) {
+      const artImg = document.createElement('img');
+      artImg.src = sanitizeAvatar(userData.streamArtUrl);
+      artImg.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block;';
+      artImg.onerror = () => {
+        artImg.remove();
+        iconBox.innerHTML = streamIconSvg;
+      };
+      iconBox.appendChild(artImg);
+    } else {
+      iconBox.innerHTML = streamIconSvg;
+    }
     streamDiv.appendChild(iconBox);
 
     const textWrap = document.createElement('div');

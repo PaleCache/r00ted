@@ -3205,16 +3205,33 @@ if (parsed.listId && parsed.listId.startsWith("RD")) {
    window.electronAPI.onNativeNowPlaying((np) => {
   window.__lastNativeNowPlaying = np;
   try {
-    const music   = np?.music ?? null;
-    const browser = np?.browser ?? null;
-    const browserStreaming = !!(browser?.isPlaying && notifSettings.browserMediaStatus !== false);
-    const browserInfo = (browserStreaming && browser.title)
-      ? `${browser.artist ? `${browser.artist} - ${browser.title}` : browser.title} (via ${browser.source || "Browser"})`
-      : null;
+  const music     = np?.music ?? null;
+  const browser   = np?.browser ?? null;
+  const streaming = np?.streaming ?? null;
 
-    if (window.browserStreaming !== browserStreaming || window.browserStreamingInfo !== browserInfo) {
+  const browserStreaming = !!(browser?.isPlaying && notifSettings.browserMediaStatus !== false);
+  const browserInfo = (browserStreaming && browser.title)
+    ? `${browser.artist ? `${browser.artist} - ${browser.title}` : browser.title} (via ${browser.source || "Browser"})`
+    : null;
+
+  const appStreaming = !!streaming?.isPlaying;
+  const appInfo = (appStreaming && streaming.title)
+    ? `${streaming.artist ? `${streaming.artist} - ${streaming.title}` : streaming.title} (via ${streaming.source})`
+    : null;
+
+    const appArt = streaming?.isPlaying ? (streaming.artUrl || null) : null;
+    const browserArt = browserStreaming ? (browser.artUrl || null) : null;
+
+    if (window.browserStreaming !== browserStreaming ||
+        window.browserStreamingInfo !== browserInfo ||
+        window.browserStreamingArt !== browserArt ||
+        window.appStreamingInfo !== appInfo ||
+        window.appStreamingArt !== appArt) {
       window.browserStreaming = browserStreaming;
       window.browserStreamingInfo = browserInfo;
+      window.browserStreamingArt = browserArt;
+      window.appStreamingInfo = appInfo;
+      window.appStreamingArt = appArt;
       if (typeof broadcastStreamStatus === "function") broadcastStreamStatus();
     }
 

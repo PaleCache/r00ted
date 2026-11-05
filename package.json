@@ -1,6 +1,6 @@
 {
   "name": "r00ted",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "desktopName": "r00ted.desktop",
   "description": "Beyond identity. Beyond control. True Freedom.",
   "main": "./app/main.js",
@@ -11,6 +11,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^0.1.67",
     "axios": "^1.16.0",
+    "electron-updater": "^6.8.11",
     "express": "^5.2.1",
     "multer": "^2.1.1",
     "sharp": "^0.35.3",
@@ -30,9 +31,16 @@
     "build": "npm run clean && electron-builder",
     "build-appimage": "npm run clean && electron-builder --linux AppImage"
   },
+
   "build": {
     "appId": "com.r00ted.app",
     "productName": "R00TED",
+    "publish": [
+    {
+      "provider": "generic",
+      "url": "https://example.com/updates/"
+    }
+    ],
     "files": [
       "./app/main.js",
       "./app/preload.js",

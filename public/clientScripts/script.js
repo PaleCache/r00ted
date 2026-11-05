@@ -6248,7 +6248,7 @@ document.getElementById('streamsList').addEventListener('click', (e) => {
   const platform = card.dataset.streamPlatform;
   const name = card.dataset.streamName;
   const stream = cachedLiveStreams.find(s => s.platform === platform && s.name === name);
-  if (!stream) return;
+  if (!stream) { console.warn("click: stream not in cachedLiveStreams", platform, name); return; }
 
   if (e.target.closest('.stream-watch-btn')) {
     window.open(stream.url, '_blank');
@@ -8916,14 +8916,15 @@ const gameDetection = {
     } catch (e) {}
   },
 
-  updateStatus(name, startedAt) {
-    if (name) {
-      window.setGameStatus(name, startedAt);
-    } else if (this.lastPushedGame) {
-      window.clearGameStatus(this.lastPushedGame);
-    }
-    this.lastPushedGame = name || null;
+updateStatus(name, startedAt) {
+  if (this.lastPushedGame && this.lastPushedGame !== name) {
+    window.clearGameStatus(this.lastPushedGame);
   }
+  if (name) {
+    window.setGameStatus(name, startedAt);
+  }
+  this.lastPushedGame = name || null;
+}
 };
 
 setInterval(() => {
@@ -9372,11 +9373,51 @@ function pushOverlayVoiceUpdate() {
 let overlaySettings = { enabled: true };
 let overlayScreenInfo = null;
 
+
+async function renderVersionInfo(webVersion) {
+  const el = document.getElementById("version");
+  if (!el || !webVersion) return;
+
+  const line = (label, ver) =>
+    `<div><span style="font-weight:700; text-transform:uppercase; font-size:9px; letter-spacing:0.4px; margin-right:4px;">${label}</span>${escapeHtml(ver)}</div>`;
+
+  let html = line("Web", `v${webVersion}`);
+
+  if (window.electronAPI?.getAppVersion) {
+    try {
+      const appVer = await window.electronAPI.getAppVersion();
+      html += line("App", `v${appVer}`);
+    } catch (e) {
+      console.warn("Could not get app version:", e);
+    }
+  }
+
+  el.innerHTML = html;
+}
+
 async function loadOverlaySettings() {
   if (!window.electronAPI?.overlayGetInfo) return;
   const info = await window.electronAPI.overlayGetInfo();
   overlaySettings.enabled = info.enabled;
   document.getElementById("toggleGameOverlay").checked = info.enabled;
+
+  const select = document.getElementById("overlayMonitorSelect");
+  if (select && window.electronAPI.overlayListDisplays) {
+    const displays = await window.electronAPI.overlayListDisplays();
+    select.innerHTML = "";
+    displays.forEach(d => {
+      select.add(new Option(d.label, d.id, false, d.id === info.displayId));
+    });
+    select.onchange = async () => {
+      window.electronAPI.overlaySetDisplay(Number(select.value));
+
+      setTimeout(async () => {
+        const fresh = await window.electronAPI.overlayGetInfo();
+        initOverlayPreview(fresh);
+      }, 200);
+    };
+  }
+
   initOverlayPreview(info);
 }
 
@@ -10374,3 +10415,5 @@ function applyDefaultAvatar(url) {
   updateNamePreview(user.usernameColor || "username-cyan");
   showToast("Avatar updated!");
 }
+
+
