@@ -19,7 +19,7 @@
     };
     const REEL_STRIP = ["cherry", "lemon", "bell", "clover", "star", "cherry", "lemon", "bell", "seven", "pepe", "cherry", "lemon"];
 
-    const SLOTS_FREE_SPINS_COST = 5;
+    const SLOTS_FREE_SPINS_COST = 12;
     const SLOTS_FREE_SPINS_COUNT = 10;
 
     let els = {};

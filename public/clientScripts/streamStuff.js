@@ -356,7 +356,7 @@ const MV_ICONS = {
 })();
 
 function mvProxied(url, withToken) {
-  const tok = localStorage.getItem("chatToken") || "";
+  const tok = (window.getMediaToken && window.getMediaToken()) || localStorage.getItem("chatToken") || "";
   return "/api/multiview/proxy?url=" + encodeURIComponent(url) + (withToken ? "&token=" + encodeURIComponent(tok) : "");
 }
 

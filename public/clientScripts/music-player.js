@@ -257,7 +257,6 @@ let cachedPlaylists = {};
 
   #mpYtHost { display: none; position: absolute; inset: 0; background: #000; z-index: 1; }
 #mpYtHost iframe { width: 100%; height: 100%; border: 0; display: block; }
-#mpYtShield { position: absolute; inset: 0; z-index: 2; cursor: pointer; }
   #mpAddBtn:hover, #mpAddFolderBtn:hover, #mpAddRadioBtn:hover { background: #FF0000; color: #fff; }
   #mpPlaylist { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
   #mpPlaylist::-webkit-scrollbar { width: 7px; }
@@ -731,7 +730,7 @@ let cachedPlaylists = {};
             <button id="mpPipFullscreenBtn" title="Fullscreen">⛶</button>
             <video id="mpArtVideo" style="display:none;" muted loop playsinline></video>
             <div id="mpVideoSpinner"></div>
-            <div id="mpYtHost"><div id="mpYtPlayer"></div><div id="mpYtShield"></div></div>
+            <div id="mpYtHost"><div id="mpYtPlayer"></div></div>
             <img id="mpArtImg" style="display:none;">
             <div id="mpArtFallback">
               <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
@@ -971,6 +970,24 @@ let cachedPlaylists = {};
 
   function authToken() {
     try { return localStorage.getItem("chatToken") || ""; } catch (e) { return ""; }
+  }
+
+  let mediaToken = null;
+  async function refreshMediaToken() {
+    try {
+      const r = await fetch("/api/media-token", { headers: { Authorization: `Bearer ${authToken()}` } });
+      if (!r.ok) return;
+      mediaToken = (await r.json()).token;
+    } catch (e) {}
+  }
+  refreshMediaToken();
+  window.getMediaToken = () => mediaToken;
+  setInterval(refreshMediaToken, 6 * 60 * 60 * 1000);
+
+  function mediaUrl(u) {
+    if (typeof u !== "string" || !/^\/(music\/|videos\/|api\/radio\/proxy\?)/.test(u)) return u;
+    if (/[?&]token=/.test(u)) return u;
+    return u + (u.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(mediaToken || authToken());
   }
 
   const el = (id) => document.getElementById(id);
@@ -1936,7 +1953,7 @@ if (track.isYoutube) {
   if (!isSameSrc) {
     el("mpVideoSpinner").classList.add("show");
     videoEl.__mpCaptureStream = null;
-    videoEl.src = track.videoUrl;
+    videoEl.src = mediaUrl(track.videoUrl);
     videoEl.dataset.trackId = track.id;
     videoEl.preload = "auto";
     videoEl.addEventListener("canplay", function onReady() {
@@ -2022,7 +2039,7 @@ function playTrackAt(index) {
   }
 
   stopYt();
-  audio.src = track.url;
+  audio.src = mediaUrl(track.url);
   audio.play().catch(() => {});
   updateNowPlayingUI();
   setPlayIcon(true);
@@ -2234,7 +2251,7 @@ async function handleFiles(fileList) {
       artUrl: null,
       videoUrl: null,
       rawUrl: streamUrl,
-      url: `/api/radio/proxy?url=${encodeURIComponent(streamUrl)}&token=${encodeURIComponent(authToken())}`,
+      url: `/api/radio/proxy?url=${encodeURIComponent(streamUrl)}`,
       source: "radio",
       isRadio: true,
       addedAt: Date.now(),
@@ -2458,8 +2475,8 @@ async function handleFiles(fileList) {
 
   async function deletePlaylist(name) {
     try {
-      const res = await fetch(`/api/music/playlists/${encodeURIComponent(name)}`, {
-        method: "DELETE",
+    const res = await authedFetch(`/api/music/playlists/${encodeURIComponent(name)}`, {
+      method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken()}`
@@ -2572,7 +2589,7 @@ async function handleFiles(fileList) {
       return;
     }
     try {
-      const res = await fetch("/api/music/playlists", {
+      const res = await authedFetch("/api/music/playlists", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2820,7 +2837,7 @@ async function handleFiles(fileList) {
   const next = queue[currentIndex + 1] || queue[0];
   if (next?.videoUrl) {
     const pre = document.createElement("video");
-    pre.src = next.videoUrl;
+    pre.src = mediaUrl(next.videoUrl);
     pre.preload = "auto";
     pre.muted = true;
     pre.load();
@@ -2866,8 +2883,8 @@ async function handleFiles(fileList) {
         width: "100%",
         height: "100%",
         playerVars: {
-          playsinline: 1, rel: 0, controls: 0, disablekb: 1,
-          modestbranding: 1, iv_load_policy: 3, enablejsapi: 1,
+          playsinline: 1, rel: 0, controls: 1,
+          enablejsapi: 1,
           origin: ytOrigin
         },
         events: {

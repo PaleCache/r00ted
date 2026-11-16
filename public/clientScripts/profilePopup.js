@@ -20,55 +20,63 @@ function showProfilePopup(userData, clickX, clickY) {
   popup.style.zIndex = "10003";
 }
 
-function renderProfilePopupContent(userData) {
-  const popup = document.getElementById('userProfilePopup');
-  const bannerEl = document.getElementById('popupBanner');
-  const popupContent = document.querySelector('.popup-content');
-  const avatar = document.getElementById('popupAvatar');
-  const usernameEl = document.getElementById('popupUsername');
-  const statusDot = document.getElementById('popupStatusDot');
-  const statusText = document.getElementById('popupStatusText');
-  const LevelText = document.getElementById('popupLevel');
+function renderProfilePopupContent(userData, ctx) {
+  const isPreview = !!ctx;
+  const popup = isPreview ? ctx.popup : document.getElementById('userProfilePopup');
+  const bannerEl = isPreview ? ctx.banner : document.getElementById('popupBanner');
+  const popupContent = isPreview ? ctx.content : document.querySelector('.popup-content');
+  const avatar = isPreview ? ctx.avatar : document.getElementById('popupAvatar');
+  const usernameEl = isPreview ? ctx.username : document.getElementById('popupUsername');
+  const statusDot = isPreview ? ctx.statusDot : document.getElementById('popupStatusDot');
+  const statusText = isPreview ? ctx.statusText : document.getElementById('popupStatusText');
+  const LevelText = isPreview ? ctx.info : document.getElementById('popupLevel');
   const borderGradient = userData.profileGradient || 'linear-gradient(135deg, #181818, #ffffff)';
 
-  let popupBorderStyle = document.getElementById('userProfilePopupBorderStyle');
-  if (popupBorderStyle) popupBorderStyle.remove();
+   if (isPreview) {
+    popup.style.background = `linear-gradient(#1e1f22, #1e1f22) padding-box, ${borderGradient} border-box`;
+    popup.style.border = '3px solid transparent';
+    popup.style.borderRadius = '12px';
 
-  let effectOverlay = document.getElementById('popupEffectOverlay');
-  if (!effectOverlay) {
-    effectOverlay = document.createElement('div');
-    effectOverlay.id = 'popupEffectOverlay';
-    effectOverlay.style.cssText = `
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 2;
-      border-radius: inherit;
-      overflow: hidden;
-    `;
-    popup.appendChild(effectOverlay);
-  }
-
- if (!popup.dataset.lastEffect || popup.dataset.lastEffect !== (userData.profileEffect || '')) {
-  applyProfileEffect(userData);
-  popup.dataset.lastEffect = userData.profileEffect || '';
-}
-
-  popupBorderStyle = document.createElement('style');
-  popupBorderStyle.id = 'userProfilePopupBorderStyle';
-  popupBorderStyle.textContent = `
-    #userProfilePopup {
-      background:
-        linear-gradient(#1e1f22, #1e1f22) padding-box,
-        ${borderGradient} border-box !important;
-      border: 3px solid transparent !important;
-      border-radius: 12px;
+    if (popup.dataset.lastEffect !== (userData.profileEffect || '')) {
+      applyProfileEffect(userData, ctx.effect);
+      popup.dataset.lastEffect = userData.profileEffect || '';
     }
-  `;
-  document.head.appendChild(popupBorderStyle);
+  } else {
+    let popupBorderStyle = document.getElementById('userProfilePopupBorderStyle');
+    if (popupBorderStyle) popupBorderStyle.remove();
 
-  popup.style.background = '';
-  popup.style.border = '';
+    let effectOverlay = document.getElementById('popupEffectOverlay');
+    if (!effectOverlay) {
+      effectOverlay = document.createElement('div');
+      effectOverlay.id = 'popupEffectOverlay';
+      effectOverlay.style.cssText = `
+        position: absolute; inset: 0; pointer-events: none;
+        z-index: 2; border-radius: inherit; overflow: hidden;
+      `;
+      popup.appendChild(effectOverlay);
+    }
+
+    if (!popup.dataset.lastEffect || popup.dataset.lastEffect !== (userData.profileEffect || '')) {
+      applyProfileEffect(userData);
+      popup.dataset.lastEffect = userData.profileEffect || '';
+    }
+
+    popupBorderStyle = document.createElement('style');
+    popupBorderStyle.id = 'userProfilePopupBorderStyle';
+    popupBorderStyle.textContent = `
+      #userProfilePopup {
+        background:
+          linear-gradient(#1e1f22, #1e1f22) padding-box,
+          ${borderGradient} border-box !important;
+        border: 3px solid transparent !important;
+        border-radius: 12px;
+      }
+    `;
+    document.head.appendChild(popupBorderStyle);
+
+    popup.style.background = '';
+    popup.style.border = '';
+  }
 
   if (userData.banner && userData.banner.trim() !== "") {
     bannerEl.style.backgroundImage = `url('${sanitizeAvatar(userData.banner)}'), ${userData.profileGradient || 'linear-gradient(135deg, #181818, #ffffff)'}`;
@@ -108,6 +116,7 @@ function renderProfilePopupContent(userData) {
   usernameEl.innerHTML = '';
   const usernameSpan = document.createElement('span');
   usernameSpan.className = `username-wrapper ${colorClass}`;
+  if (isPreview) usernameSpan.id = 'previewUsername';
   usernameSpan.setAttribute('data-text', userData.username || 'Anonymous');
   if (animatedColors.includes(colorClass)) usernameSpan.classList.add(colorClass);
 
@@ -368,57 +377,78 @@ function applyProfilePopupTheme(userData) {
   }
 }
 
-function applyProfileEffect(userData) {
-  const popup = document.getElementById('userProfilePopup');
-  let effectOverlay = document.getElementById('popupEffectOverlay');
-  if (!effectOverlay) {
-    effectOverlay = document.createElement('div');
-    effectOverlay.id = 'popupEffectOverlay';
-    effectOverlay.style.cssText = `
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 2;
-      border-radius: inherit;
-      overflow: hidden;
-    `;
-    popup.appendChild(effectOverlay);
+function applyProfileEffect(userData, target) {
+  const isPreview = !!target;
+  const timersKey = isPreview ? '_previewEffectTimers' : '_profileEffectTimers';
+  let effectOverlay = target;
+
+  if (!isPreview) {
+    const popup = document.getElementById('userProfilePopup');
+    effectOverlay = document.getElementById('popupEffectOverlay');
+    if (!effectOverlay) {
+      effectOverlay = document.createElement('div');
+      effectOverlay.id = 'popupEffectOverlay';
+      effectOverlay.style.cssText = `
+        position: absolute; inset: 0; pointer-events: none;
+        z-index: 2; border-radius: inherit; overflow: hidden;
+      `;
+      popup.appendChild(effectOverlay);
+    }
   }
+  if (!effectOverlay) return;
 
   const REPLAY_INTERVAL_MS = 10000;
   const PLAY_DURATION_MS = 6000;
 
-  if (window._profileEffectTimers) {
-    window._profileEffectTimers.forEach(id => { clearTimeout(id); clearInterval(id); });
+  if (window[timersKey]) {
+    window[timersKey].forEach(id => { clearTimeout(id); clearInterval(id); });
   }
-  window._profileEffectTimers = [];
+  window[timersKey] = [];
+  window._effectRenderTokens = window._effectRenderTokens || {};
+  const token = (window._effectRenderTokens[timersKey] || 0) + 1;
+  window._effectRenderTokens[timersKey] = token;
+  const isStale = () => window._effectRenderTokens[timersKey] !== token;
 
   if (userData.profileEffect) {
     const effectUrl = sanitizeAvatar(userData.profileEffect);
     effectOverlay.innerHTML = '';
     effectOverlay.style.display = 'block';
+    window._effectBlobCache = window._effectBlobCache || new Map();
+    const getEffectBlob = (url) => {
+      if (!window._effectBlobCache.has(url)) {
+        window._effectBlobCache.set(url,
+          fetch(url).then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+            .catch(() => { window._effectBlobCache.delete(url); return null; }));
+      }
+      return window._effectBlobCache.get(url);
+    };
 
-    function playOnce() {
-      effectOverlay.innerHTML = '';
-      const effectImg = document.createElement('img');
-      effectImg.style.cssText = `
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      `;
-      effectImg.src = effectUrl + (effectUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
-      effectOverlay.appendChild(effectImg);
+    async function playOnce() {
+      if (isStale()) return;
+      const blob = await getEffectBlob(effectUrl);
+      if (isStale()) return;
 
-      const removeTimer = setTimeout(() => {
+      const src = blob
+        ? URL.createObjectURL(blob)
+        : effectUrl + (effectUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+
+      const effectImg = new Image();
+      effectImg.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+      effectImg.onload = () => {
+        if (blob) URL.revokeObjectURL(src);
+        if (isStale()) return;
         effectOverlay.innerHTML = '';
-      }, PLAY_DURATION_MS);
-
-      window._profileEffectTimers.push(removeTimer);
+        effectOverlay.appendChild(effectImg);
+        window[timersKey].push(setTimeout(() => {
+          if (!isStale()) effectOverlay.innerHTML = '';
+        }, PLAY_DURATION_MS));
+      };
+      effectImg.onerror = () => { if (blob) URL.revokeObjectURL(src); };
+      effectImg.src = src;
     }
 
     playOnce();
-    const loopTimer = setInterval(playOnce, REPLAY_INTERVAL_MS);
-    window._profileEffectTimers.push(loopTimer);
+    window[timersKey].push(setInterval(playOnce, REPLAY_INTERVAL_MS));
   } else {
     effectOverlay.innerHTML = '';
     effectOverlay.style.display = 'none';

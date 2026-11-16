@@ -1,4 +1,4 @@
- body {
+body {
   margin: 0;
   font-family: Arial;
   background: #0849ec;
@@ -2019,7 +2019,7 @@ div#popupLevel {
     }
 
 .voice-participant.speaking img:not(.user-badge):not(.voice-icon):not(.role-badge){
-  outline: 3px solid #FF0000;
+  outline: 3px solid #00f2ff;
 }
 
 .voice-participant.speaking img.voice-icon {
@@ -6416,6 +6416,30 @@ div#usersList .username-wrapper .user-badge  {
   text-align: right;
 }
 
+
+.ss-card[data-video-type="camera"],
+.ss-card[data-camera-id] {
+  aspect-ratio: 16 / 9;
+}
+.ss-card[data-video-type="camera"] .ss-video,
+.ss-card[data-camera-id] .ss-video {
+  position: absolute;
+  inset: 0;
+  height: 100% !important;
+  max-height: none;
+  object-fit: contain !important;
+}
+
+
+.ss-mini .ss-video {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  object-fit: contain !important;
+}
+
 .voice-btn.sharing {
   background: #FF0000;
 }
@@ -7657,4 +7681,101 @@ filter: brightness(0) saturate(100%) invert(36%) sepia(80%) saturate(3000%) hue-
   flex-shrink: 0;
   height: auto;
   overflow: visible;
+}
+
+.settings-content { position: relative; overflow: visible; }
+
+.settings-preview-dock {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: calc(100% + 16px);
+  width: 320px;
+}
+#settingsModal:has(#appearanceTab.active) .settings-preview-dock { display: block; }
+
+.settings-preview-title {
+  font-size: 11px; color: #b9bbbe; text-transform: uppercase;
+  font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;
+}
+
+.preview-popup {
+  position: relative;
+  width: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+#previewEffectOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.account-key-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#accountKeyValue {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  background: #1e1f22;
+  border: 1px solid #40444b;
+  border-radius: 8px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 12px;
+  outline: none;
+  text-overflow: ellipsis;
+}
+
+.account-btn {
+  background: #FF0000;
+  border: none;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: normal;
+  cursor: pointer;
+  flex-shrink: 0;
+  width: auto;
+  transition: background 0.15s;
+}
+.account-btn:hover { background: #cc0000; }
+
+.account-btn-danger {
+  background: #FF0000;
+}
+.account-btn-danger:hover { background: #cc0000; }
+
+
+.settings-sidebar {
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+#vcPanelNameRow { white-space: nowrap; overflow: hidden; }
+#vcPanelUsername { overflow: hidden; text-overflow: ellipsis; }
+
+
+#r00tedCallView #screenContainer > .ss-card {
+  border: none;
+  outline: 3px solid transparent;
+  outline-offset: 3px;
+  transition: outline-color .1s, box-shadow .1s;
+  overflow: visible;
+}
+#r00tedCallView #screenContainer > .ss-card.speaking {
+  outline-color: var(--cv-color, #fff);
 }

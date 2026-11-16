@@ -350,7 +350,15 @@
       color: white;
       width: 100%;
     ">
-      <h3 style="margin: 0; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">R00TED</h3>
+      <h3 style="margin: 0; padding-top: 8px; font-size: 16px; font-weight: 700; white-space: nowrap;">
+      <span style="position: relative; display: inline-block;">
+        <svg viewBox="0 0 32 28" xmlns="http://www.w3.org/2000/svg"
+            style="position: absolute; top: -9px; left: -4px; width: 17px; height: 15px; transform: rotate(-12deg); pointer-events: none;">
+          <path d="M4 22 Q6 4 20 4 Q18 12 28 20 L28 22 Z" fill="#d42426"/>
+          <rect x="2" y="19" width="28" height="6" rx="3" fill="#fff"/>
+          <circle cx="27" cy="19" r="3.5" fill="#fff"/>
+        </svg>R</span>00TED
+    </h3>
       <p style="margin: 2px 0 0 0; font-size: 12px; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Beyond identity. Beyond control. True Freedom.</p>
     </div>
   </div>
@@ -388,7 +396,7 @@
 
 <div class="sidebar2-bottom">
 
-  <div id="voiceControls" class="voice-controls" style="display:flex; flex-direction:column; gap:8px; padding:8px; width:100%; box-sizing:border-box; border-top: 2px solid rgb(1 1 1)">
+  <div id="voiceControls" class="voice-controls" style="display:flex; flex-direction:column; gap:8px; padding:3px; width:100%; box-sizing:border-box; border-top: 2px solid rgb(1 1 1)">
 
     <div id="vcButtons" style="display:none; align-items:center; justify-content:center; gap:7px;">
       <button class="voice-btn" id="muteBtn" onclick="toggleMute()" title="Mute" style="width:55px; height:28px; border-radius:7px; background:#181818; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer;">
@@ -409,11 +417,11 @@
     </div>
       <div class="user" style="display:flex; align-items:center; gap:8px;">
       <div style="position:relative; flex-shrink:0;">
-        <img id="vcPanelAvatar" src="/avatars/default1.png" alt="" style="width:32px; height:32px; min-width:32px; border-radius:50%; object-fit:cover; background:#2b2d31; margin:0; display:block;">
-        <span id="vcStatusDot" class="status-dot status-online" style="position:absolute; top:22px; left:22px; z-index:3;"></span>
+        <img id="vcPanelAvatar" src="/avatars/default1.png" alt="" style="width:46px; height:42px; min-width:32px; border-radius:50%; object-fit:cover; margin:0; display:block;">
+        <span id="vcStatusDot" class="status-dot status-online" style="position:absolute; top:32px; left:22px; z-index:3;"></span>
       </div>
       <div style="display:flex; flex-direction:column; justify-content:center; min-width:0; flex:1;">
-       <span id="vcPanelUsername" style="font-size:13px; font-weight:600; position:relative; display:inline-block; white-space:nowrap;"></span>
+       <span id="vcPanelUsername" style="font-size:17px; font-weight:600; position:relative; display:inline-block; white-space:nowrap;"></span>
         <div style="display:flex; align-items:center;">
           <div id="pingDisplay" title="0ms" style="display:none; align-items:center; gap:4px; position:static;">
             <div id="pingBars" style="display:flex; align-items:flex-end; gap:1px; height:10px;">
@@ -572,13 +580,32 @@
 <div id="settingsModal">
   <div class="settings-content">
     <button id="closeSettingsBtn" class="settings-close">✕</button>
+    <aside class="settings-preview-dock">
+      <div class="settings-preview-title">Preview</div>
+      <div id="previewPopup" class="preview-popup">
+        <div class="popup-banner" id="previewBanner">
+          <img id="previewAvatarImg" class="popup-avatar" src="" alt="">
+        </div>
+        <div class="popup-content" id="previewContent">
+          <div id="previewEffectOverlay"></div>
+          <div id="previewUsernameRow" class="popup-username"></div>
+          <div class="popup-status">
+            <span id="previewStatusDot" class="popup-status-dot"></span>
+            <span id="previewStatusText"></span>
+          </div>
+          <div id="previewInfo" class="popup-level"></div>
+        </div>
+      </div>
+    </aside>
     <div class="settings-sidebar">
       <div class="settings-tab active" data-tab="appearance">Appearance</div>
       <div class="settings-tab" data-tab="audio">Audio</div>
+      <div class="settings-tab" data-tab="account">Account</div>
       <div class="settings-tab" data-tab="adminPanel" id="adminTabBtn" style="display:none;">Admin</div>
        <div class="settings-tab" data-tab="encryption">Encryption</div>
       <div class="settings-tab" data-tab="notifications">Setup</div>
        <div class="settings-tab" data-tab="overlay">Overlay</div>
+       
       <div class="settings-tab" data-tab="love">❤️</div>
       <div id="version" style="
         position: relative;
@@ -682,31 +709,8 @@
   <div id="gradientButtons" style="display: flex; gap: 10px; flex-wrap: wrap;">
   </div>
 </div>
+</div>
 
-<div class="setting-item">
-  <label>Preview</label>
-  <div id="namePreviewCard" style="
-    background: #111214;
-    border: 1px solid #3a3c42;
-    border-radius: 8px;
-    padding: 14px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 8px;
-  ">
-    <img id="previewAvatar" style="width:40px; height:40px; border-radius:50%;" src="">
-    <div style="display:flex; flex-direction:column; gap:4px;">
-      <div style="display:flex; align-items:center; gap:6px;">
-        <span id="previewUsername" class="username-wrapper username-cyan" data-text="Username">Username</span>
-        <span id="previewLevel" style="font-size:11px; font-weight:700; padding:2px 6px; border-radius:3px; border:1px solid; display:inline-block;">1</span>
-        <img id="previewBadge" src="" style="width:20px; height:20px; display:none; border-radius:4px;">
-      </div>
-      <span style="font-size:12px; color:#72767d;">h3110</span>
-    </div>
-  </div>
-</div>
-</div>
 
 <div id="overlayTab" class="tab-content">
   <h3>Game Overlay</h3>
@@ -763,6 +767,33 @@
 </div>
 <div class="tab-content" id="notificationsTab">
   <h2>Setup</h2>
+
+    <div class="setting-item">
+    <label>Input Mode</label>
+    <select id="voiceInputMode" style="
+      background:#40444b; border:1px solid #40444b; border-radius:8px;
+      color:#fff; padding:10px 12px; font-size:14px; cursor:pointer;
+      outline:none; width:100%; margin-top:8px; appearance:none;
+      background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%23b9bbbe%22 d=%22M6 8L1 3h10z%22/></svg>');
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 36px;
+    ">
+      <option value="vad">Voice Activity</option>
+      <option value="ptt">Push to Talk</option>
+    </select>
+
+    <div id="pttKeyRow" style="display:none; margin-top:12px;">
+      <label>Push to Talk Key</label>
+      <button id="pttKeyBtn" type="button" style="
+        background:#40444b; border:1px solid #40444b; border-radius:8px;
+        color:#fff; padding:10px 12px; font-size:14px; cursor:pointer;
+        outline:none; width:100%; margin-top:8px; text-align:center;
+      "></button>
+      <p style="font-size:12px; color:#72767d; margin-top:6px;">
+        Click, then press the key you want to hold. Esc cancels.
+      </p>
+    </div>
+  </div>
 <div class="setting-item">
   <label style="color:#b9bbbe; font-size:13px; font-weight:600;">Wallpaper</label>
   <div id="bgPreview" style="width:100%; height:100px; border-radius:8px; background-size:cover; background-position:center; border:2px solid #40444b; margin:8px 0;"></div>
@@ -893,7 +924,30 @@
 </div>
 
 </div>
+ <div class="tab-content" id="accountTab">
+  <h2>Account</h2>
+
+  <div class="setting-item">
+    <label>Login Key</label>
+    <p style="font-size:13px; color:#b9bbbe; margin-bottom:12px;">
+      Use this key to log back into this account from any device. Anyone with it can log in as you, so keep it private.
+    </p>
+    <div class="account-key-row">
+      <input type="password" id="accountKeyValue" readonly>
+      <button id="accountKeyRevealBtn" type="button" class="account-btn">Show</button>
+      <button id="accountKeyCopyBtn" type="button" class="account-btn">Copy</button>
+    </div>
   </div>
+
+  <div class="setting-item">
+    <label>Log Out</label>
+    <p style="font-size:13px; color:#b9bbbe; margin-bottom:12px;">
+      Clears this device. You'll need your login key to get back in.
+    </p>
+    <button id="logoutBtn" type="button" class="account-btn account-btn-danger">Log out</button>
+  </div>
+</div>
+    </div>
       <div class="tab-content" id="loveTab" style="display: none; padding: 30px; text-align: center; max-height: 520px; overflow-y: auto;">
   
   <div style="margin-bottom: 25px; margin-right: 53px;">
@@ -1031,6 +1085,7 @@
     </div>
   </div>
 </div>
+
 
 <div id="avatarEditorModal" class="modal" style="
   display: none; 
@@ -1269,3 +1324,180 @@
 <script src="/clientScripts/imageSearch.js" defer></script>
 </body>
 </html>
+
+<style>
+#snowCanvas {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 9000;
+  will-change: transform; 
+}
+
+  
+  #santaSleigh {
+    position: fixed; left: 0; top: 10vh; width: 240px;
+    pointer-events: none; z-index: 9001; display: none;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,.5));
+  }
+  #santaSleigh.fly { display: block; animation: santaFly 14s linear forwards; }
+  #santaSleigh img {
+    display: block; width: 100%; height: auto;
+    transform: scaleX(var(--santa-flip, 1));
+    -webkit-user-drag: none;
+  }
+  @keyframes santaFly {
+    from { transform: translateX(-300px); }
+    to   { transform: translateX(calc(100vw + 300px)); }
+  }
+
+  .snow-cap {
+    position: absolute; left: 0; right: 0; top: 0; height: 12px;
+    display: block; pointer-events: none; z-index: 3;
+    background-repeat: repeat-x; background-position: left top; background-size: auto 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 12' preserveAspectRatio='none'%3E%3Cpath d='M0 0H40V4Q37 11 32 6Q28 11 23 5Q19 12 14 6Q9 11 5 5Q2 8 0 4Z' fill='white'/%3E%3C/svg%3E");
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
+  }
+  .snow-cap.sm { height: 6px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #snowCanvas, #santaSleigh { display: none !important; }
+  }
+
+</style>
+
+<canvas id="snowCanvas"></canvas>
+
+<div id="santaSleigh"><img src="/santa.gif" alt=""></div>
+
+<script>
+(() => {
+  /*Add ?xmas=1 to the URL to force it for testing. */
+  const now = new Date();
+  const m = now.getMonth(), d = now.getDate();
+  const inSeason = m >= 10 || (m === 0 && d <= 3);
+  const christmasMode = inSeason || location.search.includes('xmas=1');
+
+  if (!christmasMode) {
+    document.body.classList.remove('xmas-mode');
+    ['snowCanvas', 'santaSleigh', 'xmasHat'].forEach(id =>
+      document.getElementById(id)?.remove()
+    );
+    return;
+  }
+
+  document.body.classList.add('xmas-mode');
+  const title = document.querySelector('#serverBanner h3');
+  if (title) title.style.paddingTop = '8px';
+  const BIG = [
+    '#serverBanner', '.cv-tile','.input-wrapper', '#userProfilePopup', '.settings-content',
+    '#voiceControls', '.mobile-topbar', '#liveStreamsModal > div', '#gamesMenuModal > div',
+    '#confirmModal > div', '#botTokenModal > div', '#avatarEditorModal .avatar-editor-content'
+  ];
+  const SMALL = ['.sidebar-icon-btn','.popup-btn'];
+
+  function addCap(el, small) {
+    if (el.dataset.snowy) return;
+    el.dataset.snowy = '1';
+    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    const r = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+    const cap = document.createElement('span');
+    cap.className = 'snow-cap' + (small ? ' sm' : '');
+    const inset = Math.min(r * 0.35, 8);
+    cap.style.left = cap.style.right = inset + 'px';
+    el.appendChild(cap);
+  }
+  function snowUI() {
+    BIG.forEach(s => document.querySelectorAll(s).forEach(el => addCap(el, false)));
+    SMALL.forEach(s => document.querySelectorAll(s).forEach(el => addCap(el, true)));
+  }
+
+  
+  let snowTimer = null;
+  new MutationObserver(() => {
+    if (snowTimer) return;
+    snowTimer = setTimeout(() => { snowTimer = null; snowUI(); }, 1000);
+  }).observe(document.body, { childList: true, subtree: true });
+  snowUI();
+
+
+  const canvas = document.getElementById('snowCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W, H, flakes = [];
+  const SPRITE = 16;
+  const sprite = document.createElement('canvas');
+  sprite.width = sprite.height = SPRITE;
+  {
+    const s = sprite.getContext('2d');
+    const g = s.createRadialGradient(SPRITE/2, SPRITE/2, 0, SPRITE/2, SPRITE/2, SPRITE/2);
+    g.addColorStop(0, 'rgba(255,255,255,0.9)');
+    g.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    s.fillStyle = g;
+    s.fillRect(0, 0, SPRITE, SPRITE);
+  }
+
+  function resize() {
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W; 
+    canvas.height = H;
+    const count = 25;
+    while (flakes.length < count) flakes.push(makeFlake(true));
+    flakes.length = count;
+  }
+  function makeFlake(randomY) {
+    return {
+      x: Math.random() * W,
+      y: randomY ? Math.random() * H : -10,
+      r: Math.random() * 2.4 + 0.8,
+      speed: Math.random() * 0.8 + 0.4,
+      drift: Math.random() * 0.6 - 0.3,
+      phase: Math.random() * Math.PI * 2
+    };
+  }
+
+let last = 0, rafId = null;
+
+function tick(t) {
+  rafId = requestAnimationFrame(tick);
+  const dt = Math.min(t - last, 50);  
+  last = t;
+  const step = dt / 16.67;
+
+    ctx.clearRect(0, 0, W, H);
+    for (const f of flakes) {
+      f.y += f.speed * (f.r / 1.8 + 0.5) * step;
+      f.x += (f.drift + Math.sin(t / 1200 + f.phase) * 0.35) * step;
+      if (f.y > H + 5 || f.x < -10 || f.x > W + 10) {
+        Object.assign(f, makeFlake(false), { x: Math.random() * W });
+      }
+      const size = f.r * 4;
+      ctx.drawImage(sprite, f.x - size / 2, f.y - size / 2, size, size);
+    }
+  }
+  function start() { if (!rafId && !reduceMotion) rafId = requestAnimationFrame(tick); }
+  function stop()  { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
+
+document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
+window.addEventListener('resize', resize);
+resize();
+start();
+  
+  const santa = document.getElementById('santaSleigh');
+  function launchSanta() {
+    if (document.hidden) return;
+    santa.classList.remove('fly');
+    void santa.offsetWidth;
+    santa.style.top = (5 + Math.random() * 20) + 'vh';
+    santa.classList.add('fly');
+  }
+  window.launchSanta = launchSanta;
+  santa.addEventListener('animationend', e => {
+    if (e.animationName === 'santaFly') santa.classList.remove('fly');
+  });
+  function scheduleSanta(first) {
+    const delay = first ? 20000 : (3 + Math.random() * 2) * 60000;
+    setTimeout(() => { launchSanta(); scheduleSanta(false); }, delay);
+  }
+  scheduleSanta(true);
+})();
+</script>

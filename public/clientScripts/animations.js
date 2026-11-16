@@ -111,182 +111,122 @@ function renderAnimatedGradientButtons() {
   if ((user.level || 1) >= 2) {
     container.innerHTML = `
       <button class="effect-btn" data-name="Gay Boy 🌈"
-        onmouseover="updateNamePreview('username-rainbow')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-rainbow')"
         style="background: linear-gradient(90deg,#ff0000,#ff9900,#ccff00,#00ff00,#00ffff,#0066ff,#cc00ff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Matrix Code 🔢"
-        onmouseover="updateNamePreview('username-matrix-code')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-matrix-code')"
         style="background: linear-gradient(180deg, #00ff41, #008f1e); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;font-family:'Courier New',monospace; font-weight:700; color:#00ff41; font-size:10px; display:flex; align-items:center; justify-content:center;">01</button>
 
       <button class="effect-btn" data-name="Neon ⚡"
-        onmouseover="updateNamePreview('username-neon')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-neon')"
         style="background: linear-gradient(90deg,#00ffea,#ff00c8); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Shimmer ✨"
-        onmouseover="updateNamePreview('username-shimmer')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-shimmer')"
         style="background: linear-gradient(90deg,#ffffff,#aaffff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Glitch 📡"
-        onmouseover="updateNamePreview('username-glitch')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-glitch')"
         style="background: linear-gradient(90deg,#00ffcc,#ff00ff,#ffff00); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Electric ⚙️"
-        onmouseover="updateNamePreview('username-electric')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-electric')"
         style="background: linear-gradient(90deg,#00ddff,#ffffff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Matrix 🟢"
-        onmouseover="updateNamePreview('username-matrix')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-matrix')"
         style="background: linear-gradient(180deg,#00ff41,#008f1e); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Ghost 👻"
-        onmouseover="updateNamePreview('username-ghost')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-ghost')"
         style="background: linear-gradient(90deg,#ffffff,#bbbbff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Hellfire 🔥"
-        onmouseover="updateNamePreview('username-hellfire')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-hellfire')"
         style="background: linear-gradient(90deg,#ff2200,#ffff00); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Fire 🌋"
-        onmouseover="updateNamePreview('username-fire')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-fire')"
         style="background: linear-gradient(90deg,#ff4400,#ffaa00); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Cyberpunk 🤖"
-        onmouseover="updateNamePreview('username-cyberpunk')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-cyberpunk')"
         style="background: linear-gradient(90deg,#ff006e,#00f5ff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Cosmic 🌌"
-        onmouseover="updateNamePreview('username-cosmic')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-cosmic')"
         style="background: linear-gradient(90deg,#a78bfa,#60a5fa,#34d399); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Plasma 💜"
-        onmouseover="updateNamePreview('username-plasma')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-plasma')"
         style="background: linear-gradient(90deg,#ff1493,#ffb6c1); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Aurora 🌅"
-        onmouseover="updateNamePreview('username-aurora')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-aurora')"
         style="background: linear-gradient(90deg,#00ff88,#00ffff,#ff00ff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Inferno 🌪️"
-        onmouseover="updateNamePreview('username-inferno')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-inferno')"
         style="background: linear-gradient(90deg,#ff0000,#ff7f00,#ffff00); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Void 🌑"
-        onmouseover="updateNamePreview('username-void')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-void')"
         style="background: linear-gradient(90deg,#0a0e27,#16213e,#0f3460); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Candy 🍭"
-        onmouseover="updateNamePreview('username-candy')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-candy')"
         style="background: linear-gradient(90deg,#ff69b4,#ffb6d9,#ffc0cb); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Quantum ⚛️"
-        onmouseover="updateNamePreview('username-quantum')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-quantum')"
         style="background: linear-gradient(90deg,#00d9ff,#0099ff,#6600ff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Twilight 🌆"
-        onmouseover="updateNamePreview('username-twilight')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-twilight')"
         style="background: linear-gradient(90deg,#7c3aed,#ec4899,#f59e0b); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Corrupted 🔥"
-        onmouseover="updateNamePreview('username-corrupted')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-corrupted')"
         style="background: linear-gradient(90deg,#ff0080,#7928ca); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Void Pulse ⚫"
-        onmouseover="updateNamePreview('username-void-pulse')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-void-pulse')"
         style="background: radial-gradient(circle, #00ffff, #0066ff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Acid 🍄"
-        onmouseover="updateNamePreview('username-acid')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-acid')"
         style="background: linear-gradient(45deg,#ff0000,#ffff00,#00ff00,#00ffff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Fractal ∞"
-        onmouseover="updateNamePreview('username-fractal')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-fractal')"
         style="background: linear-gradient(90deg,#ff006e,#8338ec,#3a86ff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Hyperdrive 🚀"
-        onmouseover="updateNamePreview('username-hyperdrive')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-hyperdrive')"
         style="background: linear-gradient(90deg,#00ffff,#ffffff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Supernova ⭐"
-        onmouseover="updateNamePreview('username-supernova')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-supernova')"
         style="background: linear-gradient(90deg,#ffff00,#ff8800,#ff0000); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Quantum Entangle ⚛️"
-        onmouseover="updateNamePreview('username-quantum-entangle')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-quantum-entangle')"
         style="background: linear-gradient(90deg,#00d9ff,#6600ff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Dimensional 🎲"
-        onmouseover="updateNamePreview('username-dimensional')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-dimensional')"
         style="background: linear-gradient(90deg,#ff00ff,#00ffff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Toxic ☢️"
-        onmouseover="updateNamePreview('username-toxic')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-toxic')"
         style="background: linear-gradient(90deg,#39ff14,#00ff00,#ffff00); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Chaos 🌀"
-        onmouseover="updateNamePreview('username-chaos')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-chaos')"
         style="background: linear-gradient(90deg,#ff0080,#ff8c00,#40e0d0); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
 
       <button class="effect-btn" data-name="Singularity 🕳️"
-        onmouseover="updateNamePreview('username-singularity')"
-        onmouseout="updateNamePreview(user.usernameColor || 'username-cyan')"
         onclick="setNameColor('username-singularity')"
         style="background: radial-gradient(circle, #ffffff, #ff00ff); width:48px; height:48px; border:none; border-radius:10px; cursor:pointer;"></button>
     `;
@@ -295,6 +235,9 @@ function renderAnimatedGradientButtons() {
       const onclickAttr = btn.getAttribute('onclick') || '';
       const match = onclickAttr.match(/setNameColor\('([^']+)'\)/);
       const btnColorClass = match ? match[1] : null;
+      if (btnColorClass) {                                        
+        attachPreviewHover(btn, { usernameColor: btnColorClass }); 
+      }
       if (btnColorClass && btnColorClass === activeColor) {
         btn.style.border = "3px solid #FF0000";
         btn.style.boxShadow = "0 0 15px #FF0000";
@@ -314,8 +257,10 @@ setupEffectTooltips(container);
 function setProfileEffect(url) {
   if (url === user.profileEffect) {
     user.profileEffect = null;
+    updateNamePreview();
   } else {
     user.profileEffect = url;
+    updateNamePreview();
   }
   localStorage.setItem("chatUser", JSON.stringify(user));
 
@@ -383,6 +328,7 @@ function renderProfileEffectButtons() {
   }
 
   const active = user.profileEffect;
+  
     let html = `
     <div class="dark-scrollbar" style="display:grid; width:100%; grid-template-columns: repeat(10, 1fr); gap: 8px; max-height: 220px; overflow-y: auto; scrollbar-gutter: stable; padding-right: 4px; box-sizing: border-box;">
     `;
@@ -404,6 +350,10 @@ function renderProfileEffectButtons() {
   });
 
   html += `</div>`;
-  container.innerHTML = html;
-  setupEffectTooltips(container);
+container.innerHTML = html;
+setupEffectTooltips(container);
+
+container.querySelectorAll('div[onclick^="setProfileEffect"]').forEach((tile, i) => {
+  attachPreviewHover(tile, { profileEffect: effects[i].url });
+});
 }

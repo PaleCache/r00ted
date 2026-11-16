@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     overlayListDisplays: () => ipcRenderer.invoke('overlay-list-displays'),
     overlaySetDisplay: (id) => ipcRenderer.send('overlay-set-display', id),
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    pttSetKey: (accel) => ipcRenderer.send('ptt-set-key', accel),
+    onPttState: (cb) => ipcRenderer.on('ptt-state', (_e, down) => cb(down)),
    getRunningGames: () => {
     return new Promise((resolve) => {
       const handler = (event, game) => {

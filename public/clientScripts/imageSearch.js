@@ -514,7 +514,6 @@ const viewBtn = document.createElement("button");
   else bindButton();
 
   document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") { e.preventDefault(); open(); }
     if (e.key === "Escape" && S.modal?.style.display === "block") {
       if (ddVisible()) { hideUserDropdown(); return; }
       const viewer = document.getElementById("imageModal");

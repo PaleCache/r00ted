@@ -12,7 +12,22 @@
   }
 
   const token = () => localStorage.getItem("chatToken");
-  const withToken = (url) => url; 
+  let mediaToken = null;
+  async function refreshMediaToken() {
+    try {
+      const r = await fetch("/api/media-token", { headers: { Authorization: `Bearer ${token()}` } });
+      if (!r.ok) return;
+      mediaToken = (await r.json()).token;
+    } catch (e) {}
+  }
+  refreshMediaToken();
+  setInterval(refreshMediaToken, 6 * 60 * 60 * 1000);
+
+  const withToken = (url) => {
+    if (typeof url !== "string" || !url.startsWith("/") || url.startsWith("//")) return url;
+    if (/[?&]token=/.test(url)) return url;
+    return url + (url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(mediaToken || token() || "");
+  };
   const authHeaders = () => ({ Authorization: `Bearer ${token()}` });
 
   function fmtSize(b) {

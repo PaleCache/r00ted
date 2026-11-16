@@ -1,16 +1,34 @@
-const { app, BrowserWindow, Menu, Tray, shell, desktopCapturer, dialog, screen, ipcMain, nativeImage, Notification, net, clipboard } = require('electron');
+const { app, BrowserWindow, Menu, Tray, shell, desktopCapturer, dialog, screen, ipcMain, nativeImage, Notification, net, clipboard, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 let lastMusicData = null;
 const { autoUpdater } = require('electron-updater');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const util = require('util');
 const STREAMING_APP_HINTS = ['fossflix'];
 const isStreamingApp = (s) => !!s && STREAMING_APP_HINTS.some(h => s.toLowerCase().includes(h));
 const BROWSER_HINTS = ['chromium', 'chrome', 'firefox', 'brave', 'edge', 'vivaldi', 'opera', 'librewolf', 'plasma-browser-integration'];
 const isBrowserSource = (s) => !!s && BROWSER_HINTS.some(h => s.toLowerCase().includes(h));
 const MUSIC_APP_ALLOWLIST = ['neonkat'];
+let pttAccel = null, pttOpen = false, pttTimer = null, pttRepeats = 0;
+
+function pttSend(down) {
+  pttOpen = down;
+  mainWindow?.webContents.send('ptt-state', down);
+}
+
+ipcMain.on('ptt-set-key', (e, accel) => {
+  if (pttAccel) { globalShortcut.unregister(pttAccel); pttAccel = null; }
+  if (!accel || !app.isReady()) return;
+  const ok = globalShortcut.register(accel, () => {
+    if (!pttOpen) { pttRepeats = 0; pttSend(true); }
+    pttRepeats++;
+    clearTimeout(pttTimer);
+    pttTimer = setTimeout(() => pttSend(false), pttRepeats < 2 ? 700 : 120);
+  });
+  if (ok) pttAccel = accel; else console.warn('PTT key could not be registered:', accel);
+});
 
 function getProcessName(pid) {
   if (!pid) return '';
@@ -281,16 +299,41 @@ function isExcludedStream(props) {
   return false;
 }
 
+let linkRunning = false;
+let linkQueued = false;
+
 async function linkAllStreams() {
+  if (linkRunning) { linkQueued = true; return; }
+  linkRunning = true;
+  try {
+    do {
+      linkQueued = false;
+      await linkAllStreamsOnce();
+    } while (linkQueued);
+  } finally {
+    linkRunning = false;
+  }
+}
+
+async function linkAllStreamsOnce() {
   const { stdout } = await execAsync('pw-dump', { maxBuffer: 64 * 1024 * 1024 });
   const objs = JSON.parse(stdout);
   const nodes = objs.filter(o => o.type === 'PipeWire:Interface:Node');
   const ports = objs.filter(o => o.type === 'PipeWire:Interface:Port');
+  const links = objs.filter(o => o.type === 'PipeWire:Interface:Link');
 
   const sink = nodes
     .filter(n => n.info?.props?.['node.name'] === SHARE_SINK)
     .sort((a, b) => b.info.props['object.serial'] - a.info.props['object.serial'])[0];
   if (!sink) return;
+
+  const existing = new Set(
+    links.map(l => {
+      const out = l.info?.['output-port-id'] ?? l.info?.props?.['link.output.port'];
+      const inn = l.info?.['input-port-id'] ?? l.info?.props?.['link.input.port'];
+      return `${out}:${inn}`;
+    })
+  );
 
   const ins = ports.filter(p => p.info?.props?.['node.id'] === sink.id && p.info.props['port.direction'] === 'in');
 
@@ -299,15 +342,57 @@ async function linkAllStreams() {
     !isExcludedStream(n.info.props)
   );
 
+  const jobs = [];
   for (const stream of streams) {
     const outs = ports.filter(p => p.info?.props?.['node.id'] === stream.id && p.info.props['port.direction'] === 'out');
     for (const o of outs) {
       const ch = o.info.props['audio.channel'];
       const targets = ch === 'MONO' ? ins : ins.filter(p => p.info.props['audio.channel'] === ch);
       for (const t of targets) {
-        await execAsync(`pw-link ${o.id} ${t.id}`).catch(() => {});
+        if (existing.has(`${o.id}:${t.id}`)) continue;
+        jobs.push(execAsync(`pw-link ${o.id} ${t.id}`).catch(() => {}));
       }
     }
+  }
+  await Promise.all(jobs);
+}
+
+let streamWatcher = null;
+let relinkDebounce = null;
+let relinkFollowUp = null;
+
+function scheduleRelink() {
+  clearTimeout(relinkDebounce);
+  clearTimeout(relinkFollowUp);
+  relinkDebounce = setTimeout(() => linkAllStreams().catch(() => {}), 40);
+  relinkFollowUp = setTimeout(() => linkAllStreams().catch(() => {}), 400);
+}
+
+function startStreamWatcher() {
+  stopStreamWatcher();
+  try {
+    const child = spawn('pactl', ['subscribe'], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let buf = '';
+    child.stdout.on('data', chunk => {
+      buf += chunk.toString();
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      if (lines.some(l => /'new' on sink-input/.test(l))) scheduleRelink();
+    });
+    child.on('error', () => {});
+    child.on('exit', () => { if (streamWatcher === child) streamWatcher = null; });
+    streamWatcher = child;
+  } catch (e) {
+    console.warn('pactl subscribe failed, relying on poll only:', e.message);
+  }
+}
+
+function stopStreamWatcher() {
+  clearTimeout(relinkDebounce);
+  clearTimeout(relinkFollowUp);
+  if (streamWatcher) {
+    try { streamWatcher.kill(); } catch {}
+    streamWatcher = null;
   }
 }
 
@@ -322,8 +407,9 @@ ipcMain.handle('linux-audio-share-start', async () => {
   )).stdout.trim();
 
   await linkAllStreams().catch(err => console.warn('link failed:', err.message));
+  startStreamWatcher();
   clearInterval(relinkTimer);
-  relinkTimer = setInterval(() => linkAllStreams().catch(() => {}), 2000);
+  relinkTimer = setInterval(() => linkAllStreams().catch(() => {}), 5000);
 
   linuxShareState = { nullModule, remapModule };
   return linuxShareState;
@@ -332,6 +418,7 @@ ipcMain.handle('linux-audio-share-start', async () => {
 ipcMain.handle('linux-audio-share-stop', async (e, state) => {
   clearInterval(relinkTimer);
   relinkTimer = null;
+  stopStreamWatcher();
   const s = state || linuxShareState;
   if (s) {
     for (const m of [s.remapModule, s.nullModule]) {
@@ -343,6 +430,7 @@ ipcMain.handle('linux-audio-share-stop', async (e, state) => {
 
 app.on('before-quit', () => {
   clearInterval(relinkTimer);
+  stopStreamWatcher();
   if (!linuxShareState) return;
   for (const m of [linuxShareState.remapModule, linuxShareState.nullModule]) {
     try { if (m) execSync(`pactl unload-module ${m}`); } catch {}
@@ -412,32 +500,76 @@ ipcMain.on('show-notification', async (event, { title, body, icon, url, tag, sil
   notif.show();
 });
 
+  const IS_WAYLAND = process.platform === 'linux'
+    && (process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY);
   mainWindow.webContents.session.setDisplayMediaRequestHandler(async (request, callback) => {
     let callbackCalled = false;
+    const finish = (result) => { if (!callbackCalled) { callbackCalled = true; callback(result); } };
     try {
-      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] });
-      if (!sources || sources.length === 0) {
-        if (!callbackCalled) { callbackCalled = true; callback({ video: false }); }
-        return;
+      const hasPagePicker = await mainWindow.webContents
+        .executeJavaScript('typeof window.__r00tedPickShare === "function"')
+        .catch(() => false);
+
+      console.log('[share] handler called | IS_WAYLAND =', IS_WAYLAND,
+        '| XDG_SESSION_TYPE =', process.env.XDG_SESSION_TYPE,
+        '| WAYLAND_DISPLAY =', process.env.WAYLAND_DISPLAY,
+        '| ozone-platform =', app.commandLine.getSwitchValue('ozone-platform'));
+      if (IS_WAYLAND) {
+        if (hasPagePicker) {
+          const choice = await mainWindow.webContents
+            .executeJavaScript('window.__r00tedPickShare([])', true)
+            .catch(() => null);
+          if (!choice) return finish({ video: false });
+        }
+        return finish({ video: { id: 'screen:0:0', name: 'Screen' } });
       }
-      const { response } = await dialog.showMessageBox(mainWindow, {
-        type: 'question',
-        buttons: sources.map(s => s.name || 'Screen'),
-        defaultId: 0,
-        title: 'Select Screen to Share',
-        message: 'Choose screen or window'
+
+      const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 320, height: 180 },
+        fetchWindowIcons: true
       });
-      if (response === undefined || response === -1) {
-        if (!callbackCalled) { callbackCalled = true; callback({ video: false }); }
-        return;
+      if (!sources || sources.length === 0) return finish({ video: false });
+
+      let source = null;
+      let mode = 'default';
+
+      if (hasPagePicker) {
+        const list = sources.map(s => ({
+          id: s.id,
+          name: s.name,
+          isScreen: s.id.startsWith('screen:'),
+          thumb: s.thumbnail && !s.thumbnail.isEmpty()
+            ? 'data:image/jpeg;base64,' + s.thumbnail.toJPEG(70).toString('base64')
+            : null,
+          icon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : null
+        }));
+        const choice = await mainWindow.webContents.executeJavaScript(
+          `window.__r00tedPickShare(${JSON.stringify(list)})`, true
+        ).catch(e => { console.error('Share picker failed:', e.message); return null; });
+
+        if (!choice || !choice.sourceId) return finish({ video: false });
+        source = sources.find(s => s.id === choice.sourceId);
+        mode = choice.audio?.mode || 'none';
+      } else {
+        const { response } = await dialog.showMessageBox(mainWindow, {
+          type: 'question',
+          buttons: sources.map(s => s.name || 'Screen'),
+          defaultId: 0,
+          title: 'Select Screen to Share',
+          message: 'Choose screen or window'
+        });
+        if (response === undefined || response === -1) return finish({ video: false });
+        source = sources[response];
       }
-      if (!callbackCalled) { callbackCalled = true; callback({
-        video: sources[response],
-        ...(process.platform === 'win32' ? { audio: 'loopback' } : {})
-    }); }
+
+      if (!source) return finish({ video: false });
+
+      const loopback = process.platform === 'win32' && request.audioRequested !== false && mode === 'default';
+      finish({ video: source, ...(loopback ? { audio: 'loopback' } : {}) });
     } catch (err) {
       console.error('Screen share error:', err.message);
-      if (!callbackCalled) { callbackCalled = true; callback({ video: false }); }
+      finish({ video: false });
     }
   });
 
@@ -1068,10 +1200,21 @@ if (process.platform === 'win32') {
   overlayWindow.on('closed', () => { overlayWindow = null; });
 }
 
+const OVERLAY_HOTKEY = 'Control+Alt+Shift+O';
+
 app.on('ready', () => {
   if (overlaySettings.enabled) {
     createOverlayWindow();
   }
+
+  const ok = globalShortcut.register(OVERLAY_HOTKEY, () => {
+    setOverlayEnabled(!overlaySettings.enabled);
+  });
+  if (!ok) console.warn(`⚠️ Could not register ${OVERLAY_HOTKEY} (already in use?)`);
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 ipcMain.on('overlay-config-ack', () => {
@@ -1118,8 +1261,7 @@ ipcMain.on('overlay-ping-update', (event, ping) => {
   overlayWindow.webContents.send('ping-update', ping);
 });
 
-ipcMain.on('overlay-set-enabled', (event, enabled) => {
-  console.log('🔧 overlay-set-enabled called with:', enabled);
+function setOverlayEnabled(enabled) {
   overlaySettings.enabled = enabled;
   saveOverlaySettings();
 
@@ -1128,16 +1270,18 @@ ipcMain.on('overlay-set-enabled', (event, enabled) => {
       overlayWindow.removeAllListeners();
       overlayWindow.destroy();
       overlayWindow = null;
-      console.log('💥 overlay window destroyed');
     }
-  } else {
-    if (!overlayWindow) {
-      createOverlayWindow();
-      console.log('🆕 overlay window recreated');
-    }
+  } else if (!overlayWindow) {
+    createOverlayWindow();
   }
-});
 
+ 
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('overlay-enabled-changed', enabled);
+  }
+}
+
+ipcMain.on('overlay-set-enabled', (event, enabled) => setOverlayEnabled(enabled));
 
 ipcMain.handle('overlay-get-info', () => {
   const { width, height } = getOverlayDisplay().bounds;

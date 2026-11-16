@@ -34,17 +34,17 @@ async function loadCategoryThumbnails() {
   if (categoryThumbsLoaded) return;
   const allCats = [{ label: "Trending", query: "trending" }, ...GIF_CATEGORIES];
 
-  allCats.forEach(async (cat) => {
-    try {
-      const cacheKey = cat.query === "trending" ? "__trending__" : cat.query;
-      let results = gifCache.get(cacheKey);
+allCats.forEach(async (cat) => {
+  try {
+    const cacheKey = cat.query === "trending" ? "__trending__" : cat.query;
+    let results = gifCache.get(cacheKey);
 
-      if (!results) {
-        const url = cat.query === "trending"
-          ? `/api/gifs/trending?limit=100`
-          : `/api/gifs/search?q=${encodeURIComponent(cat.query)}&limit=100`;
+    if (!results) {
+      const url = cat.query === "trending"
+        ? `/api/gifs/trending?limit=100`
+        : `/api/gifs/search?q=${encodeURIComponent(cat.query)}&limit=100`;
 
-        const response = await fetch(url);
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("chatToken")}` } });
         if (!response.ok) return;
         const data = await response.json();
         results = data.data;
@@ -122,8 +122,6 @@ const ADMIN_COMMANDS = [
   { cmd: '/shh',   desc: 'Mute a user',            usage: '/shh <username>' },
   { cmd: '/unssh', desc: 'Unmute a user',           usage: '/unssh <username>' },
   { cmd: '/oops',  desc: 'Clear all messages',      usage: '/oops' },
-  { cmd: '/lo',    desc: 'Send private YouTube video that the user can\'t pause lol',    usage: '/lo <username> <url>' },
-  { cmd: '/rm',    desc: 'Remove private video',    usage: '/rm' },
   { cmd: '/setrole', desc: 'Set user role', usage: '/setrole <user> <admin|developer|promptengineer> <true|false>' },
   { cmd: '/ree', desc: 'Force redirect user', usage: '/ree <username> <url>' },
   { cmd: '/roles', desc: 'Manage custom roles', usage: '/roles' },
@@ -396,7 +394,8 @@ function createPromptEngineerBadge(size = 16) {
 }
 
 function createDeveloperBadge(size = 16) {
-  const DOMAIN = SERVER_CONFIG.server.servericon;
+  const DOMAIN = SERVER_CONFIG?.server?.servericon;
+
   const wrapper = document.createElement('span');
   wrapper.title = 'Developer';
   wrapper.style.cssText = `
@@ -410,6 +409,9 @@ function createDeveloperBadge(size = 16) {
     width: ${size}px;
     height: ${size}px;
   `;
+
+  if (!DOMAIN) return wrapper;
+
   const img = document.createElement('img');
   img.src = `https://${DOMAIN}/r00ted.png`;
   img.className = 'role-badge';
@@ -459,17 +461,18 @@ function createRoleTag(role, skipFreeze = false) {
   }
   span.appendChild(document.createTextNode(role.name));
   span.title = tooltip;
-  const textColor = getReadableTextColor(role.color);
+  const color = safeCssColor(role.color);
+  const textColor = getReadableTextColor(color);
   span.style.cssText = `
     font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px;
     margin-left:4px; display:inline-block; vertical-align:middle; white-space:nowrap;
-    background: ${role.color};
+    background: ${color};
     -webkit-background-clip: initial !important;
     background-clip: initial !important;
     color: ${textColor} !important;
     -webkit-text-fill-color: ${textColor} !important;
     border: 1px solid rgba(0,0,0,0.25);
-    box-shadow: 0 0 6px ${role.color}66;
+    box-shadow: 0 0 6px ${color};
   `;
   return span;
 }
@@ -691,8 +694,7 @@ function renderGradientButtons() {
     box-shadow: ${isDefaultSelected ? "0 0 12px #FF0000" : "none"};
     box-sizing: border-box; border-radius: 8px; cursor: pointer;
   `;
-  defaultBtn.onmouseover = () => updateNamePreview('username-default');
-  defaultBtn.onmouseout = () => updateNamePreview(user.usernameColor || 'username-cyan');
+  attachPreviewHover(defaultBtn, { usernameColor: 'username-default' });
   defaultBtn.onclick = () => setNameColor('username-default');
   container.appendChild(defaultBtn);
 
@@ -710,8 +712,7 @@ function renderGradientButtons() {
         box-shadow: ${isSelected ? "0 0 12px #FF0000" : "none"};
         box-sizing: border-box; border-radius: 8px; cursor: pointer;
       `;
-      btn.onmouseover = () => updateNamePreview(c.cls);
-      btn.onmouseout = () => updateNamePreview(user.usernameColor || 'username-cyan');
+      attachPreviewHover(btn, { usernameColor: c.cls });
       btn.onclick = () => setNameColor(c.cls);
       container.appendChild(btn);
     });
@@ -731,6 +732,18 @@ function renderGradientButtons() {
   container.appendChild(lockedMsg);
 }
 setupEffectTooltips(container);
+}
+
+function safeCssColor(c) {
+  if (typeof c !== "string") return "#888888";
+  c = c.trim();
+  if (/^#[0-9a-f]{3,8}$/i.test(c)) return c;
+  if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\)$/i.test(c)) return c;
+  return "#888888";
+}
+
+function safeBadgeFile(name) {
+  return (typeof name === "string" && /^[\w.-]+\.(png|jpe?g|gif|webp|svg)$/i.test(name)) ? name : "";
 }
 
 function escapeHtml(str) {
@@ -1327,10 +1340,10 @@ function buildMentionElement(part) {
   
 function sanitizeAvatar(src) {
   if (typeof src !== "string") return "/avatars/default1.png";
-  if (src.startsWith("data:image/")) return src;
+  if (/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(src)) return src;
   try {
     const u = new URL(src, location.origin);
-    if (u.protocol === "http:" || u.protocol === "https:" || u.protocol === "blob:") return src;
+    if (u.protocol === "http:" || u.protocol === "https:" || u.protocol === "blob:") return u.href;
   } catch {}
   return "/avatars/default1.png";
 }
@@ -2042,6 +2055,7 @@ document.getElementById("saveNameBtn").onclick = () => {
   if (!newName) return;
 
   user.username = newName;
+  updateNamePreview();
   localStorage.setItem("chatUser", JSON.stringify(user));
   initVoicePanelIdentity();
 
@@ -2127,6 +2141,7 @@ function getColorBgWithOpacity(colorClass, opacity = 0.2) {
 const usersList = document.getElementById("usersList");
 
 function renderUsers(users) {
+  updateNamePreview();
   const usersList = document.getElementById("usersList");
   const valid = users.filter(u => u);
 
@@ -4267,7 +4282,7 @@ function renderRoleListScreen(box) {
 
   function renderBadgePreview() {
     if (roleCreateDraft.badge) {
-      badgePreview.innerHTML = `<img src="/avatars/${roleCreateDraft.badge}" style="width:100%; height:100%; object-fit:contain;">`;
+      badgePreview.innerHTML = `<img src="/avatars/${escapeHtml(roleCreateDraft.badge)}" style="width:100%; height:100%; object-fit:contain;">`;
       clearBadgeBtn.style.display = "block";
       pickBadgeBtn.textContent = roleCreateDraft.badge;
     } else {
@@ -4403,11 +4418,11 @@ createBtn.onclick = () => {
     row.onmouseout = () => row.style.background = "transparent";
 
 row.innerHTML = `
-  <span style="width:14px; height:14px; border-radius:4px; background:${role.color}; flex-shrink:0;"></span>
-  ${role.badge ? `<img src="/avatars/${role.badge}" style="width:18px; height:18px; object-fit:contain; flex-shrink:0;">` : ""}
+  <span style="width:14px; height:14px; border-radius:4px; background:${safeCssColor(role.color)}; flex-shrink:0;"></span>
+  ${safeBadgeFile(role.badge) ? `<img src="/avatars/${escapeHtml(safeBadgeFile(role.badge))}" style="width:18px; height:18px; object-fit:contain; flex-shrink:0;">` : ""}
   <span style="flex:1; color:#e6e6e7; font-size:14px; font-weight:600;">${escapeHtml(role.name)}</span>
   <span style="color:#72767d; font-size:12px;">${memberCount} member${memberCount === 1 ? "" : "s"}</span>
-  <button data-id="${role.id}" class="role-del-btn" title="Delete role" style="background:none; border:none; color:#72767d; cursor:pointer; font-size:14px; padding:2px 6px;">✕</button>
+  <button data-id="${escapeHtml(role.id)}" class="role-del-btn" title="Delete role" style="background:none; border:none; color:#72767d; cursor:pointer; font-size:14px; padding:2px 6px;">✕</button>
 `;
 
     const delBtn = row.querySelector(".role-del-btn");
@@ -4460,7 +4475,7 @@ function openBadgePickerForRole(onSelect) {
       item.onmouseover = () => item.style.background = "#2a2c31";
       item.onmouseout = () => item.style.background = "#1e1f22";
       item.title = filename;
-      item.innerHTML = `<img src="/avatars/${filename}" style="width:78%; height:78%; object-fit:contain; pointer-events:none;">`;
+      item.innerHTML = `<img src="/avatars/${escapeHtml(filename)}" style="width:78%; height:78%; object-fit:contain; pointer-events:none;">`;
       item.onclick = () => {
         onSelect(filename);
         modal.remove();
@@ -4480,7 +4495,7 @@ function renderAddMembersScreen(box) {
   box.innerHTML = `
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
       <button id="backToRoleDetail" style="background:none; border:none; color:#b9bbbe; font-size:18px; cursor:pointer; padding:0;">‹</button>
-      <h3 style="margin:0; color:#fff; font-size:17px; flex:1;">Add Members to ${role.name}</h3>
+      <h3 style="margin:0; color:#fff; font-size:17px; flex:1;">Add Members to ${escapeHtml(role.name)}</h3>
       <button id="closeRoleManager" style="background:none; border:none; color:#72767d; font-size:20px; cursor:pointer;">✕</button>
     </div>
 
@@ -4519,8 +4534,8 @@ function renderAddMembersScreen(box) {
       row.onmouseover = () => row.style.background = "rgba(255,255,255,0.05)";
       row.onmouseout = () => row.style.background = "transparent";
       row.innerHTML = `
-        <img src="${sanitizeAvatar(u.avatar)}" style="width:28px; height:28px; border-radius:50%; flex-shrink:0;">
-        <span style="flex:1; color:#e6e6e7; font-size:13px;">${u.username}</span>
+        <img src="${escapeHtml(sanitizeAvatar(u.avatar))}" style="width:28px; height:28px; border-radius:50%; flex-shrink:0;">
+        <span style="flex:1; color:#e6e6e7; font-size:13px;">${escapeHtml(u.username)}</span>
         <span style="color:#FF0000; font-size:18px; line-height:1;">+</span>
       `;
     row.onclick = () => {
@@ -4590,8 +4605,8 @@ function renderBuiltinRoleDetailScreen(box) {
     const row = document.createElement("div");
     row.style.cssText = "display:flex; align-items:center; gap:10px; padding:7px 4px;";
     row.innerHTML = `
-      <img src="${sanitizeAvatar(u.avatar)}" style="width:28px; height:28px; border-radius:50%; flex-shrink:0;">
-      <span style="flex:1; color:#e6e6e7; font-size:13px;">${u.username}</span>
+      <img src="${escapeHtml(sanitizeAvatar(u.avatar))}" style="width:28px; height:28px; border-radius:50%; flex-shrink:0;">
+      <span style="flex:1; color:#e6e6e7; font-size:13px;">${escapeHtml(u.username)}</span>
       <button class="remove-member-btn" title="Remove ${label}" style="background:none; border:none; color:#72767d; cursor:pointer; font-size:14px; padding:2px 6px;">✕</button>
     `;
     row.querySelector(".remove-member-btn").onclick = () => {
@@ -4652,8 +4667,8 @@ function renderBuiltinAddMembersScreen(box) {
       row.onmouseover = () => row.style.background = "rgba(255,255,255,0.05)";
       row.onmouseout = () => row.style.background = "transparent";
       row.innerHTML = `
-        <img src="${sanitizeAvatar(u.avatar)}" style="width:28px; height:28px; border-radius:50%; flex-shrink:0;">
-        <span style="flex:1; color:#e6e6e7; font-size:13px;">${u.username}</span>
+        <img src="${escapeHtml(sanitizeAvatar(u.avatar))}" style="width:28px; height:28px; border-radius:50%; flex-shrink:0;">
+        <span style="flex:1; color:#e6e6e7; font-size:13px;">${escapeHtml(u.username)}</span>
         <span style="color:#FF0000; font-size:18px; line-height:1;">+</span>
       `;
       row.onclick = () => {
@@ -4683,8 +4698,8 @@ function renderRoleDetailScreen(box) {
   box.innerHTML = `
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
       <button id="backToRoleList" style="background:none; border:none; color:#b9bbbe; font-size:18px; cursor:pointer; padding:0;">‹</button>
-      <span style="width:14px; height:14px; border-radius:4px; background:${role.color}; flex-shrink:0;"></span>
-      <h3 style="margin:0; color:#fff; font-size:17px; flex:1;">${role.name}</h3>
+      <span style="width:14px; height:14px; border-radius:4px; background:${safeCssColor(role.color)}; flex-shrink:0;"></span>
+      <h3 style="margin:0; color:#fff; font-size:17px; flex:1;">${escapeHtml(role.name)}</h3>
       <button id="closeRoleManager" style="background:none; border:none; color:#72767d; font-size:20px; cursor:pointer;">✕</button>
     </div>
 
@@ -4719,8 +4734,8 @@ function renderRoleDetailScreen(box) {
     const row = document.createElement("div");
     row.style.cssText = "display:flex; align-items:center; gap:10px; padding:7px 4px;";
     row.innerHTML = `
-      <img src="${sanitizeAvatar(u.avatar)}" style="width:28px; height:28px; border-radius:50%; flex-shrink:0;">
-      <span style="flex:1; color:#e6e6e7; font-size:13px;">${u.username}</span>
+      <img src="${escapeHtml(sanitizeAvatar(u.avatar))}" style="width:28px; height:28px; border-radius:50%; flex-shrink:0;">
+      <span style="flex:1; color:#e6e6e7; font-size:13px;">${escapeHtml(u.username)}</span>
       <button class="remove-member-btn" title="Remove from role" style="background:none; border:none; color:#72767d; cursor:pointer; font-size:14px; padding:2px 6px;">✕</button>
     `;
 row.querySelector(".remove-member-btn").onclick = () => {
@@ -4740,100 +4755,6 @@ row.querySelector(".remove-member-btn").onclick = () => {
   renderUsers(currentUsers);
 };
 membersList.appendChild(row);
-  });
-}
-
-
-
-function renderRoleManagerContents() {
-  const modal = document.getElementById("roleManagerModal");
-  if (!modal) return;
-
-  const list = modal.querySelector("#roleManagerList");
-  const userSelect = modal.querySelector("#assignRoleUsername");
-  list.innerHTML = customRoles.length === 0
-    ? `<div style="color:#72767d; font-size:12px; padding:8px 0;">No roles yet.</div>`
-    : "";
-  customRoles.forEach(role => {
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex; align-items:center; gap:8px; padding:6px 0;";
-    row.innerHTML = `
-      <span style="width:14px; height:14px; border-radius:4px; background:${role.color}; flex-shrink:0;"></span>
-      <span style="flex:1; color:#e6e6e7; font-size:13px;">${role.name}</span>
-      <button data-id="${role.id}" style="background:none; border:none; color:#72767d; cursor:pointer; font-size:13px;">✕</button>
-    `;
-    row.querySelector("button").onclick = () => {
-      showConfirmModal(
-        `Removes this role from everyone who has it.`,
-        () => socket.emit("deleteRole", { id: role.id }),
-        { title: `Delete role "${role.name}"?`, confirmLabel: "Delete" }
-      );
-    };
-    list.appendChild(row);
-  });
-
-
-  const prevSelected = userSelect.value;
-  const sortedUsers = [...currentUsers].filter(u => u && u.username).sort((a, b) => a.username.localeCompare(b.username));
-  userSelect.innerHTML = sortedUsers.map(u => {
-    const roleNames = (u.customRoleIds || []).map(id => getRoleById(id)?.name).filter(Boolean);
-    const suffix = roleNames.length ? ` (${roleNames.join(", ")})` : "";
-    return `<option value="${u.username}">${u.username}${suffix}</option>`;
-  }).join("");
-  if (sortedUsers.some(u => u.username === prevSelected)) {
-    userSelect.value = prevSelected;
-  }
-
-  renderRoleCheckboxes();
-  userSelect.onchange = renderRoleCheckboxes;
-}
-
-function renderRoleCheckboxes() {
-  const modal = document.getElementById("roleManagerModal");
-  if (!modal) return;
-
-  const userSelect = modal.querySelector("#assignRoleUsername");
-  const container = modal.querySelector("#userRoleCheckboxes");
-  const username = userSelect.value;
-
-  container.innerHTML = "";
-
-  if (!username) {
-    container.innerHTML = `<div style="color:#72767d; font-size:12px;">No users online.</div>`;
-    return;
-  }
-
-  if (customRoles.length === 0) {
-    container.innerHTML = `<div style="color:#72767d; font-size:12px;">No roles created yet.</div>`;
-    return;
-  }
-
-  const targetUser = currentUsers.find(u => u.username === username);
-  const currentRoleIds = targetUser?.customRoleIds || [];
-
-  customRoles.forEach(role => {
-    const label = document.createElement("label");
-    label.style.cssText = "display:flex; align-items:center; gap:8px; cursor:pointer; padding:4px 0;";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = currentRoleIds.includes(role.id);
-    checkbox.style.cssText = "cursor:pointer;";
-    checkbox.onchange = () => {
-      socket.emit("assignRole", { username, roleId: role.id });
-    };
-
-    const swatch = document.createElement("span");
-    swatch.style.cssText = `width:12px; height:12px; border-radius:3px; background:${role.color}; flex-shrink:0;`;
-
-    const name = document.createElement("span");
-    name.textContent = role.name;
-    name.style.cssText = "color:#e6e6e7; font-size:13px;";
-
-    label.appendChild(checkbox);
-    label.appendChild(swatch);
-    label.appendChild(name);
-    container.appendChild(label);
   });
 }
 
@@ -4896,7 +4817,15 @@ function triggerUserOnlineNotification(onlineUser) {
 }
 
 
+function isSafeGradient(g) {
+  return typeof g === "string"
+    && g.length <= 300
+    && /^(linear|radial|conic)-gradient\(/i.test(g.trim())
+    && !/url\s*\(|;|\{|\}|\\|@import|expression/i.test(g);
+}
+
 function applyCustomColorForUser(userId, hexColor) {
+  if (!/^#[0-9a-f]{6}$/i.test(hexColor) || !/^[\w-]{1,64}$/.test(userId)) return;
   if (!userId || !hexColor) return;
 
   let style = document.getElementById("customColorStyle");
@@ -5324,6 +5253,7 @@ function uploadAnimatedImage(dataUrl) {
           currentUsers[myIndex].avatar = user.avatar;
         }
         renderUsers(currentUsers);
+        initVoicePanelIdentity();
        showToast("Avatar updated! (Note: Cropping is disabled for animated files)");
       } else {
        showToast("Upload failed: " + xhr.responseText);
@@ -5449,6 +5379,7 @@ document.getElementById("saveCropBtn").onclick = () => {
           currentUsers[myIndex].avatar = user.avatar;
         }
         renderUsers(currentUsers);
+        initVoicePanelIdentity();
        showToast("Avatar updated!");
       } else {
        showToast("Upload failed: " + xhr.responseText);
@@ -5629,6 +5560,7 @@ function createBadgeSelector() {
     img.onmouseover = () => { if (!isSelected) img.style.transform = "scale(1.06)"; };
     img.onmouseout  = () => { img.style.transform = "scale(1)"; };
     img.onclick = () => setBadge(badgeUrl);
+    attachPreviewHover(img, { badge: badgeUrl });
     container.appendChild(img);
   });
 
@@ -5675,6 +5607,7 @@ function createBadgeSelector() {
     wrapper.appendChild(img);
     wrapper.appendChild(label);
     if (isUnlocked) wrapper.onclick = () => setPrestigeBadge(p.badge);
+    if (isUnlocked) attachPreviewHover(wrapper, { prestigeBadge: p.badge });
 
     prestigeContainer.appendChild(wrapper);
   });
@@ -5761,6 +5694,7 @@ document.querySelectorAll('.channel-item').forEach(channel => {
 document.querySelectorAll(".settings-tab").forEach(tab => {
   tab.addEventListener("click", () => {
     if (tab.dataset.tab === "overlay" && !window.electronAPI) return;
+
     document.querySelectorAll(".settings-tab").forEach(t => t.classList.remove("active"));
     document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
 
@@ -5769,9 +5703,12 @@ document.querySelectorAll(".settings-tab").forEach(tab => {
     const targetContent = document.getElementById(tab.dataset.tab + "Tab");
     if (targetContent) {
       targetContent.classList.add("active");
-
+      if (tab.dataset.tab === "account") {
+        refreshAccountKey();
+      }
       if (tab.dataset.tab === "notifications") {
         loadNotifSettings();
+        initPttSettings();
       }
       if (tab.dataset.tab === "audio") {
         initAudioTab();
@@ -5849,7 +5786,8 @@ function setPrestigeBadge(badgeUrl) {
       }
     });
   }
-
+  updateNamePreview();
+  initVoicePanelIdentity();
   createBadgeSelector();
  showToast(user.prestigeBadge ? "Prestige badge applied!" : "Prestige badge removed");
 }
@@ -5968,6 +5906,7 @@ function showLevelUpNotification(newLevel) {
   }, 6000);
 
   renderUsers(currentUsers);
+  initVoicePanelIdentity()
 }
 
 
@@ -6127,7 +6066,7 @@ const isBotParticipant = participant?.getProperty("isBot") === "true";
 
   menu.innerHTML = `
     <div style="font-weight:600; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #42444a;">
-      ${username}
+      ${escapeHtml(username)}
     </div>
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
       <span style="font-size:13px; color:#b9bbbe; width:50px;">Volume</span>
@@ -6262,6 +6201,11 @@ function setProfileGradient(gradient) {
     showToast("🔒 Profile gradients unlock at Level 2");
     return;
   }
+
+  if (gradient && !isSafeGradient(gradient)) {
+  showToast("❌ Invalid gradient");
+  return;
+}
   if (gradient === user.profileGradient) {
     user.profileGradient = null;
   } else {
@@ -6313,8 +6257,9 @@ function setProfileGradient(gradient) {
       ? "Profile gradient applied!"
       : "Profile gradient removed"
   );
-
+  
   renderProfileGradientButtons();
+  updateNamePreview(); 
 }
 
 function renderProfileGradientButtons() {
@@ -6359,6 +6304,9 @@ container.innerHTML = `
 `;
 
 setupEffectTooltips(container.querySelector("#profileGradientGrid"));
+container.querySelectorAll('#profileGradientGrid .effect-btn').forEach((btn, i) => {
+  attachPreviewHover(btn, { profileGradient: colors[i].grad });
+});
   const newGrid = container.querySelector("#profileGradientGrid");
   if (newGrid) newGrid.scrollTop = prevScroll;
 }
@@ -6503,6 +6451,8 @@ let notifSettings = {
 
 
 window.addEventListener('load', () => {
+  initPttSettings();
+  syncPttKeyToMain();
   loadNotifSettings();
   document.getElementById("toggleBrowserNotif").addEventListener("change", (e) => {
     notifSettings.browser = e.target.checked;
@@ -6890,7 +6840,7 @@ async function loadTrendingGifs() {
   gifGridWrap.innerHTML = '<div style="grid-column:1/-1; color:#72767d; font-size:12px; text-align:center; padding:24px 0;">Loading trending GIFs...</div>';
 
   try {
-    const response = await fetch(`/api/gifs/trending?limit=40`);
+    const response = await fetch(`/api/gifs/trending?limit=40`, { headers: { Authorization: `Bearer ${localStorage.getItem("chatToken")}` } });
     if (!response.ok) throw new Error("Trending fetch failed");
     const data = await response.json();
 
@@ -6962,7 +6912,8 @@ async function searchGifs(query) {
 
   try {
     const response = await fetch(
-      `/api/gifs/search?q=${encodeURIComponent(query)}&limit=100`
+      `/api/gifs/search?q=${encodeURIComponent(query)}&limit=100`,
+      { headers: { Authorization: `Bearer ${localStorage.getItem("chatToken")}` } }
     );
     if (!response.ok) throw new Error("Search failed");
     const data = await response.json();
@@ -7635,6 +7586,7 @@ xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("chatToken"
 
 function removeBanner() {
   user.banner = null;
+  updateNamePreview();
   localStorage.setItem("chatUser", JSON.stringify(user));
   const myIndex = currentUsers.findIndex(u => u && u.id === user.id);
   if (myIndex !== -1) {
@@ -7801,6 +7753,8 @@ document.getElementById('saveCropBtn').addEventListener('click', () => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', endpoint, true);
     xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("chatToken")}`);
+    xhr.setRequestHeader("X-User-Id", user.id || "");
+    xhr.setRequestHeader("X-Session", user.sessionToken || "");
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
@@ -7881,6 +7835,7 @@ document.getElementById('saveCropBtn').addEventListener('click', () => {
         }
 
         renderUsers(currentUsers);
+        initVoicePanelIdentity();
         showToast(`${currentCropType === 'avatar' ? 'Avatar' : currentCropType === 'banner' ? 'Banner' : 'Header'} updated!`);
       } else {
         showToast('Upload failed: ' + xhr.responseText);
@@ -8073,91 +8028,6 @@ xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("chatToken"
 }
 
 
-
-const activePlayers = new Map();
-
-function createPlayer(containerId, videoId) {
-  if (activePlayers.has(containerId)) {
-    activePlayers.get(containerId).destroy();
-    activePlayers.delete(containerId);
-  }
-
-  const player = new YT.Player(containerId, {
-    videoId,
-    width: "100%",
-    height: "100%",
-
-    playerVars: {
-      autoplay: 1,
-      mute: 0,
-      controls: 0,
-      disablekb: 1,
-      loop: 1,
-      playlist: videoId,
-      playsinline: 1
-    },
-
-    events: {
-      onReady: (event) => {
-        event.target.playVideo();
-      },
-
-      onStateChange: (event) => {
-        if (event.data === YT.PlayerState.PAUSED) {
-          event.target.playVideo();
-        }
-        if (event.data === YT.PlayerState.ENDED) {
-          event.target.playVideo();
-        }
-      }
-    }
-  });
-
-  activePlayers.set(containerId, player);
-
-  return player;
-}
-
-
-function getYouTubeId(url) {
-  try {
-    const u = new URL(url);
-
-    if (u.hostname.includes("youtu.be")) return u.pathname.slice(1);
-
-    if (u.searchParams.get("v")) return u.searchParams.get("v");
-
-    if (u.pathname.includes("/embed/")) {
-      return u.pathname.split("/embed/")[1];
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-
-
-let ytReadyPromise = null;
-
-function loadYouTubeAPI() {
-  if (window.YT && window.YT.Player) return Promise.resolve();
-
-  if (ytReadyPromise) return ytReadyPromise;
-
-  ytReadyPromise = new Promise((resolve) => {
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-
-    window.onYouTubeIframeAPIReady = () => {
-      resolve();
-    };
-  });
-
-  return ytReadyPromise;
-}
 
 
 function renderChannelList(channels) {
@@ -8616,8 +8486,8 @@ function renderEmoteGrid() {
     transition: outline 0.15s;
     cursor: pointer;
   `;
-wrapper.onmouseover = () => wrapper.style.outline = '2px solid #FF0000';
-wrapper.onmouseout = () => wrapper.style.outline = 'none';
+    wrapper.onmouseover = () => wrapper.style.outline = '2px solid #FF0000';
+    wrapper.onmouseout = () => wrapper.style.outline = 'none';
 
     const img = document.createElement("img");
     img.src = `/avatars/${filename}`;
@@ -8638,7 +8508,7 @@ wrapper.onmouseout = () => wrapper.style.outline = 'none';
     del.onclick = () => deleteEmote(filename);
 
     wrapper.appendChild(img);
-    wrapper.appendChild(del);
+    if (user.isAdmin || user.isDeveloper) wrapper.appendChild(del);
     grid.appendChild(wrapper);
   });
 }
@@ -8651,7 +8521,7 @@ function promptEmoteName(defaultName, onConfirm) {
   modal.innerHTML = `
     <div style="background:#2b2d31; border-radius:12px; padding:24px 28px; width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.6); border:1px solid #3a3c42;">
       <h3 style="margin:0 0 14px; color:#fff; font-size:16px;">Name this emote</h3>
-      <input id="emoteNameInput" type="text" value="${defaultName}" maxlength="32"
+      <input id="emoteNameInput" type="text" value="${escapeHtml(defaultName)}" maxlength="32"
         style="width:100%; padding:9px 12px; background:#40444b; border:1px solid #40444b; border-radius:8px; color:#fff; font-size:14px; box-sizing:border-box; outline:none;">
       <div style="display:flex; gap:10px; margin-top:16px; justify-content:flex-end;">
         <button id="emoteNameCancel" style="background:#40444b; border:none; color:#fff; padding:8px 16px; border-radius:8px; cursor:pointer; font-size:13px;">Cancel</button>
@@ -8709,6 +8579,8 @@ function uploadEmoteFile(file) {
   const xhr = new XMLHttpRequest();
   xhr.open("POST", "/upload-emote", true);
   xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("chatToken")}`);
+  xhr.setRequestHeader("X-User-Id", user.id || "");
+  xhr.setRequestHeader("X-Session", user.sessionToken || "");
   xhr.upload.onprogress = (e) => {
     if (e.lengthComputable && pctEl) pctEl.textContent = Math.round((e.loaded / e.total) * 100) + "%";
   };
@@ -8775,10 +8647,14 @@ function deleteEmote(filename) {
   showConfirmModal(
     "This cannot be undone.",
     () => {
-      fetch(`/delete-emote/${encodeURIComponent(filename)}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${localStorage.getItem("chatToken")}` }
-      })
+        fetch(`/delete-emote/${encodeURIComponent(filename)}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${localStorage.getItem("chatToken")}`,
+            "X-User-Id": user.id || "",
+            "X-Session": user.sessionToken || ""
+          }
+        })
         .then(r => r.json())
         .then(data => {
           if (data.success) {
@@ -9130,6 +9006,7 @@ async function initAudioTab() {
           localAudioTrack.dispose();
           localAudioTrack = newTrack;
           currentActiveAudioTrack = newTrack;
+          applyMicState();
           newTrack.addEventListener(
           JitsiMeetJS.events.track.TRACK_AUDIO_LEVEL_CHANGED,
           (level) => handleAudioLevel("local", level)
@@ -9146,6 +9023,86 @@ async function initAudioTab() {
    showToast("Preferences saved. They'll apply next time you join voice.");
   }
 };
+}
+
+
+let pttHeld = false;
+let pttCapturing = false;
+const pttEnabled = () => localStorage.getItem('voiceInputMode') === 'ptt';
+const pttKey = () => localStorage.getItem('pttKey') || 'Backquote';
+const keyLabel = c => c.replace(/^Key|^Digit/, '');
+
+
+function applyMicState() {
+  if (!localAudioTrack) return;
+  const open = !isCurrentlyMuted && (!pttEnabled() || pttHeld);
+  open ? localAudioTrack.unmute() : localAudioTrack.mute();
+  if (shareMix?.micGain) shareMix.micGain.gain.value = open ? 1 : 0;
+}
+
+function typingInField(e) {
+  const t = e.target;
+  return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+    && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
+}
+
+document.addEventListener('keydown', e => {
+  if (!pttEnabled() || pttCapturing || e.repeat || e.code !== pttKey()) return;
+  if (typingInField(e)) return;           
+  if (!pttHeld) { pttHeld = true; applyMicState(); }
+});
+document.addEventListener('keyup', e => {
+  if (e.code === pttKey() && pttHeld) { pttHeld = false; applyMicState(); }
+});
+window.addEventListener('blur', () => {   
+  if (pttHeld) { pttHeld = false; applyMicState(); }
+});
+if (window.electronAPI?.onPttState) {
+  window.electronAPI.onPttState(down => {
+    if (!pttEnabled() || pttCapturing) return;
+    if (pttHeld !== down) { pttHeld = down; applyMicState(); }
+  });
+}
+
+function codeToAccel(c) {
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+  if (/^Digit\d$/.test(c)) return c.slice(5);
+  if (/^F\d{1,2}$/.test(c)) return c;
+  return ({ Backquote: '`', Space: 'Space', Tab: 'Tab', CapsLock: 'Capslock' })[c] || null;
+}
+function syncPttKeyToMain() {
+  window.electronAPI?.pttSetKey?.(pttEnabled() ? codeToAccel(pttKey()) : null);
+}
+
+function initPttSettings() {
+  const sel = document.getElementById('voiceInputMode');
+  const row = document.getElementById('pttKeyRow');
+  const btn = document.getElementById('pttKeyBtn');
+  if (!sel) return;
+  sel.value = pttEnabled() ? 'ptt' : 'vad';
+  row.style.display = pttEnabled() ? '' : 'none';
+  btn.textContent = keyLabel(pttKey());
+
+  sel.onchange = () => {
+    localStorage.setItem('voiceInputMode', sel.value);
+    row.style.display = sel.value === 'ptt' ? '' : 'none';
+    pttHeld = false;
+    applyMicState();
+    syncPttKeyToMain(); 
+  };
+  btn.onclick = () => {
+    pttCapturing = true;
+    btn.textContent = 'Press a key… (Esc to cancel)';
+    const h = e => {
+      e.preventDefault(); e.stopPropagation();
+      if (e.code !== 'Escape') localStorage.setItem('pttKey', e.code);
+      pttCapturing = false;
+      btn.textContent = keyLabel(pttKey());
+      document.removeEventListener('keydown', h, true);
+      syncPttKeyToMain();
+    };
+    document.addEventListener('keydown', h, true);
+  };
 }
 
 let audioLoopbackNode = null;
@@ -9259,41 +9216,64 @@ function stopAudioPreview() {
   if (txt) txt.textContent = "0%";
 }
 
+let previewHoverOverrides = null;
 
-function updateNamePreview(colorClass) {
-  const previewUsername = document.getElementById('previewUsername');
-  const previewAvatar = document.getElementById('previewAvatar');
-  const previewLevel = document.getElementById('previewLevel');
-  const previewBadge = document.getElementById('previewBadge');
-  if (!previewUsername) return;
+function attachPreviewHover(el, overrides) {
+  el.addEventListener('mouseenter', () => {
+    previewHoverOverrides = overrides;
+    updateNamePreview(overrides);
+  });
+  el.addEventListener('mouseleave', () => {
+    previewHoverOverrides = null;
+    updateNamePreview();
+  });
+}
 
-  previewUsername.className = `username-wrapper ${colorClass}`;
-  previewUsername.setAttribute('data-text', user.username);
-  previewUsername.textContent = user.username;
+function updateNamePreview(arg) {
+  const ctxPopup = document.getElementById('previewPopup');
+  if (!ctxPopup) return;
+  const effective = previewHoverOverrides || arg;
+  const overrides = typeof effective === 'string' ? { usernameColor: effective } : (effective || {});
 
-  previewAvatar.src = sanitizeAvatar(user.avatar);
-  previewAvatar.setAttribute('data-color', colorClass);
-  applyAvatarBorder(previewAvatar, colorClass, 3);
-  previewAvatar.style.borderColor = colorClassToHex[colorClass] || '#00f2ff';
+  const topGame = gameStatusStack[gameStatusStack.length - 1] || null;
 
-  const level = user.level || 1;
-  const lvlColor = getLevelColor(level);
-  const lvlRgb = getLevelRgb(level);
-  previewLevel.textContent = level;
-  previewLevel.style.cssText = `
-    font-size:11px; color:${lvlColor}; -webkit-text-fill-color:${lvlColor};
-    background:rgba(${lvlRgb.r},${lvlRgb.g},${lvlRgb.b},0.2);
-    -webkit-background-clip:initial; background-clip:initial;
-    font-weight:700; padding:2px 6px; border-radius:3px;
-    border:1px solid ${lvlColor}; display:inline-block; position:relative;
-  `;
+  const previewUser = {
+    id: user.id,
+    username: user.username,
+    avatar: user.avatar,
+    usernameColor: user.usernameColor || 'username-cyan',
+    level: user.level || 1,
+    badge: user.badge || null,
+    prestigeBadge: user.prestigeBadge || null,
+    isAdmin: user.isAdmin || false,
+    isDeveloper: user.isDeveloper || false,
+    isPromptEngineer: user.isPromptEngineer || false,
+    isBot: user.isBot || false,
+    customRoleIds: user.customRoleIds || [],
+    status: 'online',
+    customStatus: user.customStatus || '',
+    banner: user.banner || '',
+    profileHeader: user.profileHeader || '',
+    profileGradient: user.profileGradient || null,
+    profileEffect: user.profileEffect || null,
+    gameStatus: topGame ? `🎮 Playing ${topGame.name}` : null,
+    gameStartedAt: topGame ? topGame.startedAt : null,
+    musicStatus: window.currentMusicStatus || null,
+    userAgent: navigator.userAgent,
+    ...overrides
+  };
 
-  if (user.badge) {
-    previewBadge.src = sanitizeAvatar(user.badge);
-    previewBadge.style.display = 'inline-block';
-  } else {
-    previewBadge.style.display = 'none';
-  }
+  renderProfilePopupContent(previewUser, {
+    popup: ctxPopup,
+    banner: document.getElementById('previewBanner'),
+    content: document.getElementById('previewContent'),
+    avatar: document.getElementById('previewAvatarImg'),
+    username: document.getElementById('previewUsernameRow'),
+    statusDot: document.getElementById('previewStatusDot'),
+    statusText: document.getElementById('previewStatusText'),
+    info: document.getElementById('previewInfo'),
+    effect: document.getElementById('previewEffectOverlay')
+  });
 }
 
 function resolveCustomRoles(ids) {
@@ -10175,19 +10155,19 @@ function renderBotTokenList(tokens) {
     `;
     row.innerHTML = `
       <div style="min-width:0; flex:1;">
-        <div style="color:#fff; font-weight:600; font-size:14px;">${t.name}</div>
+        <div style="color:#fff; font-weight:600; font-size:14px;">${escapeHtml(t.name)}</div>
         <div style="margin-top:4px;">
-          <code class="botTokenValue" data-id="${t.id}" data-revealed="false" style="
+          <code class="botTokenValue" data-id="${escapeHtml(t.id)}" data-revealed="false" style="
             color:#72767d; font-size:12px; font-family:monospace;
             word-break:break-all; display:block; line-height:1.5;
           ">${maskToken(t.token)}</code>
         </div>
-        <div style="color:#72767d; font-size:11px; margin-top:4px;">created by ${t.createdBy} · ${new Date(t.createdAt).toLocaleDateString()}</div>
+        <div style="color:#72767d; font-size:11px; margin-top:4px;">created by ${escapeHtml(t.createdBy)} · ${new Date(t.createdAt).toLocaleDateString()}</div>
       </div>
       <div style="display:flex; gap:6px; flex-shrink:0; align-self:flex-start;">
-        <button class="revealBotTokenBtn" data-id="${t.id}" title="Reveal" style="background:#40444b; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">👁</button>
-        <button class="copyBotTokenBtn" data-id="${t.id}" title="Copy" style="background:#40444b; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; min-width:34px;">📋</button>
-        <button class="deleteBotTokenBtn" data-id="${t.id}" title="Delete" style="background:#ed4245; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">🗑</button>
+        <button class="revealBotTokenBtn" data-id="${escapeHtml(t.id)}" title="Reveal" style="background:#40444b; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">👁</button>
+        <button class="copyBotTokenBtn" data-id="${escapeHtml(t.id)}" title="Copy" style="background:#40444b; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px; min-width:34px;">📋</button>
+        <button class="deleteBotTokenBtn" data-id="${escapeHtml(t.id)}" title="Delete" style="background:#ed4245; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">🗑</button>
       </div>
     `;
     container.appendChild(row);
@@ -10251,13 +10231,14 @@ async function copyToClipboard(text) {
 
 async function copyWithFeedback(button, text) {
   const original = button.textContent;
-  const originalBg = button.style.background;
+  const originalMinWidth = button.style.minWidth;
+  const isIconBtn = original.trim().length <= 2;
+  button.style.minWidth = button.offsetWidth + "px";
   const success = await copyToClipboard(text);
-  button.textContent = success ? "✅" : "❌";
-  button.style.background = success ? "#3ba55c" : "#ed4245";
+  button.textContent = success ? (isIconBtn ? "\u2713" : "Copied") : (isIconBtn ? "\u2717" : "Failed");
   setTimeout(() => {
     button.textContent = original;
-    button.style.background = originalBg;
+    button.style.minWidth = originalMinWidth;
   }, 1200);
 }
 
@@ -10411,9 +10392,74 @@ function applyDefaultAvatar(url) {
   const myIndex = currentUsers.findIndex(u => u && u.id === user.id);
   if (myIndex !== -1) currentUsers[myIndex].avatar = user.avatar;
   renderUsers(currentUsers);
-
+  initVoicePanelIdentity();
   updateNamePreview(user.usernameColor || "username-cyan");
   showToast("Avatar updated!");
 }
 
 
+
+function getLoginKey() {
+  return window._loginKey || null;
+}
+
+async function performLogout() {
+  try { if (currentVoiceRoom) leaveVoice(); } catch (e) {}
+
+  try {
+    const reg = await navigator.serviceWorker?.ready;
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) {
+      const subJson = sub.toJSON();
+      if (socket?.connected) socket.emit("unregisterPushSubscription", subJson);
+      await sub.unsubscribe();
+    }
+  } catch (e) {}
+
+  try { socket.disconnect(); } catch (e) {}
+
+  localStorage.removeItem("chatToken");
+  localStorage.removeItem("chatUser");
+  window.location.href = "/login";
+}
+
+function confirmLogout() {
+  showConfirmModal(
+    "You'll need your login key to get back into this account. If you haven't saved it, copy it from the Account tab first.",
+    performLogout,
+    { title: "Log out?", confirmLabel: "Log out" }
+  );
+}
+async function refreshAccountKey() {
+  const el = document.getElementById("accountKeyValue");
+  if (!el) return;
+  el.type = "password";
+  document.getElementById("accountKeyRevealBtn").textContent = "Show";
+  el.value = "Loading...";
+  try {
+    const r = await fetch("/api/account/key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("chatToken")}` },
+      body: JSON.stringify({ id: user.id, sessionToken: user.sessionToken })
+    });
+    const d = await r.json();
+    window._loginKey = d.key || null;
+    el.value = d.key || "No key yet, refresh the page";
+  } catch {
+    el.value = "No key yet, refresh the page";
+  }
+}
+
+document.getElementById("accountKeyRevealBtn").addEventListener("click", (e) => {
+  const el = document.getElementById("accountKeyValue");
+  const showing = el.type === "text";
+  el.type = showing ? "password" : "text";
+  e.currentTarget.textContent = showing ? "Show" : "Hide";
+});
+
+document.getElementById("logoutBtn").addEventListener("click", confirmLogout);
+
+document.getElementById("accountKeyCopyBtn").addEventListener("click", (e) => {
+  const key = getLoginKey();
+  if (key) copyWithFeedback(e.currentTarget, key);
+});

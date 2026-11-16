@@ -112,7 +112,9 @@
     }
 
     function fetchOG(url) {
-        return fetch(`${OG_PROXY}?url=${encodeURIComponent(url)}`)
+        return fetch(`${OG_PROXY}?url=${encodeURIComponent(url)}`, {
+            headers: { Authorization: "Bearer " + localStorage.getItem("chatToken") }
+        })
         .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
     }
 

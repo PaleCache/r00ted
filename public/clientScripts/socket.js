@@ -5,8 +5,10 @@ const socket = io({
   reconnectionDelayMax: 30000,
   reconnectionAttempts: Infinity,
   withCredentials: true,
-  auth: {
-    token: token
+  auth: (cb) => {
+    let me = {};
+    try { me = JSON.parse(localStorage.getItem("chatUser") || "{}"); } catch {}
+    cb({ token, id: me.id, sessionToken: me.sessionToken });
   }
 });
 
@@ -16,14 +18,16 @@ initBonusAccount(socket);
 
 socket.on("connect_error", (err) => {
   console.error("Socket connect error:", err.message);
-  const isAuthFailure = err.message === "Invalid or missing token";
 
-  if (isAuthFailure) {
+  if (err.message === "Invalid or missing token") {
     localStorage.removeItem("chatToken");
     window.location.href = "/login";
     return;
   }
 
+  if (err.message === "Invalid session") {
+    window.location.href = "/login";
+  }
 });
 
 
@@ -32,12 +36,14 @@ socket.on("connect_error", (err) => {
 socket.on("roleList", (roles) => {
   customRoles = roles || [];
   refreshRoleManagerIfOpen();
+  initVoicePanelIdentity();
 });
 
 let serverConfigReceived = false;
 socket.on("serverConfig", (data) => {
   JITSI_CONFIG = data.jitsi;
   SERVER_CONFIG = data;
+  renderUsers(currentUsers);
   loadUserBackground();
   serverConfigReceived = true;
   pepeList = data.pepeList || [];
@@ -686,11 +692,12 @@ socket.on("updateUser", (data) => {
     console.log(`🔄 Self update Level ${user.level} | XP ${user.xp}`);
   }
 
-  if (data.user.level !== undefined){
+  if (target && data.user.level !== undefined) {
     target.level = data.user.level;
   }
 
    renderUsers(currentUsers);
+   initVoicePanelIdentity();
 
   if (typeof window.updateProfilePopupFromList === 'function') {
     window.updateProfilePopupFromList(currentUsers);
@@ -761,9 +768,11 @@ socket.on("onlineUsers", (users) => {
     if (me.gameStatus !== user.gameStatus) { user.gameStatus = me.gameStatus; changed = true; }
     if (me.musicStatus !== user.musicStatus) { user.musicStatus = me.musicStatus; changed = true; }
     if (changed) updateVcPresence();
+    if (me.customRoleIds) { user.customRoleIds = me.customRoleIds; }
+    initVoicePanelIdentity();
   }
 });
-
+socket.on("error", (e) => { console.warn("Server error:", e); showToast(e?.msg || "Server error"); });
 socket.on("messageSeen", (data) => {
   const { messageId, userId, username, avatar, seenAt } = data;
   if (messageSeenBy.size > 500) {
@@ -882,60 +891,6 @@ sendNotification(`New message in #${getChannelDisplayName(msgChannel)}`, getNoti
     renderedEnd = allHistoryMessages.length; 
     addMessage(message, true);
   }
-});
-
-
-
-socket.on('removePrivateYoutube', () => {
-  const videoElements = document.querySelectorAll('.private-youtube-message');
-  const last = videoElements[videoElements.length - 1];
-  if (!last) return;
-  const playerDiv = last.querySelector('[id^="yt-"]');
-  if (playerDiv && activePlayers.has(playerDiv.id)) {
-    activePlayers.get(playerDiv.id).destroy();
-    activePlayers.delete(playerDiv.id);
-  }
-  if (last.parentNode) last.parentNode.removeChild(last);
-});
-
-socket.on("receivePrivateYoutube", async (data) => {
-  const messagesDiv = document.getElementById("messages");
-
-  const videoContainer = document.createElement("div");
-  videoContainer.className = 'private-youtube-message';
-  const playerId = `yt-${Date.now()}`;
-  const videoId = getYouTubeId(data.url);
-
-  if (!videoId) return;
-
-  videoContainer.style.cssText = `
-    margin: 10px 0;
-    padding: 12px;
-    background: #1e1f22;
-    border-left: 4px solid #FF0000;
-    border-radius: 6px;
-    color: #fff;
-  `;
-
-  videoContainer.innerHTML = `
-    <div style="font-size: 12px; color: #b9bbbe; margin-bottom: 8px;">
-      📨 You Got Aids From <span style="color: #FF0000; font-weight: bold;">
-      ${data.senderName}</span>
-    </div>
-
-    <div style="position: relative; width: 100%; aspect-ratio: 16/9; pointer-events: none;">
-      <div id="${playerId}" style="position:absolute; inset:0;"></div>
-    </div>
-
-    <div style="margin-top: 6px; font-size: 11px; color: #72767d;">
-      (Only visible to you)
-    </div>
-  `;
-
-  messagesDiv.appendChild(videoContainer);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
-  await loadYouTubeAPI();
-  createPlayer(playerId, videoId);
 });
 
 
@@ -1206,6 +1161,18 @@ function updateLastActiveOnServer() {
   }
 }
 
+function authedFetch(url, opts = {}) {
+  const me = JSON.parse(localStorage.getItem("chatUser") || "{}");
+  return fetch(url, {
+    ...opts,
+    headers: {
+      ...(opts.headers || {}),
+      "Authorization": "Bearer " + localStorage.getItem("chatToken"),
+      "X-User-Id": me.id || "",
+      "X-Session": me.sessionToken || ""
+    }
+  });
+}
 
 function sendSingleEmote(filename) {
   const msg = {
@@ -1305,6 +1272,7 @@ document.getElementById("saveStatusBtn").onclick = () => {
 
   const newStatus = document.getElementById("settingsStatusInput").value.trim();
   user.customStatus = newStatus;
+  updateNamePreview();
   localStorage.setItem("chatUser", JSON.stringify(user));
   updateVcPresence();
   const myIndex = currentUsers.findIndex(u => u && u.id === user.id);

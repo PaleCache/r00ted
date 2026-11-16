@@ -30,7 +30,7 @@ require('dotenv').config({ path: './config/.env' });
 const webpush = require('web-push');
 const LIBRARY_ROOT = path.resolve(path.join(__dirname, "public", "library"));
 const LIBRARY_EXTS = [".zip", ".7z", ".bin", ".gba", ".gb", ".gbc", ".nes", ".sfc", ".smc", ".n64", ".z64", ".iso", ".chd"];
-
+const { safeRequest } = require("./safe-fetch");
 const ALLOWED_UPLOAD_EXT = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
@@ -64,7 +64,8 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 
-
+process.on("uncaughtException", (err) => console.error("❌ Uncaught exception:", err));
+process.on("unhandledRejection", (err) => console.error("❌ Unhandled rejection:", err));
 
 async function sendPushToUser(userId, { title, body, icon, tag, url }) {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
@@ -119,21 +120,47 @@ try {
 }
 
 function signSession(userId) {
-  return crypto.createHmac("sha256", SESSION_SECRET).update(userId).digest("hex");
+  return crypto.createHmac("sha256", SESSION_SECRET).update(userId).digest("hex").slice(0, 32);
+}
+
+const B32 = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function b32(buf, len) {
+  let out = "", bits = 0, val = 0;
+  for (const byte of buf) {
+    val = ((val << 8) | byte) & 0xFFFF; bits += 8;
+    while (bits >= 5) { out += B32[(val >> (bits - 5)) & 31]; bits -= 5; }
+  }
+  return out.slice(0, len);
+}
+const shortId = id => b32(crypto.createHash("sha256").update(id).digest(), 10);
+const keyMac  = id => b32(crypto.createHmac("sha256", SESSION_SECRET).update("key:" + id).digest(), 50);
+function makeLoginKey(id) {
+  return (shortId(id) + keyMac(id)).match(/.{1,4}/g).join("-");
+}
+function idFromLoginKey(raw) {
+  const k = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (k.length !== 60) return null;
+  const sid = k.slice(0, 10), mac = k.slice(10);
+  for (const id of allUsers.keys()) {
+    if (shortId(id) !== sid) continue;
+    return crypto.timingSafeEqual(Buffer.from(keyMac(id)), Buffer.from(mac)) ? id : null;
+  }
+  return null;
 }
 
 function verifySession(userId, sessionToken) {
   if (!userId || !sessionToken) return false;
   try {
-    const expected = signSession(userId);
-    const a = Buffer.from(expected, "hex");
-    const b = Buffer.from(String(sessionToken), "hex");
-    if (a.length !== b.length) return false;
-    return crypto.timingSafeEqual(a, b);
+    const full = crypto.createHmac("sha256", SESSION_SECRET).update(userId).digest("hex");
+    const t = String(sessionToken);
+    const expected = t.length === 64 ? full : full.slice(0, 32);
+    if (t.length !== expected.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(t));
   } catch {
     return false;
   }
 }
+
 
 let CHANNELS = [];
 const CHANNELS_FILE = path.join(__dirname, "./data/channels.json");
@@ -268,12 +295,7 @@ function addServerXP(userId, amount) {
 
 function sanitizeString(str, maxLength = 100) {
   if (typeof str !== 'string') return '';
-  return str
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .slice(0, maxLength);
+  return str.slice(0, maxLength);
 }
 
 
@@ -437,7 +459,7 @@ const saveMessages = () => {
 };
 
 const { ogRoute } = require("./og-route");
-app.get("/og", ogRoute);
+app.get("/og", requireAuth, ogRoute);
 
 
 app.get('/ping', (req, res) => {
@@ -450,7 +472,53 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
     res.setHeader("X-Content-Type-Options", "nosniff");
   }
 }));
+
+app.use("/avatars", (req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self'; sandbox");
+  next();
+});
+
 app.use("/avatars", express.static(path.join(__dirname, "public/avatars")));
+app.use("/library", mvAuthed);
+
+const MEDIA_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const mediaSig = (exp) =>
+  crypto.createHmac("sha256", SESSION_SECRET).update("media:" + exp).digest("hex").slice(0, 32);
+
+function isValidMediaToken(t) {
+  if (typeof t !== "string") return false;
+  const [tag, expStr, sig] = t.split(".");
+  const exp = Number(expStr);
+  if (tag !== "m" || !Number.isFinite(exp) || exp < Date.now() || !sig) return false;
+  const expected = mediaSig(exp);
+  return sig.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+}
+
+
+const ALLOW_PASSWORD_IN_URL = false;   
+
+const hasMediaAccess = (req) =>
+  isValidMediaToken(req.query.token) ||
+  (ALLOW_PASSWORD_IN_URL && req.query.token === CHAT_PASSWORD);
+
+function mediaAuth(req, res, next) {
+  if (hasMediaAccess(req)) return next();
+  return requireAuth(req, res, next); 
+}
+
+app.get("/api/media-token", requireAuth, (req, res) => {
+  const exp = Date.now() + MEDIA_TOKEN_TTL_MS;
+  res.set("Cache-Control", "no-store").json({ token: `m.${exp}.${mediaSig(exp)}`, expiresAt: exp });
+});
+
+const GATED_MUSIC_EXTS = new Set([".mp3", ".flac", ".wav", ".ogg", ".m4a", ".aac", ".opus", ".mp4"]);
+app.use("/music", (req, res, next) => {
+  if (GATED_MUSIC_EXTS.has(path.extname(req.path).toLowerCase())) return mediaAuth(req, res, next);
+  next();
+});
+app.use("/videos", mediaAuth);
 app.use(express.static("public"));
 
 
@@ -475,7 +543,18 @@ function formatLastSeen(timestamp) {
   return `${Math.floor(minutes / 1440)}d ago`;
 }
 
-
+const pub = (u) => ({
+  id: u.id, username: u.username, avatar: u.avatar, banner: u.banner,
+  usernameColor: u.usernameColor, badge: u.badge, customRoleIds: u.customRoleIds,
+  profileHeader: u.profileHeader, profileGradient: u.profileGradient,
+  profileEffect: u.profileEffect, level: u.level, xp: u.xp,
+  isAdmin: u.isAdmin, isDeveloper: u.isDeveloper, isPromptEngineer: u.isPromptEngineer,
+  status: u.status, customStatus: u.customStatus, lastActive: u.lastActive,
+  gameStatus: u.gameStatus, gameStartedAt: u.gameStartedAt,
+  musicStatus: u.musicStatus, musicArtUrl: u.musicArtUrl,
+  streamStatus: u.streamStatus, streamArtUrl: u.streamArtUrl, isBot: u.isBot,
+  userAgent: u.userAgent
+});
 
 function broadcastOnlineUsers() {
   const now = Date.now();
@@ -483,14 +562,14 @@ function broadcastOnlineUsers() {
   onlineUsers.forEach(user => {
    const hasGame = !!user.gameStatus;
     usersToSend.push({
-      ...user,
+      ...pub(user),
       status: user.status || 'online',
       gameStatus: user.gameStatus || null,
       customStatus: user.customStatus || '',
       musicStatus: user.musicStatus || null,
       musicArtUrl: user.musicArtUrl || null,
       streamStatus: user.streamStatus || null,
-      profileEffect: user.profileEffect || null 
+      profileEffect: user.profileEffect || null
     });
   });
 
@@ -520,7 +599,7 @@ function broadcastOnlineUsers() {
     }
 
     usersToSend.push({
-      ...user,
+      ...pub(user),
       status: status,
       customStatus: displayText
     });
@@ -1233,7 +1312,7 @@ const PONG_PADDLE_SPEED = 9;
 const SLOTS_MAX_BET_CHIPS = 20000;
 const SLOTS_REEL_COUNT = 3;
 const SLOTS_ANIMATION_MS = 900 + 1150 + 1400; 
-const SLOTS_FREE_SPINS_COST = 5;
+const SLOTS_FREE_SPINS_COST = 12;
 const SLOTS_FREE_SPINS_COUNT = 10;
 const SLOTS_FREE_SPIN_BET = 1
  
@@ -2369,7 +2448,7 @@ function wgScheduleNext(userId, potIndex, pot) {
   }
 
   const activeMs = pot.growAccumMs + Math.max(0, now - pot.growSince);
-  const msToReady = Math.max(0, WG_GROW_MS - activeMs);
+  const msToReady = Math.max(0, (pot.growMs || WG_GROW_MS) - activeMs);
   const msToWaterDue = Math.max(0, pot.nextWaterDueAt - now);
   pot.timer = setTimeout(() => wgHandleTimer(userId, potIndex, pot), Math.min(msToReady, msToWaterDue));
 }
@@ -2415,6 +2494,7 @@ if (pot.wilted && now >= pot.wiltedAt + WG_DEATH_GRACE_MS) {
 
 
 const DARTS_MAX_BET_CHIPS = 20000;
+const dartsLastThrow = new Map();
 const DARTS_HOUSE_EDGE = 0.97;
 const DARTS_ANIMATION_MS = 1600;
 
@@ -2967,7 +3047,13 @@ function bjMaybeStartBettingRound() {
 
 function bjLockBetsAndDeal() {
   bjClearTimers();
-  const bettors = bjOccupiedSeats().filter(({ s }) => s.bet > 0);
+  bjOccupiedSeats().forEach(({ s }) => {
+  if (s.bet > 0) {
+    if (getChipBalance(s.userId) < s.bet) s.bet = 0;
+    else adjustUserXp(s.userId, -s.bet * BJ_XP_PER_CHIP);
+  }
+});
+const bettors = bjOccupiedSeats().filter(({ s }) => s.bet > 0);
   if (bettors.length === 0) {
     bjTable.stage = "waiting";
     bjBroadcastState();
@@ -3064,10 +3150,9 @@ function bjResolveTable() {
   }
 
   s.result = { type, text };
-  const netChipsChange = payoutChips - s.bet; 
-  if (netChipsChange !== 0) {
-    adjustUserXp(s.userId, netChipsChange * BJ_XP_PER_CHIP);
-  }
+  if (payoutChips > 0) {
+  adjustUserXp(s.userId, payoutChips * BJ_XP_PER_CHIP);
+}
 });
 
   bjTable.stage = "results";
@@ -3759,43 +3844,130 @@ app.get("/login", (req, res) => {
     </head>
     <body>
       <div class="login-container">
-        <div class="logo">R00TED</div>
-        <p class="subtitle">Private Anonymous Chat</p>
+  <div class="logo">R00TED</div>
 
-        <div class="input-group">
-          <input type="password" id="passwordInput" placeholder="Enter password" required autofocus>
-        </div>
+  <!-- Step 1: password -->
+  <div id="stepPassword">
+    <p class="subtitle">Private Anonymous Chat</p>
+    <div class="input-group">
+      <input type="password" id="passwordInput" placeholder="Enter password" required autofocus>
+    </div>
+    <button type="button" id="loginBtn">Join Chat</button>
+    <p class="error" id="loginError"></p>
+  </div>
 
-        <button type="button" id="loginBtn">Join Chat</button>
+  <!-- Step 2: generate or login -->
+  <div id="stepChoice" style="display:none;">
+    <p class="subtitle">Choose how to continue</p>
+    <button type="button" id="generateBtn">Generate New Account</button>
+    <button type="button" id="showLoginBtn" class="secondary">I Have a Login Key</button>
+    <p class="error" id="choiceError"></p>
+  </div>
 
-        <p class="error" id="loginError"></p>
+  <!-- Step 2a: show generated key -->
+  <div id="stepKey" style="display:none;">
+    <p class="subtitle">Save this key. It's the only way to log back into this account.</p>
+    <textarea id="keyOutput" readonly rows="4"></textarea>
+    <button type="button" id="copyKeyBtn" class="secondary">Copy Key</button>
+    <button type="button" id="continueBtn">I've Saved It, Continue</button>
+  </div>
 
-        <div class="footer">
-          Protected access • Only authorized users
-        </div>
-      </div>
+  <!-- Step 2b: enter key -->
+  <div id="stepEnterKey" style="display:none;">
+    <p class="subtitle">Paste your login key</p>
+    <div class="input-group">
+      <input type="password" id="keyInput" placeholder="Login key">
+    </div>
+    <button type="button" id="keyLoginBtn">Log In</button>
+    <button type="button" id="backBtn" class="secondary">Back</button>
+    <p class="error" id="keyError"></p>
+  </div>
 
-      <script>
-       document.getElementById("loginBtn").addEventListener("click", async () => {
-  const password = document.getElementById("passwordInput").value;
-  const res = await fetch("/api/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password })
-  });
-  const data = await res.json();
-  if (data.success) {
-    localStorage.setItem("chatToken", data.token);
-    window.location.href = "/";
-  } else {
-    document.getElementById("loginError").textContent = data.error;
+  <div class="footer">Protected access • Only authorized users</div>
+</div>
+
+<style>
+  button.secondary { background:#40444b; }
+  button.secondary:hover { background:#4a4e56; }
+  textarea#keyOutput {
+    width:100%; box-sizing:border-box; padding:12px; background:#40444b;
+    border:1px solid #40444b; border-radius:8px; color:#fff;
+    font-family:monospace; font-size:12px; resize:none; margin-bottom:6px;
   }
-});
+</style>
 
-document.getElementById("passwordInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") document.getElementById("loginBtn").click();
-});
-      </script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const steps = ["stepPassword", "stepChoice", "stepKey", "stepEnterKey"];
+  function show(step) { steps.forEach(s => $(s).style.display = s === step ? "block" : "none"); }
+  const authHeaders = () => ({
+    "Content-Type": "application/json",
+    "Authorization": "Bearer " + localStorage.getItem("chatToken")
+  });
+
+  function saveIdentity(d) {
+    const prev = JSON.parse(localStorage.getItem("chatUser") || "{}");
+    localStorage.setItem("chatUser", JSON.stringify({
+      ...prev,
+      id: d.id,
+      sessionToken: d.sessionToken,
+      username: d.username,
+      avatar: d.avatar,
+      usernameColor: d.usernameColor || "username-cyan"
+    }));
+  }
+
+ 
+  $("loginBtn").addEventListener("click", async () => {
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: $("passwordInput").value })
+    });
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem("chatToken", data.token);
+      show("stepChoice");
+    } else {
+      $("loginError").textContent = data.error;
+    }
+  });
+  $("passwordInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("loginBtn").click(); });
+
+ 
+  $("generateBtn").addEventListener("click", async () => {
+    $("choiceError").textContent = "";
+    const res = await fetch("/api/account/generate", { method: "POST", headers: authHeaders() });
+    const data = await res.json();
+    if (!data.success) { $("choiceError").textContent = data.error || "Failed to generate."; return; }
+    saveIdentity(data);
+    $("keyOutput").value = data.key;
+    show("stepKey");
+  });
+
+  $("copyKeyBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("keyOutput").value); $("copyKeyBtn").textContent = "Copied!"; }
+    catch { $("keyOutput").select(); document.execCommand("copy"); $("copyKeyBtn").textContent = "Copied!"; }
+    setTimeout(() => $("copyKeyBtn").textContent = "Copy Key", 1500);
+  });
+  $("continueBtn").addEventListener("click", () => { window.location.href = "/"; });
+
+ 
+  $("showLoginBtn").addEventListener("click", () => show("stepEnterKey"));
+  $("backBtn").addEventListener("click", () => show("stepChoice"));
+  $("keyLoginBtn").addEventListener("click", async () => {
+    $("keyError").textContent = "";
+    const res = await fetch("/api/account/login", {
+      method: "POST", headers: authHeaders(),
+      body: JSON.stringify({ key: $("keyInput").value })
+    });
+    const data = await res.json();
+    if (!data.success) { $("keyError").textContent = data.error || "Login failed."; return; }
+    saveIdentity(data);
+    window.location.href = "/";
+  });
+  $("keyInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("keyLoginBtn").click(); });
+</script>
     </body>
     </html>
   `);
@@ -3814,8 +3986,7 @@ const { Readable } = require("node:stream");
 const MV_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36";
 const mvAllowedHost = (h) => { h = String(h).toLowerCase(); return h === "live-video.net" || h.endsWith(".live-video.net"); };
 function mvAuthed(req, res, next) {
-  if (req.query.token === CHAT_PASSWORD) return next();
-  return requireAuth(req, res, next);
+  return mediaAuth(req, res, next);
 }
 const mvProxyPath = (t, tok) =>
 "/api/multiview/proxy?url=" + encodeURIComponent(t) + (tok ? "&token=" + encodeURIComponent(tok) : "");
@@ -3850,7 +4021,7 @@ app.get("/api/multiview/resolve", mvAuthed, async (req, res) => {
 });
 
 app.get("/api/multiview/proxy", mvAuthed, async (req, res) => {
-  const tok = req.query.token === CHAT_PASSWORD ? CHAT_PASSWORD : null;
+  const tok = hasMediaAccess(req) ? String(req.query.token) : null;
   let target;
   try { target = new URL(String(req.query.url || "")); } catch { return res.status(400).send("Invalid URL"); }
   const ac = new AbortController();
@@ -3922,95 +4093,58 @@ const radioProxyActive = new Map();
 const RADIO_PROXY_MAX_PER_IP = 4;
 
 app.get("/api/radio/proxy", async (req, res) => {
-  if (req.query.token !== CHAT_PASSWORD) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
+  if (!hasMediaAccess(req)) return res.status(401).json({ error: "Unauthorized" });
   const target = req.query.url;
-  if (!target || typeof target !== "string") {
-    return res.status(400).json({ error: "Missing url" });
-  }
+  if (!target || typeof target !== "string") return res.status(400).json({ error: "Missing url" });
 
-  let parsed;
-  try {
-    parsed = new URL(target);
-  } catch (e) {
-    return res.status(400).json({ error: "Invalid URL" });
-  }
-
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    return res.status(400).json({ error: "Only http/https URLs are allowed" });
-  }
-  if (isPrivateOrLocalHost(parsed.hostname)) {
-    return res.status(400).json({ error: "That host is not allowed" });
-  }
-
-  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+  const ip = reqIp(req);
   const activeCount = radioProxyActive.get(ip) || 0;
   if (activeCount >= RADIO_PROXY_MAX_PER_IP) {
     return res.status(429).json({ error: "Too many active radio streams from your connection" });
   }
   radioProxyActive.set(ip, activeCount + 1);
 
-  let upstream;
+  let cleaned = false;
   const cleanup = () => {
+    if (cleaned) return;      
+    cleaned = true;
     const c = (radioProxyActive.get(ip) || 1) - 1;
-    if (c <= 0) radioProxyActive.delete(ip);
-    else radioProxyActive.set(ip, c);
+    if (c <= 0) radioProxyActive.delete(ip); else radioProxyActive.set(ip, c);
   };
 
+  let upstream;
   try {
-    upstream = await axios({
-      method: "get",
-      url: parsed.toString(),
-      responseType: "stream",
+    ({ res: upstream } = await safeRequest(target, {
       maxRedirects: RADIO_MAX_REDIRECTS,
       timeout: RADIO_FETCH_TIMEOUT,
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; RadioProxy/1.0)",
         "Icy-MetaData": "0",
         ...(req.headers.range ? { Range: req.headers.range } : {})
-      },
-      validateStatus: () => true
-    });
+      }
+    }));
   } catch (err) {
     cleanup();
-    console.error("❌ Radio proxy fetch failed:", err.message);
     return res.status(502).json({ error: "Could not reach the radio stream" });
   }
 
-  if (upstream.status >= 400) {
-    cleanup();
-    return res.status(502).json({ error: `Upstream returned ${upstream.status}` });
+  if (upstream.statusCode >= 400) {
+    upstream.destroy(); cleanup();
+    return res.status(502).json({ error: `Upstream returned ${upstream.statusCode}` });
   }
 
-  res.status(upstream.status === 206 ? 206 : 200);
+  res.status(upstream.statusCode === 206 ? 206 : 200);
   res.set("Access-Control-Allow-Origin", "*");
   res.set("Cache-Control", "no-cache, no-store");
-  res.set("Connection", "keep-alive");
+  ["content-type", "content-length", "accept-ranges", "content-range", "icy-name", "icy-genre"]
+    .forEach(h => { if (upstream.headers[h]) res.set(h, upstream.headers[h]); });
+  if (!upstream.headers["content-type"]) res.set("Content-Type", "audio/mpeg");
 
-  const passthroughHeaders = ["content-type", "content-length", "accept-ranges", "content-range", "icy-name", "icy-genre"];
-  passthroughHeaders.forEach(h => {
-    if (upstream.headers[h]) res.set(h, upstream.headers[h]);
-  });
-  if (!upstream.headers["content-type"]) {
-    res.set("Content-Type", "audio/mpeg");
-  }
-
-  upstream.data.pipe(res);
-
-  const onClose = () => {
-    cleanup();
-    upstream.data.destroy();
-  };
+  upstream.pipe(res);
+  const onClose = () => { cleanup(); upstream.destroy(); };
   req.on("close", onClose);
   res.on("close", onClose);
-  upstream.data.on("error", (err) => {
-    console.error("❌ Radio proxy stream error:", err.message);
-    cleanup();
-    if (!res.headersSent) res.status(502).end();
-    else res.end();
-  });
+  upstream.on("error", () => { cleanup(); res.end(); });
 });
  
 app.get("/api/music/browse", requireAuth, (req, res) => {
@@ -4241,8 +4375,9 @@ app.get("/api/music/playlists", requireAuth, (req, res) => {
   res.json({ playlists: savedPlaylists });
 });
  
-app.post("/api/music/playlists", express.json(), requireAuth, (req, res) => {
-  const { name, tracks, createdBy, userId } = req.body || {};
+app.post("/api/music/playlists", express.json(), requireUser, (req, res) => {
+  const { name, tracks, createdBy } = req.body || {};
+  const userId = req.userId;
   const cleanName = (typeof name === "string" ? name.trim() : "").slice(0, 60);
   if (["__proto__", "constructor", "prototype"].includes(cleanName)) {
     return res.status(400).json({ error: "Invalid playlist name" });
@@ -4252,7 +4387,7 @@ app.post("/api/music/playlists", express.json(), requireAuth, (req, res) => {
     return res.status(400).json({ error: "Playlist must contain at least one track" });
   }
 
-  const requester = userId ? allUsers.get(userId) : null;
+  const requester = allUsers.get(userId);
   const isPrivileged = !!(requester && (requester.isAdmin || requester.isDeveloper));
 
   const existing = savedPlaylists[cleanName];
@@ -4275,6 +4410,18 @@ app.post("/api/music/playlists", express.json(), requireAuth, (req, res) => {
         rawUrl: String(t.rawUrl).slice(0, 1000)
       };
     }
+
+    if (t.type === "youtube") {
+      if (typeof t.videoId !== "string" || !/^[\w-]{11}$/.test(t.videoId)) return null;
+      const listId = typeof t.listId === "string" && /^[\w-]{1,64}$/.test(t.listId) ? t.listId : null;
+      return {
+        type: "youtube",
+        name: String(t.name || "YouTube video").slice(0, 200),
+        artist: String(t.artist || "YouTube").slice(0, 200),
+        videoId: t.videoId,
+        listId
+      };
+    }
     if (typeof t.relPath === "string" && typeof t.url === "string") {
       return {
         type: "server",
@@ -4295,7 +4442,7 @@ app.post("/api/music/playlists", express.json(), requireAuth, (req, res) => {
   savedPlaylists[cleanName] = {
     createdAt: existing?.createdAt || Date.now(),
     createdBy: sanitizeString(String(requester?.username || createdBy || "Unknown"), 32),
-    ownerId: userId || existing?.ownerId || null,
+    ownerId: userId,
     tracks: cleanTracks
   };
   savePlaylistsToDisk(savedPlaylists);
@@ -4305,9 +4452,8 @@ app.post("/api/music/playlists", express.json(), requireAuth, (req, res) => {
 });
  
 
-app.delete("/api/music/playlists/:name", express.json(), requireAuth, (req, res) => {
-  const { userId } = req.body || {};
-  const requester = userId ? allUsers.get(userId) : null;
+app.delete("/api/music/playlists/:name", requireUser, (req, res) => {
+  const requester = allUsers.get(req.userId);
   const isPrivileged = !!(requester && (requester.isAdmin || requester.isDeveloper));
 
   if (!isPrivileged) {
@@ -4481,7 +4627,7 @@ let voiceRooms = new Map();
 app.use(express.json());
 
 app.post("/api/login", express.json(), (req, res) => {
-  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+  const ip = reqIp(req);
   const now = Date.now();
   
   const attempts = loginAttempts.get(ip) || { count: 0, lockedUntil: 0 };
@@ -4525,6 +4671,97 @@ function requireAuth(req, res, next) {
   next();
 }
 
+function requireUser(req, res, next) {
+  requireAuth(req, res, () => {
+    const id = req.headers["x-user-id"];
+    const tok = req.headers["x-session"];
+    if (!verifySession(id, tok) || !allUsers.has(id)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    req.userId = id;
+    next();
+  });
+}
+
+const keyLoginAttempts = new Map();
+
+function reqIp(req) {
+  const ra = req.socket.remoteAddress || "unknown";
+  const fromLocalProxy = ra === "127.0.0.1" || ra === "::1" || ra === "::ffff:127.0.0.1";
+  return (fromLocalProxy && req.headers["x-real-ip"]) || ra;
+}
+
+
+app.post("/api/account/generate", requireAuth, (req, res) => {
+  const ip = reqIp(req);
+  const now = Date.now();
+  let attempts = accountCreationAttempts.get(ip) || { count: 0, resetTime: now + ACCOUNT_CREATION_WINDOW };
+  if (now > attempts.resetTime) attempts = { count: 0, resetTime: now + ACCOUNT_CREATION_WINDOW };
+
+  if (attempts.count >= ACCOUNT_CREATION_LIMIT) {
+    return res.status(429).json({ success: false, error: `Too many new accounts from your IP. Limit is ${ACCOUNT_CREATION_LIMIT} per hour.` });
+  }
+  attempts.count++;
+  accountCreationAttempts.set(ip, attempts);
+
+  const id = crypto.randomUUID();
+  const username = "Anonymous #" + Math.floor(Math.random() * 10000);
+  const avatar = `/avatars/default${Math.floor(Math.random() * 9) + 1}.png`;
+
+  allUsers.set(id, {
+    id, username, avatar,
+    xp: 0, level: 1,
+    usernameColor: "username-cyan",
+    badge: null, banner: "",
+    isAdmin: false,
+    lastActive: Date.now()
+  });
+  saveUsers();
+
+  const sessionToken = signSession(id);
+  console.log(`🆕 Account generated: ${username} IP: ${ip}`);
+  res.json({ success: true, id, sessionToken, username, avatar, key: makeLoginKey(id) });
+});
+
+app.post("/api/account/key", requireAuth, (req, res) => {
+  const { id, sessionToken } = req.body || {};
+  if (!verifySession(id, sessionToken) || !allUsers.has(id)) return res.status(401).json({ error: "Invalid" });
+  res.json({ key: makeLoginKey(id) });
+});
+
+app.post("/api/account/login", requireAuth, (req, res) => {
+  const ip = reqIp(req);
+  const now = Date.now();
+  const rec = keyLoginAttempts.get(ip) || { count: 0, resetTime: now + 10 * 60 * 1000 };
+  if (now > rec.resetTime) { rec.count = 0; rec.resetTime = now + 10 * 60 * 1000; }
+  if (rec.count >= 5) {
+    return res.status(429).json({ success: false, error: "Too many attempts. Try again later." });
+  }
+
+  const raw = String(req.body?.key || "").trim();
+  let id = idFromLoginKey(raw);
+  if (!id) {
+    const dot = raw.lastIndexOf(".");
+    const oldId = dot > 0 ? raw.slice(0, dot) : "";
+    if (oldId && verifySession(oldId, raw.slice(dot + 1))) id = oldId;
+  }
+  if (!id || !allUsers.has(id)) {
+    rec.count++;
+    keyLoginAttempts.set(ip, rec);
+    return res.status(401).json({ success: false, error: "Invalid key." });
+  }
+  const sessionToken = signSession(id);
+
+  keyLoginAttempts.delete(ip);
+  const u = allUsers.get(id);
+  res.json({
+    success: true, id, sessionToken,
+    username: u.username,
+    avatar: u.avatar,
+    usernameColor: u.usernameColor || "username-cyan"
+  });
+});
+
 
 let whisperGroups = []; 
 let groupWhispers = []; 
@@ -4561,9 +4798,9 @@ app.get('/', requirePageAuth, (req, res) => {
 });
 
 
-app.get('/api/gifs/search', async (req, res) => {
-  const query = req.query.q;
-  const limit = req.query.limit || 100;
+app.get('/api/gifs/search', requireAuth, async (req, res) => {
+const query = typeof req.query.q === "string" ? req.query.q.slice(0, 100) : "";
+const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 100);
 
   if (!query) {
     return res.status(400).json({ error: 'Query required' });
@@ -4601,7 +4838,7 @@ app.get('/api/gifs/search', async (req, res) => {
   }
 });
 
-app.get('/api/gifs/trending', async (req, res) => {
+app.get('/api/gifs/trending', requireAuth, async (req, res) => {
   const limit = req.query.limit || 48;
   const cacheKey = `trending:${limit}`;
   const cached = getCached(cacheKey);
@@ -4635,11 +4872,20 @@ app.get('/api/gifs/trending', async (req, res) => {
 });
 
 
+const SAFE_IMG_EXT = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp"
+};
+
 const avatarUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, "public/avatars/"),
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
+      const ext = SAFE_IMG_EXT[file.mimetype];
+      if (!ext) return cb(new Error("Invalid file type"));
       cb(null, `${crypto.randomUUID()}${ext}`);
     }
   }),
@@ -4730,16 +4976,42 @@ app.post("/upload-image", requireAuth, upload.single("image"), async (req, res) 
 
 
 
+const handshakeFails = new Map();
+function handshakeBlocked(ip) {
+  const r = handshakeFails.get(ip);
+  return !!r && Date.now() < r.resetTime && r.count >= 20;
+}
+function noteHandshakeFail(ip) {
+  const now = Date.now();
+  let r = handshakeFails.get(ip);
+  if (!r || now > r.resetTime) r = { count: 0, resetTime: now + 10 * 60 * 1000 };
+  r.count++;
+  handshakeFails.set(ip, r);
+}
+
 io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
-  if (token === CHAT_PASSWORD) return next();
-  if (isValidBotToken(token)) {
-    socket.isBotToken = true;
+  const ip = getClientIp(socket);
+  if (handshakeBlocked(ip)) return next(new Error("Too many attempts"));
+
+  const a = socket.handshake.auth || {};
+
+  if (isValidBotToken(a.token)) { socket.isBotToken = true; return next(); }
+
+  if (a.token === CHAT_PASSWORD && verifySession(a.id, a.sessionToken) && allUsers.has(a.id)) {
     return next();
   }
+
+  noteHandshakeFail(ip);
+
+  const kind = a.token === CHAT_PASSWORD ? "RIGHT-password-no-session" : "wrong-token";
+  const t = String(a.token || "");
+  const fp = crypto.createHash("sha256").update(t).digest("hex").slice(0, 10);
+  const shape = /^[0-9a-f]{48}$/i.test(t) ? "looks-like-bot-token"
+              : t.length === String(CHAT_PASSWORD).length ? "same-length-as-password"
+              : "other";
+  console.log(`🚫 handshake rejected ip=${ip} kind=${kind} len=${t.length} shape=${shape} fp=${fp} hasId=${!!a.id} hasSess=${!!a.sessionToken} ua=${socket.handshake.headers['user-agent']}`);
   return next(new Error("Invalid or missing token"));
 });
-
 
 
 const accountCreationAttempts = new Map(); 
@@ -4979,6 +5251,14 @@ async function moonFetchLivePrices() {
     console.error("❌ Moon live price fetch failed:", e.message);
   }
 }
+
+function cleanUsername(v) {
+  if (typeof v !== "string") return null;
+  const n = v.trim();
+  if (n.length < 2 || n.length > 32) return null;
+  if (/[<>"&\u0000-\u001f]/.test(n)) return null;
+  return n;
+}
  
 
 const moonDailyKlines = new Map();
@@ -5015,26 +5295,99 @@ if (!moonPriceInterval) {
     });
 }
 
-io.on("connection", (socket) => {
+const HUMAN_MESSAGE_TYPES = new Set(["text", "image", "video", "audio", "file"]);
 
+function buildHumanMessage(data, now) {
+  const type = String(data.type || "text");
+  if (!HUMAN_MESSAGE_TYPES.has(type)) return null;         
+
+  const encrypted = data.encrypted === true;
+  let encPayload = null;
+  if (encrypted) {
+    try { if (JSON.stringify(data.encPayload).length <= 16000) encPayload = data.encPayload; } catch {}
+    if (!encPayload) return null;
+  }
+
+  const text = typeof data.text === "string" ? data.text.slice(0, type === "text" ? 4000 : 2000) : "";
+  if (!text && !encrypted) return null;
+  if (type === "image" && !/^(https?:\/\/|\/(uploads|avatars)\/)/i.test(text)) return null;
+
+  const idOk = typeof data.id === "string" && /^[0-9a-f-]{36}$/i.test(data.id)
+    && !messages.some(m => m.id === data.id);
+
+  return {
+    id: idOk ? data.id : crypto.randomUUID(),
+    userId: data.userId, username: data.username, avatar: data.avatar,
+    usernameColor: data.usernameColor, badge: data.badge, level: data.level,
+    isAdmin: data.isAdmin, isDeveloper: data.isDeveloper, isPromptEngineer: data.isPromptEngineer,
+    prestigeBadge: data.prestigeBadge, customRoleIds: data.customRoleIds,
+    type, text, channel: data.channel, time: now,
+    fileName: typeof data.fileName === "string" ? data.fileName.slice(0, 100) : undefined,
+    encrypted, encPayload,
+    isRoomMention: type === "text" && text.includes("@room"),
+    seenBy: []
+  };
+}
+
+function cleanProfileField(field, v) {
+  switch (field) {
+    case "username": {
+      const n = cleanUsername(v);
+      return n ? { ok: true, value: n } : { ok: false };
+    }
+    case "customStatus":
+      return { ok: true, value: String(v).slice(0, 100) };
+    case "badge":
+    case "prestigeBadge":
+      return (v === null || (typeof v === "string" &&
+        /^(\/avatars\/)?[\w.-]{1,80}\.(png|jpe?g|gif|webp|svg)$/i.test(v)))
+        ? { ok: true, value: v } : { ok: false };
+    case "usernameColor":
+      return (typeof v === "string" && /^(username-[\w-]{1,30}|#[0-9a-f]{6})$/i.test(v))
+        ? { ok: true, value: v } : { ok: false };
+    case "avatar":
+    case "banner":
+    case "profileHeader":
+      if (v === null || v === "") return { ok: true, value: v };  
+      return { ok: true, value: sanitizeAvatar(v) };
+    default:
+      return { ok: true, value: v }; 
+  }
+}
+
+io.on("connection", (socket) => {
+  socket.pendingPackets = [];
+
+  console.log(`🔌 conn ${socket.id} ip=${getClientIp(socket)} ua=${socket.handshake.headers['user-agent']} bot=${!!socket.isBotToken}`);
+  setTimeout(() => {
+    if (!socket.userId) console.log(`⚠️ ${socket.id} connected but never joined`);
+  }, 15000);
+
+  socket.use((packet, next) => {
+    if (packet[0] === "join" || socket.userId) return next();
+    if (socket.pendingPackets.length < 50) socket.pendingPackets.push(packet);
+  });
+
+  function flushPendingPackets() {
+    const queued = socket.pendingPackets || [];
+    socket.pendingPackets = [];
+    for (const [event, ...args] of queued) {
+      socket.listeners(event).forEach(fn => {
+        try { fn(...args); } catch (e) { console.error(`❌ replay of ${event} failed:`, e); }
+      });
+    }
+  }
 
 socket.emit('serverConfig', {
     jitsi: serverConfig.jitsi,
-    server: {
-      ...serverConfig.public,
-      vapidPublicKey: process.env.VAPID_PUBLIC_KEY || null
-    },
+    server: { ...serverConfig.public, vapidPublicKey: process.env.VAPID_PUBLIC_KEY || null },
     serverBanner: currentServerBanner,
     pepeList: emoteConfig.pepeList,
     profileEffects: emoteConfig.profileEffects || [],
     prestigeBadges: emoteConfig.prestigeBadges || [],
     version: packageJson.version
   });
-  const liveStreamsList = Array.from(trackedStreams.values()).sort((a, b) => b.viewers - a.viewers);
-  socket.emit("initialStreams", {
-    allStreams: liveStreamsList
-  });
-socket.emit("channelList", dynamicChannels);
+
 
 socket.on("getChannels", () => {
   socket.emit("channelList", dynamicChannels);
@@ -5120,7 +5473,7 @@ socket.on('unregisterPushSubscription', (sub) => {
   }
 });
 
-socket.emit("roleList", customRoles);
+
 
 socket.on("getRoles", () => {
   socket.emit("roleList", customRoles);
@@ -5563,8 +5916,13 @@ socket.on('updateServerBanner', (data) => {
 });
 
 socket.on("markAllSeen", (data) => {
-  const { messageIds, userId, username, avatar, seenAt } = data;
-  if (!Array.isArray(messageIds)) return;
+  if (!socket.userId || !data || !Array.isArray(data.messageIds)) return;
+  const messageIds = data.messageIds.slice(0, 500);
+  const userId = socket.userId;
+  const me = onlineUsers.get(userId) || allUsers.get(userId) || {};
+  const username = me.username || "Anonymous";
+  const avatar = me.avatar || "/avatars/default1.png";
+  const seenAt = Date.now();
 
   const affectedChannels = new Set();
 
@@ -5934,6 +6292,8 @@ socket.on("deleteChannel", (data) => {
 });
    
 socket.on("join", (clientData) => {
+  if (socket.userId) return;
+  if (!clientData || typeof clientData !== "object") return;
    const isBot = clientData.isBot === true;
   if (socket.isBotToken && !isBot) {
     socket.disconnect(true);
@@ -6028,6 +6388,11 @@ const wasAlreadyOnline = !isBot && userSockets.has(clientData.id) && userSockets
 socket.userId = clientData.id;
 socket.isBot = isBot;
 socket.join("joined");
+socket.emit("initialStreams", {
+  allStreams: Array.from(trackedStreams.values()).sort((a, b) => b.viewers - a.viewers)
+});
+socket.emit("channelList", dynamicChannels);
+socket.emit("roleList", customRoles);
 
 if (!userSockets.has(clientData.id)) userSockets.set(clientData.id, new Set());
 userSockets.get(clientData.id).add(socket.id);
@@ -6080,7 +6445,7 @@ userSockets.get(clientData.id).add(socket.id);
   socket.isPromptEngineer = isPromptEngineer;
   const serverUser = {
   id: clientData.id,
-  username:      clientData.username      || dbUser.username      || "Anonymous",
+  username: cleanUsername(clientData.username) || dbUser.username || "Anonymous",
   avatar:        clientData.avatar        || dbUser.avatar        || "/avatars/default1.png",
   banner:        clientData.banner        ?? dbUser.banner        ?? "",
   usernameColor: clientData.usernameColor || dbUser.usernameColor || "username-cyan",
@@ -6132,7 +6497,7 @@ socket.emit("userData", {
   broadcastOnlineUsers();
 
 if (!socket.isBot && !isReconnect && !wasAlreadyOnline) {
-    socket.to("joined").emit("userOnline", serverUser);
+    socket.to("joined").emit("userOnline", pub(serverUser));
     allUsers.forEach((u, uid) => {
     if (uid === clientData.id) return;
     if (onlineUsers.has(uid)) return;
@@ -6188,6 +6553,7 @@ socket.emit("history", {
   }))
 });
   }
+   flushPendingPackets();
 });
 
 
@@ -6354,39 +6720,52 @@ socket.on("embedButtonClick", (data) => {
 
   emitToUser(message.userId, "embedButtonClick", payload);
 });
-  socket.on("voiceJoin", (data) => {
-  const { roomName, userId, username, avatar, usernameColor, level, badge } = data;
-  
-  if (!voiceRooms.has(roomName)) {
-    voiceRooms.set(roomName, []);
-  }
-  
-  const room = voiceRooms.get(roomName);
-  const filtered = room.filter(u => u.userId !== userId);
-  filtered.push({ 
-    userId, 
-    username, 
-    avatar: sanitizeAvatar(avatar), 
-    usernameColor: usernameColor || "username-cyan", 
-    level: level || 1, 
-    badge: badge || null 
-  });
-  
-  voiceRooms.set(roomName, filtered);
-  voiceUserStates.delete(userId);
-  io.emit("voiceRoomUpdate", { 
-    roomName, 
-    participants: filtered, 
-    count: filtered.length 
+ socket.on("voiceJoin", (data) => {
+  if (!socket.userId || !data) return;
+  const { roomName } = data;
+  if (typeof roomName !== "string" || !roomName || roomName.length > 64) return;
+
+  const userId = socket.userId;
+  const u = onlineUsers.get(userId) || allUsers.get(userId) || {};
+
+  if (!voiceRooms.has(roomName)) voiceRooms.set(roomName, []);
+  const filtered = voiceRooms.get(roomName).filter(p => p.userId !== userId);
+  filtered.push({
+    userId,
+    username: u.username || "Anonymous",
+    avatar: sanitizeAvatar(u.avatar),
+    usernameColor: u.usernameColor || "username-cyan",
+    level: u.level || 1,
+    badge: u.badge || null
   });
 
+  voiceRooms.set(roomName, filtered);
+  voiceUserStates.delete(userId);
+  io.emit("voiceRoomUpdate", { roomName, participants: filtered, count: filtered.length });
+
   const states = {};
-  voiceUserStates.forEach((state, id) => {
-    states[id] = state;
-  });
+  voiceUserStates.forEach((state, id) => { states[id] = state; });
   io.emit("voiceStatesSync", states);
-  
-  console.log(`🎤 ${username} joined vc ${roomName} (${filtered.length} total)`);
+});
+
+socket.on("voiceLeave", (data) => {
+  if (!socket.userId || !data) return;
+  const { roomName } = data;
+  if (typeof roomName !== "string" || !voiceRooms.has(roomName)) return;
+
+  const filtered = voiceRooms.get(roomName).filter(u => u.userId !== socket.userId);
+  voiceRooms.set(roomName, filtered);
+  voiceUserStates.delete(socket.userId);
+  io.emit("voiceRoomUpdate", { roomName, participants: filtered, count: filtered.length });
+});
+
+socket.on("voiceStateChange", (data) => {
+  if (!socket.userId || !data) return;
+  voiceUserStates.set(socket.userId, {
+    isMuted: !!data.isMuted,
+    isDeafened: !!data.isDeafened
+  });
+  io.emit("voiceStateUpdate", { ...data, userId: socket.userId });
 });
 
 
@@ -6627,30 +7006,14 @@ socket.on("whisperSend", (data) => {
   emitToUser(fromId, "whisperMessage", msg);
 });
 
-socket.on("voiceLeave", (data) => {
-  const { roomName, userId } = data;
-  
-  if (voiceRooms.has(roomName)) {
-    const room = voiceRooms.get(roomName);
-    const filtered = room.filter(u => u.userId !== userId);
-    voiceRooms.set(roomName, filtered);
-    voiceUserStates.delete(userId);
-    
-    io.emit("voiceRoomUpdate", { 
-      roomName, 
-      participants: filtered, 
-      count: filtered.length 
-    });
-    
-    console.log(`📞 User left ${roomName} (${filtered.length} remaining)`);
-  }
-});
+
 
 
   socket.on("message", (data) => {
     if (!data) return;
     const userId = socket.userId;
-      const now = Date.now();
+    const now = Date.now();
+    const channel = data.channel || "general"; 
 
 
 if (!socket.isBot) {
@@ -6669,6 +7032,16 @@ if (!socket.isBot) {
       data.prestigeBadge             = authoritativeUser.prestigeBadge || null;
       data.customRoleIds               = authoritativeUser.customRoleIds || [];
     }
+
+    if (!socket.isBot) {
+    const known = dynamicChannels.some(c => c.id === channel && c.type === "text");
+    const clean = known ? buildHumanMessage(data, now) : null;
+    if (!clean) {
+      console.log("MSG DROP: invalid", { channel, known, type: data.type, hasText: !!data.text, encrypted: data.encrypted });
+      socket.emit("error", { msg: "❌ Invalid message." });
+      return;
+    }
+  }
 
 
 if (data.type === "text" && typeof data.text === "string" && data.text.startsWith("/ree ")) {
@@ -6829,105 +7202,6 @@ const targetUsername = stripAtPrefix(parts.join(" ")).toLowerCase();
 }
 
 
-    if (data.type === "text" && typeof data.text === "string" && data.text.startsWith("/rm")) {
-    if (!socket.isAdmin) {
-      socket.emit("error", { msg: "❌ Admin only command." });
-      return;
-    }
-    io.emit('removePrivateYoutube');
-    socket.emit("systemMessage", { msg: `✅ Removed private video.`, type: "success" });
-    console.log(`🗑️ Private video removed by ${onlineUsers.get(userId)?.username}`);
-    return;
-  }
-
-  if (data.type === "text" && typeof data.text === "string" && data.text.startsWith("/lo ")) {
-    if (!socket.isAdmin) {
-      socket.emit("error", { msg: "❌ Admin only command." });
-      return;
-    }
-
-const commandParts = data.text.substring(4).trim().split(" ");
-const youtubeUrl = commandParts.pop();
-const targetUsername = stripAtPrefix(commandParts.join(" ")).toLowerCase();
-console.log(`TARGET USERNAME: ${targetUsername}`);
-console.log(`YOUTUBE URL: ${youtubeUrl}`);
-    let targetId = null;
-    let targetUserData = null;
-    onlineUsers.forEach((user, id) => {
-       console.log(`🕵️ TARGET ${user.username.toLowerCase()}`)
-       console.log(`🕵️ TARGET MATCH ${targetUsername}`)
-      if (user.username.toLowerCase() === targetUsername) {
-        targetId = id;
-        targetUserData = user;
-        console.log(`🎯 TARGET USERNAME: ${targetUsername} ID: ${targetId}`)
-      }
-    });
-
-    if (!targetId) {
-      socket.emit("error", { msg: `❌ User "${targetUsername}" not found or offline.` });
-      return;
-    }
-
-    const youtubeRegex =
-  /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
-
-if (!youtubeRegex.test(youtubeUrl)) {
-  console.log(`YOUTUBE: ${targetUsername} ID: ${targetId}`);
-
-  socket.emit("error", {
-    msg: "❌ Invalid YouTube URL. Must be a valid YouTube link.",
-  });
-
-  return;
-}
-
-const match = youtubeUrl.match(
-  /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-);
-
-const embedId = match ? match[1] : null;
-
-if (!embedId) {
-  socket.emit("error", {
-    msg: "❌ Could not extract video ID from URL.",
-  });
-
-  return;
-}
-
-const embedUrl = `https://www.youtube.com/embed/${embedId}`;
-console.log(`▶️ TARGET URL ${embedUrl}`);
-let targetSocket = null;
-io.sockets.sockets.forEach((sock) => {
-  if (sock.userId === targetId) {
-    targetSocket = sock.id;
-    return;
-  }
-});
-
-if (!targetSocket) {
-  socket.emit("error", { msg: `User is not connected.` });
-  return;
-}
-
-
-io.to(targetSocket).emit('receivePrivateYoutube', {
-  url: embedUrl,
-  senderId: userId,
-  senderName: onlineUsers.get(userId)?.username || "Anonymous",
-  timestamp: now
-});
-
-    socket.emit("systemMessage", {
-      msg: `✅ Sent private video to ${targetUserData.username}.`,
-      type: "success"
-    });
-
-    console.log(`🎥 Private YouTube sent: ${onlineUsers.get(userId)?.username} -> ${targetUserData.username}`);
-    return;
-  }
-  
-      const channel = data.channel || "general";
       if (mutedUsers.has(userId)) {
         socket.emit("error", { msg: "❌ You are muted and cannot send messages." });
         return;
@@ -6979,7 +7253,12 @@ io.to(targetSocket).emit('receivePrivateYoutube', {
         data.isRoomMention = true;
       }
     }
-
+    if (!socket.isBot) {
+      const known = dynamicChannels.some(c => c.id === channel && c.type === "text");
+      const clean = known ? buildHumanMessage(data, now) : null;
+      if (!clean) { socket.emit("error", { msg: "❌ Invalid message." }); return; }
+      data = clean;
+    }
 
     if (!data.seenBy) {
       data.seenBy = [];
@@ -7024,15 +7303,6 @@ if (!socket.isBot && (data.type === "text" || data.type === "image" || data.type
   }
   });
 
- socket.on("voiceStateChange", (data) => {
-  if (!data?.userId) return;
-  voiceUserStates.set(data.userId, {
-    isMuted: !!data.isMuted,
-    isDeafened: !!data.isDeafened
-  });
-
-  io.emit("voiceStateUpdate", data);
-});
 
 
 socket.on("botUpdateStatus", (data) => {
@@ -7099,7 +7369,14 @@ socket.on("requestVoiceStates", (data) => {
 });
   
 socket.on("messageSeen", (data) => {
-  if (!data || !data.messageId || !data.userId) return;
+  if (!socket.userId || !data || typeof data.messageId !== "string") return;
+  const me = onlineUsers.get(socket.userId) || allUsers.get(socket.userId) || {};
+  data = {
+    messageId: data.messageId,
+    userId: socket.userId,
+    username: me.username || "Anonymous",
+    avatar: me.avatar || "/avatars/default1.png"
+  };
   let message = null;
   let foundInChannel = null;
   for (const [channel, channelMessages] of messagesByChannel) {
@@ -7207,6 +7484,7 @@ socket.on("typing", (data) => {
 
 
  socket.on("updateUser", (data) => {
+  if (!data || typeof data.user !== "object" || data.user === null) return;
   if (socket.isBot) return;
   if (!socket.userId || !onlineUsers.has(socket.userId)) return;
 
@@ -7220,21 +7498,12 @@ socket.on("typing", (data) => {
   ];
 
 ALLOWED_CLIENT_FIELDS.forEach(field => {
-  if (data.user[field] !== undefined) {
-    if (field === "customStatus" && dbUser?.statusLocked) return; 
-    if (field === 'username' || field === 'customStatus') {
-      currentUser[field] = sanitizeString(data.user[field], field === 'username' ? 32 : 100);
-    } else {
-      currentUser[field] = data.user[field];
-    }
-  }
-
+  if (data.user[field] === undefined) return;
+  if (field === "customStatus" && dbUser?.statusLocked) return;
+  const r = cleanProfileField(field, data.user[field]);
+  if (r.ok) currentUser[field] = r.value;
 });
 
-
-if (data.user.username !== undefined) {
-  currentUser.username = sanitizeString(data.user.username, 32);
-}
 
   if (data.user.status === "online") {
     currentUser.status = "online";
@@ -7253,18 +7522,10 @@ if (data.user.username !== undefined) {
   const dbUpdate = { ...existingDb, lastActive: currentUser.lastActive };
 
 ALLOWED_CLIENT_FIELDS.forEach(field => {
-  if (data.user[field] !== undefined) {
-    if (field === "customStatus" && dbUser?.statusLocked) return;
-
-    if (field === "username" || field === "customStatus") {
-      dbUpdate[field] = sanitizeString(
-        data.user[field],
-        field === "username" ? 32 : 100
-      );
-    } else {
-      dbUpdate[field] = data.user[field];
-    }
-  }
+  if (data.user[field] === undefined) return;
+  if (field === "customStatus" && dbUser?.statusLocked) return;
+  const r = cleanProfileField(field, data.user[field]);
+  if (r.ok) dbUpdate[field] = r.value;
 });
 
 dbUpdate.level = existingDb.level || 1;
@@ -7477,13 +7738,21 @@ socket.on("getReactions", (data) => {
 });
  
 socket.on("delete", (data) => {
+  if (!socket.userId || !data || typeof data.id !== "string") return;
+
   const message = messages.find(m => m && m.id === data.id);
-   if (message && message.protected && !socket.isAdmin) {
+  if (!message) return;
+
+  if (message.userId !== socket.userId && !socket.isAdmin) {
+    socket.emit("error", { msg: "❌ You can only delete your own messages." });
+    return;
+  }
+  if (message.protected && !socket.isAdmin) {
     socket.emit("error", { msg: "This message cannot be deleted." });
     return;
   }
 
-  const channel = message?.channel || "general";
+  const channel = message.channel || "general";
 
   messages = messages.filter(m => m.id !== data.id);
   messagesByChannel.forEach((channelMessages, ch) => {
@@ -8599,7 +8868,7 @@ socket.on("bjDouble", () => {
   const balance = getChipBalance(socket.userId);
   if (balance < s.bet) { socket.emit("bjError", { msg: "Insufficient XP to double." }); return; }
 
-  
+  adjustUserXp(socket.userId, -s.bet * BJ_XP_PER_CHIP);
   s.bet *= 2;
   s.doubled = true;
   s.hand.push(bjTable.deck.pop());
@@ -9804,23 +10073,36 @@ socket.on("dartsLeaderboardGet", () => {
 socket.on("dartsThrow", (data) => {
   if (!socket.userId || socket.isBot) return;
   const userId = socket.userId;
+  const nowTs = Date.now();
+  if (nowTs - (dartsLastThrow.get(userId) || 0) < 1000) return;
+  dartsLastThrow.set(userId, nowTs);
   const useBonus = data?.account === "bonus";
   const amount = Math.floor(Number(data?.amount));
-  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
-
-  if (balance <= 0) {
-  socket.emit("dartsError", { msg: "You have no chips to bet with." });
-  return;
-}
 
   if (!Number.isFinite(amount) || amount <= 0) {
     socket.emit("dartsError", { msg: "Invalid bet." });
     return;
   }
-  
+  if (amount > DARTS_MAX_BET_CHIPS) {
+    socket.emit("dartsError", { msg: `Max bet is ${DARTS_MAX_BET_CHIPS} chips.` });
+    return;
+  }
 
-  if (useBonus) placeBonusBet(userId, amount);
-  else adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+  const balance = useBonus ? getBonusBalance(userId) : getChipBalance(userId);
+  if (amount > balance) {
+    socket.emit("dartsError", { msg: "Insufficient balance." });
+    return;
+  }
+
+  
+  if (useBonus) {
+    if (!placeBonusBet(userId, amount)) {
+      socket.emit("dartsError", { msg: "Insufficient bonus balance." });
+      return;
+    }
+  } else {
+    adjustUserXp(userId, -amount * BJ_XP_PER_CHIP);
+  }
 
   const ringIndex = dartsPickRing();
   const { multiplier, payoutChips, ring } = dartsEvaluate(ringIndex, amount);
@@ -10016,14 +10298,7 @@ socket.on("diceLeaderboardGet", () => {
 
 
 function getClientIp(socket) {
-  const forwarded = socket.handshake.headers['x-forwarded-for'];
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-  const cfIp = socket.handshake.headers['cf-connecting-ip'];
-  if (cfIp) return Array.isArray(cfIp) ? cfIp[0] : cfIp;
-
-  return socket.handshake.address || 'unknown';
+  return socket.handshake.headers['x-real-ip'] || socket.handshake.address || 'unknown';
 }
 setInterval(() => {
   const now = Date.now();
@@ -10092,7 +10367,8 @@ const emoteUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, "public/avatars/"),
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
+      const ext = SAFE_IMG_EXT[file.mimetype];
+      if (!ext) return cb(new Error("Invalid file type"));
       const rawName = (req.body?.name || "").toString();
       const cleanName = rawName
         .trim()
@@ -10119,7 +10395,7 @@ const emoteUpload = multer({
   }
 });
 
-app.post("/upload-emote", requireAuth, emoteUpload.single("emote"), (req, res) => {
+app.post("/upload-emote", requireUser, emoteUpload.single("emote"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
   const filename = req.file.filename;
@@ -10127,7 +10403,7 @@ app.post("/upload-emote", requireAuth, emoteUpload.single("emote"), (req, res) =
   emoteConfig.pepeList.push(filename);
   try {
     writeJsonSync(EMOTE_CONFIG_PATH, emoteConfig);
-    console.log(`✅ Emote added: ${filename}`);
+    console.log(`✅ Emote added: ${filename} by ${allUsers.get(req.userId)?.username || req.userId}`);
   } catch (err) {
     console.error("❌ Failed to save emote config:", err);
     return res.status(500).json({ error: "Failed to save config" });
@@ -10138,7 +10414,11 @@ app.post("/upload-emote", requireAuth, emoteUpload.single("emote"), (req, res) =
   res.json({ url: `/avatars/${filename}`, filename });
 });
 
-app.delete("/delete-emote/:filename", requireAuth, (req, res) => {
+app.delete("/delete-emote/:filename", requireUser, (req, res) => {
+  const requester = allUsers.get(req.userId);
+  if (!requester || !(requester.isAdmin || requester.isDeveloper)) {
+    return res.status(403).json({ error: "Admins only." });
+  }
 
   const filename = req.params.filename;
   if (!filename || filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
@@ -10371,7 +10651,7 @@ app.get("/api/library/browse", requireAuth, (req, res) => {
 
 
 app.get("/api/library/file", (req, res) => {
-  if (req.query.token !== CHAT_PASSWORD) return res.status(401).json({ error: "Unauthorized" });
+  if (!hasMediaAccess(req)) return res.status(401).json({ error: "Unauthorized" });
 
   const reqPath = req.query.path || "";
   const absPath = safeLibraryPath(reqPath);
@@ -10498,6 +10778,8 @@ startBackups({
   everyMs: 60 * 60 * 1000,
   keep: 48
 });
+
+
 
 server.listen(5350, '127.0.0.1', () => {
   console.log("🚀 Node.js server running on http://127.0.0.1:5350");

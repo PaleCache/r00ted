@@ -168,7 +168,6 @@
     document.getElementById("libraryCloseBtn").onclick = closeLibraryModal;
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && modal.classList.contains("show")) closeLibraryModal();
-      window.openGamesMenu();
     });
 
     makeDraggable(els.box, els.header);
@@ -227,7 +226,7 @@
   container.style.cssText = "width:100%; flex:1; min-height:0; position:relative; overflow:hidden;";
   els.playerPane.appendChild(container);
 
-  const fileUrl = `${file.url}&token=${encodeURIComponent(getToken())}`;
+  const fileUrl = `${file.url}&token=${encodeURIComponent(window.getMediaToken?.() || getToken())}`;
 
   const coreMap = {
     nes: "nes", gb: "gb", gbc: "gb", gba: "gba",
