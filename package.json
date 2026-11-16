@@ -1,6 +1,6 @@
 {
   "name": "r00ted",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "desktopName": "r00ted.desktop",
   "description": "Beyond identity. Beyond control. True Freedom.",
   "main": "./app/main.js",
@@ -31,15 +31,14 @@
     "build": "npm run clean && electron-builder",
     "build-appimage": "npm run clean && electron-builder --linux AppImage"
   },
-
   "build": {
     "appId": "com.r00ted.app",
     "productName": "R00TED",
     "publish": [
-    {
-      "provider": "generic",
-      "url": "https://example.com/updates/"
-    }
+      {
+        "provider": "generic",
+        "url": "https://example.com/updates/"
+      }
     ],
     "files": [
       "./app/main.js",
